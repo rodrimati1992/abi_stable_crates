@@ -1,4 +1,5 @@
 //! Ffi-safe equivalents of `std::io::{ErrorKind, Error, SeekFrom}`.
+#![allow(clippy::missing_const_for_fn)]
 
 use std::{
     error::Error as ErrorTrait,
@@ -37,8 +38,10 @@ macro_rules! impl_error_kind {
         #[allow(non_upper_case_globals)]
         impl RIoErrorKind {
             $(
+                ///
                 pub const $variant: Self = RIoErrorKind { value: $value };
             )*
+            ///
             pub const Other: Self = RIoErrorKind { value: 0 };
         }
 
@@ -122,8 +125,11 @@ impl_error_kind! {
 #[repr(u8)]
 #[derive(StableAbi)]
 pub enum RSeekFrom {
+    ///
     Start(u64),
+    ///
     End(i64),
+    ///
     Current(i64),
 }
 
@@ -445,7 +451,7 @@ mod error_kind_tests {
 
     #[test]
     fn conversions() {
-        for (from, to) in vec![
+        for (from, to) in [
             (ErrorKind::NotConnected, RIoErrorKind::NotConnected),
             (ErrorKind::AddrInUse, RIoErrorKind::AddrInUse),
             (ErrorKind::Other, RIoErrorKind::Other),
@@ -464,7 +470,7 @@ mod io_error_tests {
 
     #[test]
     fn from_error_kind() {
-        for kind in vec![
+        for kind in [
             ErrorKind::NotConnected,
             ErrorKind::AddrInUse,
             ErrorKind::Other,

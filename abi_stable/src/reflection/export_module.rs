@@ -117,7 +117,7 @@ impl MRItem {
             ModReflMode::Opaque => MRItemVariant::Static,
             ModReflMode::DelegateDeref { layout_index } => {
                 let delegate_to = layout.shared_vars().type_layouts()[layout_index as usize];
-                let inner_layout = delegate_to.get();
+                let inner_layout = delegate_to();
                 Self::get_item_variant(inner_layout)
             }
         }

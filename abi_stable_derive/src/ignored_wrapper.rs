@@ -83,6 +83,9 @@ impl<T> Hash for Ignored<T> {
     where
         H: Hasher,
     {
-        ().hash(state)
+        UnitType.hash(state)
     }
 }
+
+#[derive(Hash)]
+struct UnitType;

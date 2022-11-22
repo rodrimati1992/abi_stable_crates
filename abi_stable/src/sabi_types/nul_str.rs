@@ -6,6 +6,8 @@ mod tests;
 
 use crate::std_types::RStr;
 
+use const_panic::{concat_assert, concat_panic};
+
 use std::{
     cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd},
     fmt::{self, Debug, Display},
@@ -110,15 +112,18 @@ impl<'a> NulStr<'a> {
     ///
     /// ```
     pub const fn from_str(str: &'a str) -> Self {
-        let this = unsafe {
-            Self {
-                ptr: NonNull::new_unchecked(str.as_ptr() as *mut u8),
-                _marker: PhantomData,
-            }
+        let this = Self {
+            ptr: crate::utils::ref_as_nonnull(str).cast::<u8>(),
+            _marker: PhantomData,
         };
 
         let last_byte = str.as_bytes()[str.len() - 1] as usize;
-        [this /* expected a nul terminator */][last_byte]
+        concat_assert! {
+            last_byte == 0,
+            "expected a nul terminator, found:",
+            last_byte,
+        };
+        this
     }
 
     /// Constructs an NulStr from a string slice.
@@ -169,11 +174,14 @@ impl<'a> NulStr<'a> {
     }
 
     #[doc(hidden)]
+    #[track_caller]
     pub const fn __try_from_str_unwrapping(s: &'a str) -> Self {
         match Self::try_from_str(s) {
             Ok(x) => x,
-            Err(NulStrError::InnerNul { pos }) => [/* encountered nul byte at `pos` */][pos],
-            Err(NulStrError::NoNulTerminator) => [/* there no nul-terminator */][s.len()],
+            Err(NulStrError::InnerNul { pos }) => {
+                concat_panic!("encountered inner nul byte at position: ", pos)
+            }
+            Err(NulStrError::NoNulTerminator) => concat_panic!("found no nul-terminator"),
         }
     }
 
@@ -208,7 +216,7 @@ impl<'a> NulStr<'a> {
     /// ```
     pub const unsafe fn from_ptr(ptr: *const u8) -> Self {
         Self {
-            ptr: NonNull::new_unchecked(ptr as *mut u8),
+            ptr: unsafe { NonNull::new_unchecked(ptr as *mut u8) },
             _marker: PhantomData,
         }
     }
@@ -251,6 +259,52 @@ impl<'a> NulStr<'a> {
         unsafe {
             let bytes = std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const _).to_bytes_with_nul();
             std::str::from_utf8_unchecked(bytes)
+        }
+    }
+
+    /// Computes the length of the string, NOT including the nul terminator.
+    #[cfg(feature = "rust_1_64")]
+    const fn compute_length(self) -> usize {
+        let start: *const u8 = self.ptr.as_ptr();
+        let mut ptr = start;
+        let mut len = 0;
+        unsafe {
+            while *ptr != 0 {
+                ptr = ptr.offset(1);
+                len += 1;
+            }
+            len
+        }
+    }
+
+    /// Converts this `NulStr<'a>` to a `&'a str`,including the nul byte.
+    ///
+    /// # Performance
+    ///
+    /// To make this function const-callable,
+    /// this uses a potentially less efficient approach than
+    /// [`to_str_with_nul`](Self::to_str_with_nul).
+    ///
+    /// This conversion requires traversing through the entire string to
+    /// find the nul byte.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// const FOO: NulStr<'_> = NulStr::from_str("foo bar\0");
+    /// const FOO_S: &str = FOO.const_to_str_with_nul();
+    /// assert_eq!(&FOO_S[..3], "foo");
+    /// assert_eq!(&FOO_S[4..], "bar\0");
+    ///
+    /// ```
+    #[cfg(feature = "rust_1_64")]
+    #[cfg_attr(feature = "docsrs", doc(cfg(feature = "rust_1_64")))]
+    pub const fn const_to_str_with_nul(&self) -> &'a str {
+        unsafe {
+            let len = self.compute_length();
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.as_ptr(), len + 1))
         }
     }
 
@@ -299,6 +353,36 @@ impl<'a> NulStr<'a> {
         unsafe {
             let bytes = std::ffi::CStr::from_ptr(self.ptr.as_ptr() as *const _).to_bytes();
             std::str::from_utf8_unchecked(bytes)
+        }
+    }
+
+    /// Converts this `NulStr<'a>` to a `&'a str`,not including the nul byte.
+    ///
+    /// # Performance
+    ///
+    /// To make this function const-callable,
+    /// this uses a potentially less efficient approach than [`to_str`](Self::to_str).
+    ///
+    /// This conversion requires traversing through the entire string to
+    /// find the nul byte.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use abi_stable::sabi_types::NulStr;
+    ///
+    /// const FOO: NulStr<'_> = NulStr::from_str("foo bar\0");
+    /// const FOO_S: &str = FOO.const_to_str();
+    /// assert_eq!(&FOO_S[..3], "foo");
+    /// assert_eq!(&FOO_S[4..], "bar");
+    ///
+    /// ```
+    #[cfg(feature = "rust_1_64")]
+    #[cfg_attr(feature = "docsrs", doc(cfg(feature = "rust_1_64")))]
+    pub const fn const_to_str(self) -> &'a str {
+        unsafe {
+            let len = self.compute_length();
+            std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.as_ptr(), len))
         }
     }
 
@@ -395,11 +479,14 @@ impl Debug for NulStr<'_> {
 /// Error from trying to convert a `&str` to a [`NulStr`]
 ///
 /// [`NulStr`]: ./struct.NulStr.html
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[non_exhaustive]
 pub enum NulStrError {
     /// When the string has a `'\0'` before the end.
-    InnerNul { pos: usize },
+    InnerNul {
+        /// the position of the first '\0' character.
+        pos: usize,
+    },
     /// When the string doesn't end with `'\0'`
     NoNulTerminator,
 }

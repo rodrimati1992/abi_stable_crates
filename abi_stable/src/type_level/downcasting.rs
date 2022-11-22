@@ -1,5 +1,5 @@
 use crate::{
-    sabi_types::{Constructor, MaybeCmp},
+    sabi_types::MaybeCmp,
     std_types::utypeid::{no_utypeid, some_utypeid, UTypeId},
 };
 
@@ -73,17 +73,17 @@ pub struct TD_Opaque;
 ///
 /// - `TD_Opaque`: the function always returns `MaybeCmp::Nothing`.
 pub trait GetUTID<T> {
-    /// A struct wrapping the function.
-    const UID: Constructor<MaybeCmp<UTypeId>>;
+    /// the function.
+    const UID: extern "C" fn() -> MaybeCmp<UTypeId>;
 }
 
 impl<T> GetUTID<T> for TD_CanDowncast
 where
     T: 'static,
 {
-    const UID: Constructor<MaybeCmp<UTypeId>> = Constructor(some_utypeid::<T>);
+    const UID: extern "C" fn() -> MaybeCmp<UTypeId> = some_utypeid::<T>;
 }
 
 impl<T> GetUTID<T> for TD_Opaque {
-    const UID: Constructor<MaybeCmp<UTypeId>> = Constructor(no_utypeid);
+    const UID: extern "C" fn() -> MaybeCmp<UTypeId> = no_utypeid;
 }

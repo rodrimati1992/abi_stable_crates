@@ -6,7 +6,7 @@
 //!
 //! - Create some type and implement ExtraChecks for it,
 //!
-//! - Apply the `#[sabi(extra_checks="const expression that implements ExtraChecks")]`
+//! - Apply the `#[sabi(extra_checks = const expression that implements ExtraChecks)]`
 //!     attribute to a type that uses `#[derive(StableAbi)]`.
 //!
 //! # Combination
@@ -63,7 +63,7 @@
 //!     marker_type::UnsafeIgnoredType,
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCow, ROption, RResult, RSome, RStr},
+//!     std_types::{RCow, RCowSlice, ROption, RResult, RSome, RStr},
 //!     type_layout::TypeLayout,
 //!     GetStaticEquivalent, StableAbi,
 //! };
@@ -101,11 +101,11 @@
 //! #[repr(C)]
 //! #[derive(StableAbi)]
 //! #[sabi(
-//! // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent`
-//! // (a supertrait of StableAbi).
-//! not_stableabi(C),
-//! bound="C:GetConstant",
-//! extra_checks="Self::CHECKER"
+//!     // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent`
+//!     // (a supertrait of StableAbi).
+//!     not_stableabi(C),
+//!     bound(C: GetConstant),
+//!     extra_checks = Self::CHECKER
 //! )]
 //! struct WithConstant<C> {
 //!     // UnsafeIgnoredType is equivalent to PhantomData,
@@ -219,7 +219,7 @@
 //!         })
 //!     }
 //!
-//!     fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+//!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
 //!         RCow::from_slice(&[])
 //!     }
 //!
@@ -292,7 +292,7 @@
 //!     },
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCow, RDuration, ROption, RResult, RStr, RString},
+//!     std_types::{RCow, RCowSlice, RDuration, ROption, RResult, RStr, RString},
 //!     type_layout::TypeLayout,
 //!     StableAbi,
 //! };
@@ -313,7 +313,7 @@
 //!
 //! #[repr(C)]
 //! #[derive(StableAbi)]
-//! #[sabi(extra_checks = "InOrderChecker")]
+//! #[sabi(extra_checks = InOrderChecker)]
 //! struct Rectangle {
 //!     x: u32,
 //!     y: u32,
@@ -322,7 +322,7 @@
 //!
 //! #[repr(C)]
 //! #[derive(StableAbi)]
-//! #[sabi(extra_checks = "InOrderChecker")]
+//! #[sabi(extra_checks = InOrderChecker)]
 //! struct Person {
 //!     name: RString,
 //!     surname: RString,
@@ -374,7 +374,7 @@
 //!         })
 //!     }
 //!
-//!     fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+//!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
 //!         RCow::from_slice(&[])
 //!     }
 //! }
@@ -421,7 +421,7 @@
 //!     marker_type::UnsafeIgnoredType,
 //!     sabi_extern_fn,
 //!     sabi_trait::prelude::TD_Opaque,
-//!     std_types::{RCow, RDuration, RResult, RStr, RString},
+//!     std_types::{RCow, RCowSlice, RDuration, RResult, RStr, RString},
 //!     type_layout::TypeLayout,
 //!     GetStaticEquivalent, StableAbi,
 //! };
@@ -461,11 +461,11 @@
 //! #[repr(C)]
 //! #[derive(StableAbi)]
 //! #[sabi(
-//! // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent`
-//! // (a supertrait of StableAbi).
-//! not_stableabi(C),
-//! bound="C:GetConstant",
-//! extra_checks="Self::CHECKER"
+//!     // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent`
+//!     // (a supertrait of StableAbi).
+//!     not_stableabi(C),
+//!     bound(C:GetConstant),
+//!     extra_checks = Self::CHECKER,
 //! )]
 //! struct WithConstant<C> {
 //!     // UnsafeIgnoredType is equivalent to PhantomData,
@@ -558,7 +558,7 @@
 //!         })
 //!     }
 //!
-//!     fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+//!     fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
 //!         RCow::from_slice(&[])
 //!     }
 //! }
@@ -592,7 +592,7 @@
 use crate::{
     rtry, sabi_trait,
     sabi_types::{RMut, RRef},
-    std_types::{RBox, RBoxError, RCow, RNone, ROk, ROption, RResult},
+    std_types::{RBox, RBoxError, RCowSlice, RNone, ROk, ROption, RResult},
     traits::IntoReprC,
     type_layout::TypeLayout,
     StableAbi,
@@ -605,10 +605,14 @@ use std::{
 
 use core_extensions::SelfOps;
 
+#[sabi_trait]
 /// This checks that the layout of types coming from dynamic libraries
 /// are compatible with those of the binary/dynlib that loads them.
 ///
-#[sabi_trait]
+/// # Safety
+///
+/// This trait must not be implemented outside of `abi_stable`.
+///
 #[sabi(no_trait_impl)]
 // #[sabi(debug_print_trait)]
 // #[sabi(debug_print)]
@@ -647,6 +651,7 @@ pub unsafe trait TypeChecker: 'static + Send + Sync {
 /// An ffi-safe equivalent of &'b mut dyn TypeChecker
 pub type TypeCheckerMut<'b> = TypeChecker_TO<RMut<'b, ()>>;
 
+#[sabi_trait]
 /// Allows defining extra checks for a type.
 ///
 /// Look at the
@@ -661,7 +666,6 @@ pub type TypeCheckerMut<'b> = TypeChecker_TO<RMut<'b, ()>>;
 /// All of the methods must be deterministic,
 /// always returning the same value with the same arguments.
 ///
-#[sabi_trait]
 #[sabi(no_trait_impl)]
 // #[sabi(debug_print_trait)]
 // #[sabi(debug_print)]
@@ -706,7 +710,7 @@ pub unsafe trait ExtraChecks: 'static + Debug + Display + Clone + Send + Sync {
     /// Returns the `TypeLayout`s owned or referenced by `self`.
     ///
     /// This is necessary for the Debug implementation of `TypeLayout`.
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]>;
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout>;
 
     /// Combines this ExtraChecks trait object with another one.
     ///

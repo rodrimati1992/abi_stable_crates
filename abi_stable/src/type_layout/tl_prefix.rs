@@ -14,7 +14,7 @@ pub struct MonoTLPrefixType {
     /// Which fields in the prefix
     /// (the ones up to the one with the `#[sabi(last_prefix_field)]` attribute)
     /// are conditionally accessible
-    /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
+    /// (with the `#[sabi(accessible_if = expression)]` attribute).
     pub conditional_prefix_fields: FieldConditionality,
     /// All the fields of the prefix-type,even if they are inaccessible.
     pub fields: CompTLFields,
@@ -22,7 +22,7 @@ pub struct MonoTLPrefixType {
 
 impl MonoTLPrefixType {
     /// Expands this into a `TLPrefixType`.
-    pub fn expand(
+    pub const fn expand(
         self,
         other: GenericTLPrefixType,
         shared_vars: &'static SharedVars,
@@ -62,7 +62,7 @@ pub struct TLPrefixType {
     /// Which fields in the prefix
     /// (the ones up to the one with the `#[sabi(last_prefix_field)]` attribute)
     /// are conditionally accessible
-    /// (with the `#[sabi(accessible_if=" expression ")]` attribute).
+    /// (with the `#[sabi(accessible_if = expression)]` attribute).
     pub conditional_prefix_fields: FieldConditionality,
     /// All the fields of the prefix-type,even if they are inaccessible.
     pub fields: TLFields,
@@ -83,7 +83,7 @@ impl Display for TLPrefixType {
         writeln!(f, "fields:\n{}", self.fields.to_string().left_padder(4))?;
         write!(f, "accessible_fields:\n    ")?;
         f.debug_list()
-            .entries(self.accessible_fields.iter_count(self.fields.len()))
+            .entries(self.accessible_fields.iter().take(self.fields.len()))
             .finish()?;
         Ok(())
     }

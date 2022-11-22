@@ -2,16 +2,18 @@
 name = "version_compatibility_impl"
 version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
-# abi_stable={path="../../../abi_stable",package="abi_stable"}
-abi_stable={version="*"}
+abi_stable={path="../../../abi_stable",package="abi_stable"}
+# TODO: change back in the 0.11.1 release
+# abi_stable={version="*"}
 
 [dependencies.version_compatibility_interface]
 version="0.1"
 path="../interface/"
-features=["old"]
+# TODO: change back to "old" in the 0.11.1 release
+features=["new"]
 
 [lib]
 name = "version_compatibility_impl"

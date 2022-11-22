@@ -2,7 +2,36 @@ use super::*;
 
 use std::cell::Cell;
 
-fn refaddr<'a, T>(ref_: &'a T) -> usize {
+#[allow(clippy::redundant_allocation)]
+fn _covariant_arc<'a: 'b, 'b, T>(foo: Arc<&'a T>) -> Arc<&'b T> {
+    foo
+}
+
+fn _covariant_rarc<'a: 'b, 'b, T>(foo: RArc<&'a T>) -> RArc<&'b T> {
+    foo
+}
+
+#[test]
+fn test_covariance() {
+    struct F<T>(T);
+
+    fn eq<'a, 'b, T>(left: &RArc<&'a T>, right: &RArc<&'b T>) -> bool
+    where
+        T: PartialEq,
+    {
+        left == right
+    }
+
+    let aaa = F(3);
+    let bbb = F(5);
+
+    let v0 = RArc::new(&aaa.0);
+    let v1 = RArc::new(&bbb.0);
+
+    assert!(!eq(&v0, &v1));
+}
+
+fn refaddr<T>(ref_: &T) -> usize {
     ref_ as *const T as usize
 }
 
@@ -36,6 +65,8 @@ fn to_from_arc() {
     assert_eq!(Arc::strong_count(&orig_a), 1);
 }
 
+// testing that Arc<()> is valid
+#[allow(clippy::unit_cmp)]
 #[test]
 fn default() {
     assert_eq!(*RArc::<String>::default(), "");

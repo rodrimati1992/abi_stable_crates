@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_fn)]
+
 use std::{
     error::Error as ErrorTrait,
     fmt::{self, Debug, Display},
@@ -15,7 +17,7 @@ use crate::{
     },
     marker_type::{ErasedObject, SyncSend, UnsyncSend, UnsyncUnsend},
     pointer_trait::{AsMutPtr, AsPtr},
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::RRef,
     std_types::{
         utypeid::{new_utypeid, UTypeId},
@@ -73,7 +75,7 @@ mod test;
 /// // Constructing a `RBoxError` from a `Box<dyn Error>`, then downcasting to a `ParseIntError`.
 /// {
 ///     let parse_err = "".parse::<u64>().unwrap_err();
-///     let dyn_err: Box<std::error::Error + Send + Sync + 'static> =
+///     let dyn_err: Box<dyn std::error::Error + Send + Sync + 'static> =
 ///         Box::new(parse_err.clone());
 ///     let err = RBoxError::from_box(dyn_err);
 ///
@@ -116,7 +118,7 @@ mod test;
 /// // then downcasting to a `TryFromIntError`.
 /// {
 ///     let int_err = u32::try_from(-1_i32).unwrap_err();
-///     let dyn_err: Box<std::error::Error + 'static> = Box::new(int_err.clone());
+///     let dyn_err: Box<dyn std::error::Error + 'static> = Box::new(int_err.clone());
 ///     let err = UnsyncRBoxError::from_box(dyn_err);
 ///
 ///     assert_eq!(err.downcast_ref::<TryFromIntError>().unwrap(), &int_err);
@@ -153,7 +155,7 @@ mod test;
 /// // then downcasting to a `FromUtf8Error`.
 /// {
 ///     let str_err = || String::from_utf8(vec![255]).unwrap_err();
-///     let dyn_err: Box<std::error::Error + Send + 'static> = Box::new(str_err());
+///     let dyn_err: Box<dyn std::error::Error + Send + 'static> = Box::new(str_err());
 ///     let mut err = SendRBoxError::from_box(dyn_err);
 ///
 ///     assert!(err.downcast_ref::<FromUtf8Error>().is_some(), "part A");
@@ -328,7 +330,7 @@ impl<M> RBoxError_<M> {
     unsafe fn new_with_vtable<T>(value: T, vtable: RErrorVTable_Ref) -> Self {
         let value = value
             .piped(RBox::new)
-            .piped(|x| mem::transmute::<RBox<T>, RBox<ErasedObject>>(x));
+            .piped(|x| unsafe { mem::transmute::<RBox<T>, RBox<ErasedObject>>(x) });
 
         Self {
             value,
@@ -717,23 +719,19 @@ where
         type_id: new_utypeid::<T>,
     };
 
-    const VALUE_MD: &'static WithMetadata<RErrorVTable> =
-        &WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE);
+    const VALUE_MD: &'static WithMetadata<RErrorVTable> = &WithMetadata::new(Self::VALUE);
 
     const LIB_VTABLE: RErrorVTable_Ref = { RErrorVTable_Ref(Self::VALUE_MD.static_as_prefix()) };
 }
 
 impl MakeRErrorVTable<DebugDisplay> {
     const WM_DEBUG_DISPLAY: &'static WithMetadata<RErrorVTable> = {
-        &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            RErrorVTable {
-                debug: debug_impl::<DebugDisplay>,
-                display: display_impl::<DebugDisplay>,
-                as_debug_display,
-                type_id: new_utypeid::<DebugDisplay>,
-            },
-        )
+        &WithMetadata::new(RErrorVTable {
+            debug: debug_impl::<DebugDisplay>,
+            display: display_impl::<DebugDisplay>,
+            as_debug_display,
+            type_id: new_utypeid::<DebugDisplay>,
+        })
     };
 
     const LIB_VTABLE_DEBUG_DISPLAY: RErrorVTable_Ref =
@@ -755,8 +753,7 @@ where
         type_id: new_utypeid::<Box<T>>,
     };
 
-    const WM_VTABLE: &'static WithMetadata<RErrorVTable> =
-        &WithMetadata::new(PrefixTypeTrait::METADATA, Self::VALUE);
+    const WM_VTABLE: &'static WithMetadata<RErrorVTable> = &WithMetadata::new(Self::VALUE);
 
     const LIB_VTABLE: RErrorVTable_Ref = RErrorVTable_Ref(Self::WM_VTABLE.static_as_prefix());
 }

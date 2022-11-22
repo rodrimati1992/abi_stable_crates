@@ -1,6 +1,7 @@
 //! Example non-exhaustive enums,used in tests
 
-#![allow(dead_code)]
+#![allow(dead_code, missing_docs)]
+#![allow(clippy::derive_partial_eq_without_eq)]
 
 pub mod command_one {
     use std::fmt::{self, Display};
@@ -10,7 +11,7 @@ pub mod command_one {
     #[sabi(kind(WithNonExhaustive(
         size = 64,
         traits(Debug, PartialEq, Eq, Clone),
-        assert_nonexhaustive = "Foo",
+        assert_nonexhaustive = Foo,
     )))]
     pub enum Foo {
         A,
@@ -31,7 +32,7 @@ pub mod command_one_more_traits_1 {
     #[sabi(kind(WithNonExhaustive(
         size = 64,
         traits(Debug, PartialEq, Eq, Clone, Hash),
-        assert_nonexhaustive("Foo"),
+        assert_nonexhaustive(Foo),
     )))]
     pub enum Foo {
         A,
@@ -211,9 +212,9 @@ pub mod too_large {
     #[repr(u8)]
     #[derive(StableAbi, Hash, Debug, PartialEq, Eq, Clone)]
     #[sabi(kind(WithNonExhaustive(size = 64, traits(Debug, PartialEq, Eq, Clone))))]
-    pub enum Foo {
+    pub enum Foo<T = i8> {
         A,
-        B(i8),
+        B(T),
         C([u16; 32]),
     }
 }
@@ -245,6 +246,17 @@ pub mod generic_a {
                 Foo::C(v) => write!(f, "Variant C:{}", v),
             }
         }
+    }
+}
+
+pub mod generic_b {
+    #[repr(u8)]
+    #[derive(StableAbi, Debug, PartialEq)]
+    #[sabi(kind(WithNonExhaustive(size = 64, align = 8, traits(Debug, PartialEq))))]
+    pub enum Foo<T> {
+        A,
+        B,
+        C(T),
     }
 }
 
@@ -312,6 +324,36 @@ pub mod command_h_mismatched_discriminant {
     }
 }
 
+pub mod const_expr_size_align {
+    use std::fmt::{self, Display};
+
+    const fn size() -> usize {
+        10
+    }
+    const fn align() -> usize {
+        2
+    }
+
+    #[repr(u8)]
+    #[derive(StableAbi, Debug, PartialEq)]
+    #[sabi(kind(WithNonExhaustive(
+        size = { size() },
+        align = { align() },
+        traits(Debug, PartialEq)
+    )))]
+    pub enum Foo<T> {
+        A,
+        B,
+        C(T),
+    }
+
+    impl<T> Display for Foo<T> {
+        fn fmt(&self, _: &mut fmt::Formatter<'_>) -> fmt::Result {
+            Ok(())
+        }
+    }
+}
+
 pub mod codecs {
     use serde::{Deserialize, Serialize};
 
@@ -322,16 +364,19 @@ pub mod codecs {
         std_types::{RBoxError, RString},
     };
 
+    #[repr(C)]
+    #[derive(StableAbi)]
+    #[sabi(impl_InterfaceType())]
     pub struct Json;
 
-    impl<E, S, I> SerializeEnum<NonExhaustive<E, S, I>> for Json
+    impl<E> SerializeEnum<E> for Json
     where
         E: Serialize + GetEnumInfo,
     {
         type Proxy = RString;
 
-        fn serialize_enum(this: &NonExhaustive<E, S, I>) -> Result<RString, RBoxError> {
-            serde_json::to_string(this.as_enum()?)
+        fn serialize_enum(this: &E) -> Result<RString, RBoxError> {
+            serde_json::to_string(this)
                 .map(RString::from)
                 .map_err(RBoxError::new)
         }

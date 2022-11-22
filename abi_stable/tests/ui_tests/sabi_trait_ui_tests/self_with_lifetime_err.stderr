@@ -1,0 +1,83 @@
+error[E0716]: temporary value dropped while borrowed
+  --> tests/ui_tests/sabi_trait_ui_tests/self_with_lifetime_err.rs:42:19
+   |
+42 |     let object = &RFoo_TO::from_ptr(RBox::new(RArc::new(76)), TD_Opaque);
+   |                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                   |
+   |                   creates a temporary which is freed while still in use
+   |                   a temporary with access to the borrow is created here ...
+...
+57 | }
+   | -
+   | |
+   | temporary value is freed at the end of this statement
+   | ... and the borrow might be used here, when that temporary is dropped and runs the destructor for type `RFoo_TO<'_, '_, RBox<()>, i32>`
+   |
+help: consider using a `let` binding to create a longer lived value
+   |
+42 ~     let binding = RFoo_TO::from_ptr(RBox::new(RArc::new(76)), TD_Opaque);
+43 ~     let object = &binding;
+   |
+
+error[E0716]: temporary value dropped while borrowed
+  --> tests/ui_tests/sabi_trait_ui_tests/self_with_lifetime_err.rs:43:26
+   |
+43 |     let tuple1_object = &RFoo_TO::from_ptr(RArc::new(Tuple1(100)), TD_Opaque);
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                          |
+   |                          creates a temporary which is freed while still in use
+   |                          a temporary with access to the borrow is created here ...
+...
+57 | }
+   | -
+   | |
+   | temporary value is freed at the end of this statement
+   | ... and the borrow might be used here, when that temporary is dropped and runs the destructor for type `RFoo_TO<'_, '_, RArc<()>, i32>`
+   |
+help: consider using a `let` binding to create a longer lived value
+   |
+43 ~     let binding = RFoo_TO::from_ptr(RArc::new(Tuple1(100)), TD_Opaque);
+44 ~     let tuple1_object = &binding;
+   |
+
+error[E0716]: temporary value dropped while borrowed
+  --> tests/ui_tests/sabi_trait_ui_tests/self_with_lifetime_err.rs:44:26
+   |
+44 |     let tuple2_object = &RFoo_TO::from_value(Tuple2(101u32, 202_u32), TD_Opaque);
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                          |
+   |                          creates a temporary which is freed while still in use
+   |                          a temporary with access to the borrow is created here ...
+...
+57 | }
+   | -
+   | |
+   | temporary value is freed at the end of this statement
+   | ... and the borrow might be used here, when that temporary is dropped and runs the destructor for type `RFoo_TO<'_, '_, RBox<()>, u32>`
+   |
+help: consider using a `let` binding to create a longer lived value
+   |
+44 ~     let binding = RFoo_TO::from_value(Tuple2(101u32, 202_u32), TD_Opaque);
+45 ~     let tuple2_object = &binding;
+   |
+
+error[E0716]: temporary value dropped while borrowed
+  --> tests/ui_tests/sabi_trait_ui_tests/self_with_lifetime_err.rs:45:26
+   |
+45 |     let tuple3_object = &RFoo_TO::from_value(Tuple3(11, 22, 300_u32), TD_Opaque);
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |                          |
+   |                          creates a temporary which is freed while still in use
+   |                          a temporary with access to the borrow is created here ...
+...
+57 | }
+   | -
+   | |
+   | temporary value is freed at the end of this statement
+   | ... and the borrow might be used here, when that temporary is dropped and runs the destructor for type `RFoo_TO<'_, '_, RBox<()>, u32>`
+   |
+help: consider using a `let` binding to create a longer lived value
+   |
+45 ~     let binding = RFoo_TO::from_value(Tuple3(11, 22, 300_u32), TD_Opaque);
+46 ~     let tuple3_object = &binding;
+   |

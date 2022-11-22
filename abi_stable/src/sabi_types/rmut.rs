@@ -110,10 +110,10 @@ use crate::{
 ///
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 pub struct RMut<'a, T> {
     ref_: NonNull<T>,
-    _marker: PhantomData<&'a mut T>,
+    _marker: PhantomData<crate::utils::MutRef<'a, T>>,
 }
 
 impl<'a, T> Display for RMut<'a, T>
@@ -188,12 +188,12 @@ impl<'a, T> RMut<'a, T> {
     ///
     /// ```
     #[inline(always)]
-    pub unsafe fn from_raw(ref_: *mut T) -> Self
+    pub const unsafe fn from_raw(ref_: *mut T) -> Self
     where
         T: 'a,
     {
         Self {
-            ref_: NonNull::new_unchecked(ref_),
+            ref_: unsafe { NonNull::new_unchecked(ref_) },
             _marker: PhantomData,
         }
     }
@@ -271,8 +271,8 @@ impl<'a, T> RMut<'a, T> {
     /// }
     /// ```
     #[inline(always)]
-    pub fn get(&self) -> &T {
-        unsafe { &*(self.ref_.as_ptr() as *const T) }
+    pub const fn get(&self) -> &T {
+        unsafe { crate::utils::deref!(self.ref_.as_ptr()) }
     }
 
     /// Copies the value that this `RMut` points to.
@@ -291,7 +291,7 @@ impl<'a, T> RMut<'a, T> {
     ///
     /// ```
     #[inline(always)]
-    pub fn get_copy(&self) -> T
+    pub const fn get_copy(&self) -> T
     where
         T: Copy,
     {
@@ -317,8 +317,8 @@ impl<'a, T> RMut<'a, T> {
     /// ```
     ///
     #[inline(always)]
-    pub fn into_ref(self) -> &'a T {
-        unsafe { &*(self.ref_.as_ptr() as *const T) }
+    pub const fn into_ref(self) -> &'a T {
+        unsafe { crate::utils::deref!(self.ref_.as_ptr()) }
     }
 
     /// Reborrows this `RMut` into a mutable reference.
@@ -405,7 +405,7 @@ impl<'a, T> RMut<'a, T> {
     /// }
     /// ```
     #[inline]
-    pub fn as_ptr(&self) -> *const T {
+    pub const fn as_ptr(&self) -> *const T {
         self.ref_.as_ptr()
     }
 
@@ -453,7 +453,7 @@ impl<'a, T> RMut<'a, T> {
     /// }
     /// ```
     #[inline]
-    pub fn into_raw(self) -> *mut T {
+    pub const fn into_raw(self) -> *mut T {
         self.ref_.as_ptr()
     }
 
@@ -489,7 +489,7 @@ impl<'a, T> RMut<'a, T> {
     ///
     /// ```
     #[inline(always)]
-    pub fn transmute_into_raw<U>(self) -> *mut U {
+    pub const fn transmute_into_raw<U>(self) -> *mut U {
         self.ref_.as_ptr() as *mut U
     }
 
@@ -525,7 +525,7 @@ impl<'a, T> RMut<'a, T> {
     where
         U: 'a,
     {
-        &mut *(self.ref_.as_ptr() as *mut U)
+        unsafe { &mut *(self.ref_.as_ptr() as *mut U) }
     }
 
     /// Transmutes this `RMut<'a, T>` to a `RMut<'a,U>`.
@@ -570,11 +570,11 @@ impl<'a, T> RMut<'a, T> {
     /// }
     /// ```
     #[inline(always)]
-    pub unsafe fn transmute<U>(self) -> RMut<'a, U>
+    pub const unsafe fn transmute<U>(self) -> RMut<'a, U>
     where
         U: 'a,
     {
-        RMut::from_raw(self.ref_.as_ptr() as *mut U)
+        unsafe { RMut::from_raw(self.ref_.as_ptr() as *mut U) }
     }
 
     /// Reborrows this `RMut<'a, T>` into an `RRef<'_, T>`
@@ -597,7 +597,7 @@ impl<'a, T> RMut<'a, T> {
     /// ```
     #[inline(always)]
     #[allow(clippy::needless_lifetimes)]
-    pub fn as_rref<'r>(&'r self) -> RRef<'r, T> {
+    pub const fn as_rref<'r>(&'r self) -> RRef<'r, T> {
         unsafe { RRef::from_raw(self.ref_.as_ptr()) }
     }
 
@@ -618,7 +618,7 @@ impl<'a, T> RMut<'a, T> {
     /// }
     /// ```
     #[inline(always)]
-    pub fn into_rref(self) -> RRef<'a, T> {
+    pub const fn into_rref(self) -> RRef<'a, T> {
         unsafe { RRef::from_raw(self.ref_.as_ptr()) }
     }
 }
@@ -660,7 +660,7 @@ where
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        self.transmute()
+        unsafe { self.transmute() }
     }
 }
 

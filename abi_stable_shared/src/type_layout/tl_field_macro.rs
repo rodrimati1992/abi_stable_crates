@@ -58,28 +58,28 @@ macro_rules! declare_comp_tl_field {(
         /// Gets the range representing the name in the string slice field inside
         /// the `SharedVars` field of the `TypeLayout` that contains this.
         #[inline]
-        pub fn name_start_len(&self)->StartLen{
+        pub const fn name_start_len(&self)->StartLen{
             StartLen::from_u26((self.bits0>>Self::NAME_OFFSET) as u32)
         }
 
         /// Gets the index of the type layout of the field in
-        /// the `TypeLayoutCtor` slice inside
+        /// the slice of type layouts inside
         /// the `SharedVars` field of the `TypeLayout` that contains this.
         #[inline]
-        pub fn type_layout_index(&self)-> usize {
+        pub const fn type_layout_index(&self)-> usize {
             ((self.bits0>>Self::TYPE_LAYOUT_OFFSET)&Self::TYPE_LAYOUT_SR_MASK)as usize
         }
 
 
         #[inline]
-        fn lifetime_indices_bits(&self)-> u32 {
+        const fn lifetime_indices_bits(&self)-> u32 {
             (self.bits0>>Self::LIFETIME_INDICES_OFFSET)as u32
         }
 
         /// Whether this field is a function.
         /// This is only true if the type is a function pointer(not inside some other type).
         #[inline]
-        pub fn is_function(&self)->bool{
+        pub const fn is_function(&self)->bool{
             (self.bits0 & (1<<Self::IS_FUNCTION_OFFSET))!=0
         }
 

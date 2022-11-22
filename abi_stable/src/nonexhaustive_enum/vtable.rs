@@ -6,13 +6,13 @@ use std::{
 };
 
 use crate::{
-    erased_types::{c_functions, trait_objects, FormattingMode, InterfaceBound, InterfaceType},
+    erased_types::{c_functions, trait_objects, FormattingMode, InterfaceType},
     inline_storage::InlineStorage,
     marker_type::{ErasedObject, UnsafeIgnoredType},
     nonexhaustive_enum::{
         alt_c_functions, EnumInfo, GetEnumInfo, GetSerializeEnumProxy, NonExhaustive, SerializeEnum,
     },
-    prefix_type::{panic_on_missing_fieldname, PrefixTypeTrait, WithMetadata},
+    prefix_type::{panic_on_missing_fieldname, WithMetadata},
     sabi_types::{RMut, RRef},
     std_types::{RBoxError, RCmpOrdering, ROption, RResult, RString},
     type_level::{
@@ -30,8 +30,9 @@ pub struct Private<T: ?Sized, S: ?Sized, I: ?Sized>(
 
 /// Gets the vtable of `NonExhaustive<Self,S,I>`.
 ///
-/// This trait cannot be implemented outside of `abi_stable`, it can only be used.
-pub trait GetVTable<S, I>: GetEnumInfo {
+/// This trait is only exposed for use in bounds,
+/// and cannot be implemented outside of `abi_stable`.
+pub trait GetVTable<S, I>: Sized {
     // Using privacy to make it impossible to implement this trait outside this module.
     #[doc(hidden)]
     const __HIDDEN_10341423423__: Private<Self, S, I>;
@@ -42,30 +43,32 @@ pub trait GetVTable<S, I>: GetEnumInfo {
     staticref! {
         #[doc(hidden)]
         const VTABLE_WM: WithMetadata<NonExhaustiveVtable<Self,S,I>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE_VAL)
+            WithMetadata::new(Self::VTABLE_VAL)
     }
 
-    #[doc(hidden)]
-    const VTABLE_REF: NonExhaustiveVtable_Ref<Self, S, I> =
+    /// The vtable
+    const VTABLE: NonExhaustiveVtable_Ref<Self, S, I> =
         NonExhaustiveVtable_Ref(Self::VTABLE_WM.as_prefix());
 }
 
-/// The vtable for NonExhaustive<>.
-#[doc(hidden)]
+/// The vtable for NonExhaustive.
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    bound="I:GetSerializeEnumProxy<NonExhaustive<E,S,I>>",
-    bound="<I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType: StableAbi",
+    bound(I: GetSerializeEnumProxy<E>),
+    bound(<I as GetSerializeEnumProxy<E>>::ProxyType: StableAbi),
     not_stableabi(E,S,I),
     missing_field(default),
-    kind(Prefix),
+    kind(Prefix(prefix_ref_docs = "\
+        A reference to the vtable of a non-exhaustive enum,
+    ")),
     with_field_indices,
     //debug_print,
 )]
 pub struct NonExhaustiveVtable<E, S, I> {
     pub(crate) _sabi_tys: UnsafeIgnoredType<(E, S, I)>,
 
+    /// The `EnumInfo` for the enum.
     pub enum_info: &'static EnumInfo,
 
     pub(crate) _sabi_drop: unsafe extern "C" fn(this: RMut<'_, ErasedObject>),
@@ -92,11 +95,11 @@ pub struct NonExhaustiveVtable<E, S, I> {
             &mut RString,
         ) -> RResult<(), ()>,
     >,
-    #[sabi(unsafe_change_type = r##"
+    #[sabi(unsafe_change_type =
         unsafe extern "C" fn(
             RRef<'_, ErasedObject>
-        )->RResult< <I as GetSerializeEnumProxy<NonExhaustive<E,S,I>>>::ProxyType, RBoxError>
-    "##)]
+        )->RResult< <I as GetSerializeEnumProxy<E>>::ProxyType, RBoxError>
+    )]
     pub(crate) erased_sabi_serialize:
         Option<unsafe extern "C" fn(RRef<'_, ErasedObject>) -> RResult<ErasedObject, RBoxError>>,
     pub(crate) _sabi_partial_eq:
@@ -152,23 +155,21 @@ where
     };
 }
 
-type UnerasedSerializeFn<E, S, I> = unsafe extern "C" fn(
-    RRef<'_, ErasedObject>,
-) -> RResult<
-    <I as GetSerializeEnumProxy<NonExhaustive<E, S, I>>>::ProxyType,
-    RBoxError,
->;
+type UnerasedSerializeFn<E, I> =
+    unsafe extern "C" fn(
+        RRef<'_, ErasedObject>,
+    ) -> RResult<<I as GetSerializeEnumProxy<E>>::ProxyType, RBoxError>;
 
 impl<E, S, I> NonExhaustiveVtable_Ref<E, S, I> {
-    pub fn serialize(self) -> UnerasedSerializeFn<E, S, I>
+    pub(crate) fn serialize(self) -> UnerasedSerializeFn<E, I>
     where
-        I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
-        I: GetSerializeEnumProxy<NonExhaustive<E, S, I>>,
+        I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
+        I: GetSerializeEnumProxy<E>,
     {
         unsafe {
             std::mem::transmute::<
                 unsafe extern "C" fn(RRef<'_, ErasedObject>) -> RResult<ErasedObject, RBoxError>,
-                UnerasedSerializeFn<E, S, I>,
+                UnerasedSerializeFn<E, I>,
             >(self.priv_serialize())
         }
     }
@@ -233,7 +234,13 @@ pub mod trait_bounds {
             }
 
             impl<E,S,$interf> NonExhaustiveVtable_Ref<E,S,$interf>{
-                pub fn $field(self)->$field_ty
+                #[doc = concat!(
+                    "Fallibly accesses the `",
+                    stringify!($field),
+                    "` field, panicking if it doesn't exist."
+                )]
+
+                pub fn $field(self) -> $field_ty
                 where
                     $interf:InterfaceType<$selector=Implemented<trait_marker::$selector>>,
                 {
@@ -305,7 +312,7 @@ pub mod trait_bounds {
     declare_field_initalizer! {
         type Serialize;
         trait InitSerializeField[E,S,I]
-        where [ I:SerializeEnum<NonExhaustive<E,S,I>> ]
+        where [ I:SerializeEnum<E> ]
         erased_sabi_serialize,priv_serialize:
             unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>;
         field_index=field_index_for_erased_sabi_serialize;
@@ -313,10 +320,10 @@ pub mod trait_bounds {
             Transmuter::<
                 unsafe extern "C" fn(
                     RRef<'_, ErasedObject>
-                )->RResult<<I as SerializeEnum<NonExhaustive<E,S,I>>>::Proxy,RBoxError>,
+                )->RResult<<I as SerializeEnum<E>>::Proxy,RBoxError>,
                 unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>
             >{
-                from:alt_c_functions::serialize_impl::<NonExhaustive<E,S,I>,I>
+                from:alt_c_functions::serialize_impl::<E,I>
             }.to
         },
     }

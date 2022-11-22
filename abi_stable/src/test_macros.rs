@@ -10,3 +10,19 @@ macro_rules! and_stringify {
         $( $cosmos )*
     )
 }
+
+#[allow(unused_macros)]
+macro_rules! assert_matches {
+    ($value:expr, $pattern:pat $(if $cond:expr)?) => (
+        match $value {
+            x => {
+                assert!(
+                    ::std::matches!(x, $pattern $(if $cond)?),
+                    "Expected ¨{}¨, found ¨{:?}¨",
+                    stringify!($pattern $(if $cond)?),
+                    x,
+                );
+            }
+        }
+    );
+}

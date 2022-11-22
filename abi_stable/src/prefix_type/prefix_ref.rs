@@ -1,7 +1,7 @@
 use crate::{
     abi_stability::{GetStaticEquivalent, GetStaticEquivalent_, PrefixStableAbi, StableAbi},
-    pointer_trait::ImmutableRef,
-    prefix_type::{PrefixMetadata, PrefixRefTrait, WithMetadata_},
+    pointer_trait::{GetPointerKind, PK_Reference},
+    prefix_type::{FieldAccessibility, PTStructLayout, PrefixRefTrait, WithMetadata_},
     reexports::True,
     reflection::ModReflMode,
     sabi_types::StaticRef,
@@ -46,7 +46,7 @@ use std::{
 ///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
-/// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+/// #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
 /// struct Module {
 ///     first: usize,
 ///     // The `#[sabi(last_prefix_field)]` attribute here means that this is
@@ -71,8 +71,7 @@ use std::{
 /// // This is a way that PrefixRef can be constructed in statics
 ///
 /// const PREFIX_A: PrefixRef<Module_Prefix> = {
-///     const S: &WithMetadata<Module> =
-///         &WithMetadata::new(PrefixTypeTrait::METADATA, MOD_VAL);
+///     const S: &WithMetadata<Module> = &WithMetadata::new(MOD_VAL);
 ///
 ///     S.static_as_prefix()
 /// };
@@ -85,9 +84,7 @@ use std::{
 ///
 /// impl WithAssoc {
 ///     // This macro declares a `StaticRef` pointing to the assigned `WithMetadata`.
-///     staticref!(const MOD_WM: WithMetadata<Module> = {
-///         WithMetadata::new(PrefixTypeTrait::METADATA, MOD_VAL)
-///     });
+///     staticref!{const MOD_WM: WithMetadata<Module> = WithMetadata::new(MOD_VAL)}
 /// }
 ///
 /// const PREFIX_B: PrefixRef<Module_Prefix> = WithAssoc::MOD_WM.as_prefix();
@@ -115,9 +112,9 @@ unsafe impl<'a, P: 'a> Send for PrefixRef<P> where &'a WithMetadata_<P, P>: Send
 
 impl<P> Debug for PrefixRef<P> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let metadata = self.metadata();
         f.debug_struct("PrefixRef")
-            .field("metadata", &metadata)
+            .field("type_layout", &self.type_layout())
+            .field("field_accessibility", &self.field_accessibility())
             .field("value_type", &std::any::type_name::<P>())
             .finish()
     }
@@ -134,7 +131,7 @@ impl<P> PrefixRef<P> {
     ///
     /// `T` must implement `PrefixTypeTrait<Fields = P>`,
     /// this is automatically true if this is called with
-    /// `&WithMetadata::new(PrefixTypeTrait::METADATA, <value>)`.
+    /// `&WithMetadata::new(<value>)`.
     ///
     /// # Example
     ///
@@ -148,7 +145,6 @@ impl<P> PrefixRef<P> {
     ///
     /// const MOD_WM: &WithMetadata<Module> = {
     ///     &WithMetadata::new(
-    ///         PrefixTypeTrait::METADATA,
     ///         Module {
     ///             first: RSome(3),
     ///             second: rstr!("hello"),
@@ -173,9 +169,11 @@ impl<P> PrefixRef<P> {
     #[inline(always)]
     pub const unsafe fn from_raw<T>(ptr: *const WithMetadata_<T, P>) -> Self {
         Self {
-            ptr: NonNull::new_unchecked(
-                ptr as *const WithMetadata_<P, P> as *mut WithMetadata_<P, P>,
-            ),
+            ptr: unsafe {
+                NonNull::new_unchecked(
+                    ptr as *const WithMetadata_<P, P> as *mut WithMetadata_<P, P>,
+                )
+            },
         }
     }
 
@@ -196,7 +194,7 @@ impl<P> PrefixRef<P> {
     /// impl Foo {
     ///     // This macro declares a `StaticRef` pointing to the assigned `WithMetadata`.
     ///     staticref! {const MOD_WM: WithMetadata<Module> =
-    ///         WithMetadata::new(PrefixTypeTrait::METADATA, Module{
+    ///         WithMetadata::new(Module{
     ///             first: RNone,
     ///             second: rstr!("world"),
     ///             third: 13,
@@ -238,7 +236,6 @@ impl<P> PrefixRef<P> {
     ///
     /// const MOD_WM: &WithMetadata<Module> = {
     ///     &WithMetadata::new(
-    ///         PrefixTypeTrait::METADATA,
     ///         Module {
     ///             first: RNone,
     ///             second: rstr!("foo"),
@@ -266,7 +263,7 @@ impl<P> PrefixRef<P> {
         unsafe { Self::from_raw(ptr) }
     }
 
-    /// Gets the metadata about the prefix type, including available fields.
+    /// A bit array that describes the accessibility of each field in `P`.
     ///
     /// # Example
     ///
@@ -279,7 +276,6 @@ impl<P> PrefixRef<P> {
     ///
     /// const MOD_WM: &WithMetadata<Module> = {
     ///     &WithMetadata::new(
-    ///         PrefixTypeTrait::METADATA,
     ///         Module {
     ///             first: RNone,
     ///             second: RStr::empty(),
@@ -290,18 +286,24 @@ impl<P> PrefixRef<P> {
     ///
     /// const PREFIX: PrefixRef<Module_Prefix> = PrefixRef::from_ref(MOD_WM);
     ///
-    /// let accessibility = PREFIX.metadata().field_accessibility();
+    /// let accessibility = PREFIX.field_accessibility();
     ///
-    /// assert!(accessibility.is_accessible(0)); // The `first` field
-    /// assert!(accessibility.is_accessible(1)); // The `second` field
-    /// assert!(accessibility.is_accessible(2)); // The `third` field
-    /// assert!(!accessibility.is_accessible(3)); // There's no field after `third`
+    /// assert!(accessibility.at(0).is_accessible()); // The `first` field
+    /// assert!(accessibility.at(1).is_accessible()); // The `second` field
+    /// assert!(accessibility.at(2).is_accessible()); // The `third` field
+    /// assert!(!accessibility.at(3).is_accessible()); // There's no field after `third`
     ///
     /// ```
     ///
-    #[inline]
-    pub fn metadata(self) -> PrefixMetadata<P, P> {
-        unsafe { (*self.ptr.as_ptr()).metadata }
+    pub const fn field_accessibility(&self) -> FieldAccessibility {
+        let ptr: *const _ = self.ptr.as_ptr();
+        unsafe { (*ptr).field_accessibility }
+    }
+
+    /// The basic layout of the prefix type, for error messages.
+    pub const fn type_layout(&self) -> &'static PTStructLayout {
+        let ptr: *const _ = self.ptr.as_ptr();
+        unsafe { (*ptr).type_layout }
     }
 
     /// Gets a reference to the pointed-to prefix.
@@ -318,7 +320,6 @@ impl<P> PrefixRef<P> {
     ///
     /// const MOD_WM: &WithMetadata<Module> = {
     ///     &WithMetadata::new(
-    ///         PrefixTypeTrait::METADATA,
     ///         Module {
     ///             first: RNone,
     ///             second: rstr!("foo"),
@@ -341,23 +342,15 @@ impl<P> PrefixRef<P> {
     /// ```
     ///
     #[inline]
-    pub fn prefix<'a>(self) -> &'a P {
-        unsafe { &(*self.ptr.as_ptr()).value.0 }
+    pub const fn prefix<'a>(self) -> &'a P {
+        let ptr: *const _ = self.ptr.as_ptr();
+        unsafe { &(*ptr).value.0 }
     }
 
     /// Converts this PrefixRef into a raw pointer.
     #[inline(always)]
-    pub fn to_raw_ptr(self) -> *const WithMetadata_<P, P> {
+    pub const fn to_raw_ptr(self) -> *const WithMetadata_<P, P> {
         unsafe { Transmuter { from: self }.to }
-    }
-
-    /// A const-callable version of `to_raw_ptr`,
-    /// use `to_raw_ptr` in non-const code instead of this.
-    ///
-    /// `to_raw_ptr` exists for efficiency-in-debug-build reasons.
-    #[inline]
-    pub const fn const_to_raw_ptr(self) -> *const WithMetadata_<P, P> {
-        self.ptr.as_ptr()
     }
 
     /// Casts the pointed-to prefix to another type.
@@ -427,8 +420,9 @@ where
     };
 }
 
-unsafe impl<P> ImmutableRef for PrefixRef<P> {
-    type Target = WithMetadata_<P, P>;
+unsafe impl<P> GetPointerKind for PrefixRef<P> {
+    type PtrTarget = WithMetadata_<P, P>;
+    type Kind = PK_Reference;
 }
 
 unsafe impl<P> PrefixRefTrait for PrefixRef<P> {

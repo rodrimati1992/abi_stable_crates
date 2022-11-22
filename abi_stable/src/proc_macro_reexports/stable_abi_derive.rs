@@ -1,6 +1,6 @@
 /**
 
-The StableAbi derive macro allows one to implement the StableAbi trait to :
+The StableAbi derive macro allows one to implement the [`StableAbi trait`] to :
 
 - Assert that the type has a stable representation across Rust version/compiles.
 
@@ -15,30 +15,33 @@ you must use the full type name and generic arguments.
 
 These helper attributes are applied on the type declaration.
 
-###  `#[sabi(phantom_field = "name: type")]` 
+###  `#[sabi(phantom_field(name: type))]` 
 
 Adds a virtual field to the type layout constant,
 which is checked against the phantom field that was declared in the same order 
 for compatibility.
 
-###  `#[sabi(phantom_type_param = "type")]` 
+###  `#[sabi(phantom_type_param = type)]` 
 
 Adds a virtual type parameter to the type layout constant,
 which is checked for compatibility.
 
-###  `#[sabi(phantom_const_param = "constant expression")]` 
+###  `#[sabi(phantom_const_param = constant expression)]` 
 
 Adds a virtual const parameter to the type layout constant,
-which is checked for equality with the vistual const parameter declared in the same order.
+which is checked for equality with the virtual const parameter declared in the same order.
 
+The parameter must implement `StableAbi + Eq + Debug`.
+
+<span id = "not_stableabi_attr"></span>
 ###  `#[sabi(not_stableabi(TypeParameter))]`  
 
-Replaces the implicit `TypeParameter: StableAbi` constraint
-with a `TypeParameter: GetStaticEquivalent` constraint.
+Replaces the implicit `TypeParameter: `[`StableAbi`](trait@StableAbi) constraint
+with a `TypeParameter: `[`GetStaticEquivalent_`] constraint.
 
 ###  `#[sabi(unsafe_unconstrained(TypeParameter))]`  
 
-Removes the implicit `TypeParameter: StableAbi` constraint.
+Removes the implicit `TypeParameter: `[`StableAbi`](trait@StableAbi) constraint.
 
 The type parameter will be ignored when determining whether the type 
 has already been checked, when loading a dynamic library,
@@ -47,27 +50,28 @@ Don't use this if transmuting this type to have different type parameters,
 only changing the `#[sabi(unsafe_unconstrained())]` one,
 would cause Undefined Behavior.
 
-This is only necessary if you are passing `TypeParameter` to `UnsafeIgnoredType`
+This is only necessary if you are passing `TypeParameter` to [`UnsafeIgnoredType`]
 
-###  `#[sabi(bound = "Type: ATrait")]` 
+###  `#[sabi(bound(Type: ATrait))]` 
 
-Adds a bound to the `StableAbi` impl.
+Adds a bound to the [`StableAbi`](trait@StableAbi) impl.
 
-###  `#[sabi(bounds = "Type: ATrait, Type2: OtherTrait")]` 
+###  `#[sabi(bounds(Type: ATrait, Type2: OtherTrait))]` 
 
-Adds many bounds to the `StableAbi` impl.
+Adds many bounds to the [`StableAbi`](trait@StableAbi) impl.
 
-###  `#[sabi(prefix_bound = "Type: ATrait")]` 
+<span id = "prefix_bound_attr"></span>
+###  `#[sabi(prefix_bound(Type: ATrait))]` 
 
-This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
+This is only valid for Prefix types, declared with [`#[sabi(kind(Prefix(..)))]`](#sabi_kind_prefix_attr).
 
-Adds a bound to the `PrefixTypeTrait` impl (for the deriving type).
+Adds a bound to the [`PrefixTypeTrait`] impl (for the deriving type).
 
-###  `#[sabi(prefix_bounds = "Type: ATrait, Type2: OtherTrait")]` 
+###  `#[sabi(prefix_bounds(Type: ATrait, Type2: OtherTrait))]` 
 
-This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
+This is only valid for Prefix types, declared with [`#[sabi(kind(Prefix(..)))]`](#sabi_kind_prefix_attr).
 
-Adds many bound to the `PrefixTypeTrait` impl (for the deriving type).
+Adds many bounds to the [`PrefixTypeTrait`] impl (for the deriving type).
 
 ### `#[sabi(unsafe_allow_type_macros)]`
 
@@ -80,14 +84,13 @@ it won't be checked by the runtime type checker.
 
 A type macro is any macro that evaluates to a type.
 
-###  `#[sabi(tag = " some_expr ")]` 
+###  `#[sabi(tag = some_expr)]` 
 
-Adds a "tag" associated with the type,
+Adds a [`Tag`](crate::type_layout::Tag) associated with the type,
 a dynamically typed data structure used to encode extra properties about a type.
 
 This can only be done once,
-to add multiple properties you must decide whether you want to use
-a map, an array, or a set.
+to add multiple properties you must to use any of a map, an array, or a set.
 
 You can only rely on tags for safety if 
 the specific tags were present since the first compatible version of the library,
@@ -102,7 +105,8 @@ Sibling means libraries loaded at runtime by the same library/binary
 
 For more information about tags, [look here](./type_layout/tagging/index.html)
 
-###  `#[sabi(extra_checks = "<some_constant_expression>")]` 
+<span id = "sabi_extra_checks_attr"></span>
+###  `#[sabi(extra_checks = <some_constant_expression>)]` 
 
 Adds an `ExtraChecks` trait object associated with the type,
 which allows encoding and checking extra properties about a type.
@@ -116,22 +120,28 @@ For examples of using this attribute
 
 Prints the generated code, stopping compilation.
 
+<span id = "sabi_kind_prefix_attr"></span>
 ###  `#[sabi(kind(Prefix( .. )))]` 
 Declares the struct as being a prefix-type.
 
 Arguments (what goes inside `#[sabi(kind(Prefix(   <here>   )))]`):
 
-- `prefix_ref = "<Identifier>")` (optional: defaults to `<DerivingType>_Ref`):
+- `prefix_ref = <Identifier>)` (optional: defaults to `<DerivingType>_Ref`):
 Declares an ffi-safe pointer to a vtable/module,
 that can be extended in semver compatible versions.<br>
-Uses "<Identifier>" as the name of the prefix struct.<br>
+Uses `<Identifier>` as the name of the prefix struct.<br>
 For more details on prefix-types [look here](./docs/prefix_types/index.html)
 
-- `prefix_fields = "<Identifier>")` (optional: defaults to `<DerivingType>_Prefix`):<be>
+- `prefix_fields = <Identifier>)` (optional: defaults to `<DerivingType>_Prefix`):<be>
 Declares a struct with all the fields in the deriving type up to (and including)
-the field with the `#[sabi(last_prefix_field)]` attribute,
-named "<Identifier>".
+the field with the [`#[sabi(last_prefix_field)]`](#sabilast_prefix_field) attribute,
+named `<Identifier>`.
 
+- `prefix_ref_docs = <expression>` (optional, allows multiple):<br>
+Replaces the default documentation for `<DerivingType>_Ref` with the passed-in expresion.<br>
+If this is passed multiple times, then multiple `#[doc = ...]` attributes are emitted.
+
+<span id = "kind_with_non_exhaustive_attr"></span>
 ###  `#[sabi(kind(WithNonExhaustive( .. ))]` 
 
 Declares this enum as being nonexhaustive,
@@ -154,14 +164,14 @@ Delegates the treatment of this type as a module to the type it dereferences to.
 
 ###  `#[sabi(impl_InterfaceType(...))]`  
 
-Implements the `InterfaceType` trait for a type,
+Implements the [`InterfaceType`] trait for a type,
 defining the usable/required traits when creating a 
-`DynTrait<_, ThisType>`/`NonExhaustive<_, _, ThisType>`.
+[`DynTrait`]`<_, ThisType>`/[`NonExhaustive`]`<_, _, ThisType>`.
 
 Syntax: `#[sabi(impl_InterfaceType(Trait0, Trait1, ..., TraitN))]`
 
 If a trait is not specified,
-it will not be required when constructing DynTrait/NonExhaustive,
+it will not be required when constructing [`DynTrait`]/[`NonExhaustive`],
 and won't be usable afterwards.
 
 <span id = "InterfaceType_traits"> These are the traits you can specify: </span>
@@ -169,6 +179,8 @@ and won't be usable afterwards.
 - `Send`: Changing this to require/unrequire in minor versions is an abi breaking change.
 
 - `Sync`: Changing this to require/unrequire in minor versions is an abi breaking change.
+
+- `Unpin`: Changing this to require/unrequire in minor versions is an abi breaking change.
 
 - `Clone`
 
@@ -193,10 +205,10 @@ and won't be usable afterwards.
 - `Serialize`: corresponds to `serde::Serialize`
 
 - `Iterator`:
-    this type will also have to implement `abi_stable::erased_types::IteratorItem`.
+    this type will also have to implement [`abi_stable::erased_types::IteratorItem`].
 
 - `DoubleEndedIterator`:
-    this type will also have to implement `abi_stable::erased_types::IteratorItem`.
+    this type will also have to implement [`abi_stable::erased_types::IteratorItem`].
 
 - `FmtWrite`: corresponds to `std::fmt::Write` .
 
@@ -223,8 +235,8 @@ Examples:
 
 ###  `#[sabi(unsafe_opaque_fields]`
 
-Does not require any field to implement StableAbi,
-and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
+Does not require any field to implement [`StableAbi`](trait@StableAbi),
+and instead uses the [`StableAbi`](trait@StableAbi) impl of [`UnsafeOpaqueField`]`<FieldType>`.
 
 This is unsafe because the layout of their type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
@@ -232,7 +244,7 @@ which causes Undefined Behavior if the type has a different layout.
 
 ###  `#[sabi(unsafe_sabi_opaque_fields)]`
 
-Requires every field to implement StableAbi(unless overridden),
+Requires every field to implement [`StableAbi`](trait@StableAbi)(unless overridden),
 but doesn't check their layout.
 
 This is unsafe because the layout of their type won't be verified when loading the library,
@@ -243,69 +255,70 @@ which causes Undefined Behavior if the type has a different layout.
 These helper attributes are applied to fields.
 
 
-###  `#[sabi(rename = "ident")]` 
+###  `#[sabi(rename = ident)]` 
 
 Renames the field in the generated layout information.
 Use this when renaming private fields.
 
-###  `#[sabi(unsafe_change_type = "SomeType")]` 
+###  `#[sabi(unsafe_change_type = SomeType)]` 
 
 Changes the type of this field in the generated type layout constant to SomeType.
 
-This has the `unsafe` prefix because SomeType is relied on being correct by `StableAbi`.
+This has the `unsafe` prefix because SomeType is relied on being correct by
+[`StableAbi`](trait@StableAbi).
 
 ###  `#[sabi(unsafe_opaque_field)]` 
 
-Does not require the field to implement StableAbi,
-and instead uses the StableAbi impl of `UnsafeOpaqueField<FieldType>`.
+Does not require the field to implement [`StableAbi`],
+and instead uses the StableAbi impl of [`UnsafeOpaqueField`]`<FieldType>`.
 
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
 
 ###  `#[sabi(unsafe_sabi_opaque_field)]`
 
-Requires the field to implement StableAbi(unless overridden),
+Requires the field to implement [`StableAbi`] (unless overridden),
 but doesn't check its layout.
 
 This is unsafe because the layout of the type won't be verified when loading the library,
 which causes Undefined Behavior if the type has a different layout.
 
-###  `#[sabi(bound = "SomeBound")]` 
+###  `#[sabi(bound = SomeBound)]` 
 
-Adds a `TheFieldType: SomeBound` constraint to the `StableAbi` impl.
+Adds a `TheFieldType: SomeBound` constraint to the [`StableAbi`](trait@StableAbi) impl.
 
 Eg: 
 ```ignore
-#[sabi(bound = "Debug")]
+#[sabi(bound = Debug)]
 name: RStr<'static>,
 ```
-adds the `RStr<'static>: Debug` bound to the `StableAbi` impl
+adds the `RStr<'static>: Debug` bound to the [`StableAbi`](trait@StableAbi) impl
 
 ###  `#[sabi(with_field_indices)]` 
 
-This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
+This is only valid for Prefix types, declared with [`#[sabi(kind(Prefix(..)))]`](#sabi_kind_prefix_attr).
 
 Generates associated constants named `field_index_for_<field_name>` with 
 the index of each field in the prefix type.
 Those indices can then be passed to the `abi_stable::prefix_types::panic_on_missing_*` 
 functions to panic on a missing field.
 
-###  `#[sabi(accessor_bound = "ATrait")]` 
+###  `#[sabi(accessor_bound = ATrait)]` 
 
-This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
+This is only valid for Prefix types, declared with [`#[sabi(kind(Prefix(..)))]`](#sabi_kind_prefix_attr).
 
 Adds the bound to the field type in the accessor method.
 
 ###  `#[sabi(last_prefix_field)]` 
 
-This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
+This is only valid for Prefix types, declared with [`#[sabi(kind(Prefix(..)))]`](#sabi_kind_prefix_attr).
 
 Declares that the field it is applied to is the last field in the prefix,
 where every field up to it is guaranteed to exist.
 
-###  `#[sabi(accessible_if = " expression ")]` 
+###  `#[sabi(accessible_if = expression)]` 
 
-This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
+This is only valid for Prefix types, declared with [`#[sabi(kind(Prefix(..)))]`](#sabi_kind_prefix_attr).
 
 This attribute turns any field conditional based on the const boolean expression 
 (which must be valid a bool constant).
@@ -324,10 +337,10 @@ which accessors are conditional for prefix fields.
 Prefix fields with this attribute are made private in the generated
 `<DerivingType>_Prefix` struct, without this attribute they keep the visibility.
 
-To do `#[sabi(accessible_if = "<TypeParameter as Trait>::CONSTANT")]` you can use the 
-`#[sabi(prefix_bound = "TypeParameter: Trait")]` helper attribute.
+To do `#[sabi(accessible_if = <TypeParameter as Trait>::CONSTANT)]` you can use the 
+[`#[sabi(prefix_bound(TypeParameter: Trait))]`](#prefix_bound_attr) helper attribute.
 
-###  `#[sabi(refl(pub_getter = " function_name "))]` 
+###  `#[sabi(refl(pub_getter = function_name))]` 
 
 Determines the public getter for a field used by reflection.
 
@@ -337,14 +350,15 @@ The function can return either a reference or a value.
 
 ###  `#[sabi(missing_field( .. ))]` 
 
-This is only valid for Prefix types, declared with `#[sabi(kind(Prefix(..)))]`.
+This is only valid for Prefix types,
+declared with [`#[sabi(kind(Prefix(..)))]`](#sabi_kind_prefix_attr).
 
 Determines what happens in the accessor method for a field, when the field is missing.
 The default is that it returns an `Option<FieldType>`,
 returning None if the field is absent, Some(field_value) if it's present.
 
 If the attribute is on the struct, it's applied to all fields(this is overridable)
-after the `#[sabi(last_prefix_field)]` attribute.
+after the [`#[sabi(last_prefix_field)]`](#sabilast_prefix_field) attribute.
 
 If the attribute is on a field, it's applied to that field only,
 overriding the setting on the struct.
@@ -356,10 +370,10 @@ Panics if the field doesn't exist, with an informative error message.
 Returns None if the field doesn't exist, Some(fieldvalue) if it does.
 This is the default.
 
-`#[sabi(missing_field(with = "somefunction"))]`<br>
+`#[sabi(missing_field(with = somefunction))]`<br>
 Returns `somefunction()` if the field doesn't exist.
 
-`#[sabi(missing_field(value = "some_expression"))]`<br>
+`#[sabi(missing_field(value = some_expression))]`<br>
 Returns `some_expression` if the field doesn't exist.
 
 `#[sabi(missing_field(default))]`<br>
@@ -369,7 +383,8 @@ Returns `Default::default()` if the field doesn't exist.
 
 ###  `#[sabi(with_constructor)]` 
 
-This is only valid for nonexhaustive enums, declared with `#[sabi(kind(WithNonExhaustive(..)))]`.
+This is only valid for nonexhaustive enums, 
+declared with [`#[sabi(kind(WithNonExhaustive(..)))]`](#kind_with_non_exhaustive_attr).
 
 Creates constructors for enum variant(s), named the same as the variant(s) with an `_NE` suffix.
 
@@ -387,7 +402,8 @@ fn VariantNamed_NE(foo: RString, bar: RBox<Struct>) -> Enum_NE {
 
 ###  `#[sabi(with_boxed_constructor)]` 
 
-This is only valid for nonexhaustive enums, declared with `#[sabi(kind(WithNonExhaustive(..)))]`.
+This is only valid for nonexhaustive enums, 
+declared with [`#[sabi(kind(WithNonExhaustive(..)))]`](#kind_with_non_exhaustive_attr).
 
 Creates constructors for enum variant(s) which only contain a pointer,
 named the same as the variant(s) with an `_NE` suffix.
@@ -395,7 +411,7 @@ named the same as the variant(s) with an `_NE` suffix.
 This attribute can be overriden on variants(when it was also applied to the Container itself).
 
 All constructor functions are declared inside a single impl block with 
-`Self` bounded by the traits that are necessary to construct `NonExhaustive<>` from it.
+`Self` bounded by the traits that are necessary to construct [`NonExhaustive`] from it.
 
 For a variant like this:
 
@@ -529,16 +545,24 @@ For examples of nonexhaustive enums
 [look here for the first example
 ](./docs/sabi_nonexhaustive/index.html#defining-a-deserializable-nonexhaustive-enum).
 
-### Examples of `#[not_stableabi()]`
+### Examples of `#[sabi(not_stableabi())]`
 
-For examples of using both `#[derive(GetStaticEquivalent)]` and `#[not_stableabi()]`
-[look here](./derive.GetStaticEquivalent.html#examples).
+For examples of using both [`#[derive(GetStaticEquivalent)]`][derive@GetStaticEquivalent] and
+[`#[sabi(not_stableabi())]`](#not_stableabi_attr)
+[look here](derive@GetStaticEquivalent#examples).
 
 
 
 
 
 [`NonExhaustive`]: ./nonexhaustive_enum/struct.NonExhaustive.html
+[`GetStaticEquivalent_`]: crate::abi_stability::get_static_equivalent::GetStaticEquivalent_
+[`StableAbi trait`]: trait@StableAbi
+[`UnsafeOpaqueField`]: crate::abi_stability::stable_abi_trait::UnsafeOpaqueField
+[`UnsafeIgnoredType`]: crate::marker_type::UnsafeIgnoredType
+[`PrefixTypeTrait`]: crate::prefix_type::PrefixTypeTrait
+[`ExtraChecks`]: crate::abi_stability::extra_checks::ExtraChecks
+[`InterfaceType`]: crate::InterfaceType
 
 */
 #[doc(inline)]

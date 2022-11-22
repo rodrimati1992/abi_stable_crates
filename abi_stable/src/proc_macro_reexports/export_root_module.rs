@@ -14,7 +14,7 @@ pub fn get_hello_world_mod() -> TextOperationsMod_Ref {
 
 # #[repr(C)]
 # #[derive(abi_stable::StableAbi)]
-# #[sabi(kind(Prefix(prefix_ref="TextOperationsMod_Ref")))]
+# #[sabi(kind(Prefix(prefix_ref= TextOperationsMod_Ref)))]
 # #[sabi(missing_field(panic))]
 # pub struct TextOperationsMod {
 #     #[sabi(last_prefix_field)]

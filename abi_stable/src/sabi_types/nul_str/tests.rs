@@ -1,6 +1,6 @@
 use crate::sabi_types::{NulStr, NulStrError};
 
-use abi_stable_shared::{file_span, test_utils::must_panic};
+use abi_stable_shared::test_utils::must_panic;
 
 use std::cmp::{Ord, Ordering, PartialOrd};
 
@@ -14,6 +14,11 @@ fn from_str_with_constructor(func: fn(&str) -> NulStr<'_>) {
         assert_eq!(this.to_rstr(), str);
         assert_eq!(this.to_str_with_nul(), strwn);
         assert_eq!(this.to_rstr_with_nul(), strwn);
+        #[cfg(feature = "rust_1_64")]
+        {
+            assert_eq!(this.const_to_str(), str);
+            assert_eq!(this.const_to_str_with_nul(), strwn);
+        }
     }
 
     for &strwn in &["foo\0", "foo\0bar\0"] {
@@ -24,17 +29,46 @@ fn from_str_with_constructor(func: fn(&str) -> NulStr<'_>) {
         assert_eq!(this.to_rstr(), "foo");
         assert_eq!(this.to_str_with_nul(), "foo\0");
         assert_eq!(this.to_rstr_with_nul(), "foo\0");
+
+        #[cfg(feature = "rust_1_64")]
+        {
+            assert_eq!(this.const_to_str(), "foo");
+            assert_eq!(this.const_to_str_with_nul(), "foo\0");
+        }
     }
 }
 
+const NS1: NulStr<'_> = NulStr::from_str("hello\0");
+const NS2: NulStr<'_> = NulStr::from_str("world\0foo\0");
+
 #[test]
 fn nulstr_from_str_tests() {
-    must_panic(file_span!(), || NulStr::from_str("foo\0bar")).unwrap();
-    must_panic(file_span!(), || NulStr::from_str("foo")).unwrap();
-    must_panic(file_span!(), || NulStr::from_str("")).unwrap();
+    must_panic(|| NulStr::from_str("foo\0bar")).unwrap();
+    must_panic(|| NulStr::from_str("foo")).unwrap();
+    must_panic(|| NulStr::from_str("")).unwrap();
+
+    assert_eq!(NS1, "hello");
+    assert_eq!(NS2, "world");
 
     from_str_with_constructor(|s| NulStr::from_str(s));
     from_str_with_constructor(|s| unsafe { NulStr::from_ptr(s.as_ptr()) });
+}
+
+#[test]
+#[cfg(feature = "rust_1_64")]
+fn const_to_str_tests() {
+    macro_rules! assert_cs {
+        ($lhs:expr, $($rem:tt)*) => ({
+            const __S: &str = $lhs;
+            assert_eq!(__S, $($rem)*);
+        });
+    }
+
+    assert_cs!(NS1.const_to_str(), "hello");
+    assert_cs!(NS1.const_to_str_with_nul(), "hello\0");
+
+    assert_cs!(NS2.const_to_str(), "world");
+    assert_cs!(NS2.const_to_str_with_nul(), "world\0");
 }
 
 #[test]
@@ -64,7 +98,7 @@ fn nulstr_try_from_str_tests() {
         dbg!(strwn);
         assert_eq!(NulStr::try_from_str(strwn), Err(err));
 
-        must_panic(file_span!(), || NulStr::__try_from_str_unwrapping(strwn)).unwrap();
+        must_panic(|| NulStr::__try_from_str_unwrapping(strwn)).unwrap();
     }
 }
 

@@ -25,14 +25,9 @@ impl<'a, K> MapQuery<'a, K> {
         }
     }
 
-    // #[inline]
-    // pub(super) unsafe fn to_static(self) -> MapQuery<'static, K>{
-    //     mem::transmute::<MapQuery<'a, K>, MapQuery<'static, K>>(self)
-    // }
-
     #[inline]
     pub(super) unsafe fn as_static(&self) -> &MapQuery<'static, K> {
-        crate::utils::transmute_reference(self)
+        unsafe { crate::utils::transmute_reference(self) }
     }
 }
 
@@ -44,7 +39,7 @@ impl<'a, K> MapQuery<'a, K> {
 
     #[inline]
     pub(super) unsafe fn as_mapkey(&self) -> MapKey<K> {
-        MapKey::Query(NonNull::from(self.as_static()))
+        MapKey::Query(NonNull::from(unsafe { self.as_static() }))
     }
 }
 

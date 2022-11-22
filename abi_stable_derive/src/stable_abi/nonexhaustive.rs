@@ -33,8 +33,8 @@ use crate::{
 /// Used while parsing the `#[sabi(kind(WithNonExhaustive(...)))]` attribute.
 #[derive(Clone, Default)]
 pub(crate) struct UncheckedNonExhaustive<'a> {
-    pub(crate) alignment: Option<IntOrType<'a>>,
-    pub(crate) size: Option<IntOrType<'a>>,
+    pub(crate) alignment: Option<ExprOrType<'a>>,
+    pub(crate) size: Option<ExprOrType<'a>>,
     pub(crate) enum_interface: Option<EnumInterface<'a>>,
     pub(crate) assert_nonexh: Vec<&'a syn::Type>,
 }
@@ -48,9 +48,9 @@ pub(crate) struct NonExhaustive<'a> {
     /// The identifier for the storage space used to store the enum within `NonExhaustive<>`
     pub(crate) enum_storage: &'a Ident,
     /// The alignment of `#enum_storage`
-    pub(crate) alignment: IntOrType<'a>,
+    pub(crate) alignment: ExprOrType<'a>,
     /// The size of `#enum_storage`
-    pub(crate) size: IntOrType<'a>,
+    pub(crate) size: ExprOrType<'a>,
     /// The InterfaceType-implementing marker struct this will generate,
     /// if this is:
     ///     - `Some(EnumInterface::New{..})`:it will use a new struct as the InterfaceType.
@@ -147,7 +147,7 @@ impl<'a> NonExhaustive<'a> {
     ) -> Result<Self, syn::Error> {
         let name = ds.name;
 
-        let alignment = unchecked.alignment.unwrap_or(IntOrType::Usize);
+        let alignment = unchecked.alignment.unwrap_or(ExprOrType::Usize);
 
         let parse_ident = move |s: &str, span: Option<Span>| -> &'a Ident {
             let mut ident = parse_str_as_ident(s);
@@ -168,7 +168,7 @@ impl<'a> NonExhaustive<'a> {
                 the `#[sabi(kind(WithNonExhaustive(...)))]` helper attribute.\n\
                 "
             ));
-            IntOrType::Int(0)
+            ExprOrType::Int(0)
         });
 
         let mut bounds_trait = None::<BoundsTrait<'a>>;
@@ -271,8 +271,9 @@ impl<'a> NonExhaustive<'a> {
 }
 
 #[derive(Copy, Clone)]
-pub enum IntOrType<'a> {
+pub enum ExprOrType<'a> {
     Int(usize),
+    Expr(&'a syn::Expr),
     Type(&'a syn::Type),
     Usize,
 }
@@ -328,18 +329,31 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
         let enum_storage = this.enum_storage;
 
         let (aligner_attribute, aligner_field) = match this.alignment {
-            IntOrType::Int(bytes) => {
+            ExprOrType::Int(bytes) => {
                 let bytes = crate::utils::expr_from_int(bytes as _);
                 (Some(quote!(#[repr(align(#bytes))])), None)
             }
-            IntOrType::Type(ty) => (None, Some(quote!(__aligner:[#ty;0],))),
-            IntOrType::Usize => (None, Some(quote!(__aligner: [usize; 0],))),
+            ExprOrType::Expr(expr) => (
+                None,
+                Some(quote!(
+                    __aligner: [
+                        ::abi_stable::pmr::GetAlignerFor<::abi_stable::pmr::u8, #expr>;
+                        0
+                    ]
+                )),
+            ),
+            ExprOrType::Type(ty) => (None, Some(quote!(__aligner:[#ty;0],))),
+            ExprOrType::Usize => (
+                None,
+                Some(quote!(__aligner: [::abi_stable::pmr::usize; 0],)),
+            ),
         };
 
         let aligner_size = match this.size {
-            IntOrType::Int(size) => quote!( #size ),
-            IntOrType::Type(ty) => quote!( std::mem::size_of::<#ty>() ),
-            IntOrType::Usize => quote!(std::mem::size_of::<usize>()),
+            ExprOrType::Int(size) => quote!( #size ),
+            ExprOrType::Expr(expr) => quote!( (#expr) ),
+            ExprOrType::Type(ty) => quote!( ::std::mem::size_of::<#ty>() ),
+            ExprOrType::Usize => quote!(::std::mem::size_of::<::abi_stable::pmr::usize>()),
         };
 
         let name = ds.name;
@@ -517,7 +531,7 @@ pub(crate) fn tokenize_nonexhaustive_items<'a>(
             let bound = match &this.bounds_trait {
                 Some(BoundsTrait { ident, .. }) => quote!(#ident),
                 None => quote!(
-                    ::abi_stable::pmr::GetNonExhaustiveVTable<
+                    ::abi_stable::pmr::NonExhaustiveMarkerVTable<
                         #enum_storage,
                         #default_interface,
                     >
@@ -630,13 +644,6 @@ pub(crate) fn tokenize_enum_info<'a>(
                 >;
             }
 
-            impl #impl_generics #name #ty_generics
-            #where_clause
-            {
-                const _SABI_NE_DISCR_CNSNT_STD_:&'static[#discriminant_type]=
-                    #discriminant_tokens;
-            }
-
             unsafe impl #impl_generics __sabi_re::GetEnumInfo for #name #ty_generics
             #where_clause
             {
@@ -653,15 +660,16 @@ pub(crate) fn tokenize_enum_info<'a>(
                         ::abi_stable::type_layout::StartLen::new(#vn_start,#vn_len),
                     );
 
-                fn discriminants()->&'static [#discriminant_type]{
-                    Self::_SABI_NE_DISCR_CNSNT_STD_
-                }
+                const DISCRIMINANTS: &'static[#discriminant_type]=
+                    #discriminant_tokens;
 
                 fn is_valid_discriminant(discriminant:#discriminant_type)->bool{
                     #(
                         (
-                            Self::_SABI_NE_DISCR_CNSNT_STD_[#start_discrs] <= discriminant &&
-                            discriminant <= Self::_SABI_NE_DISCR_CNSNT_STD_[#end_discrs]
+                            <Self as __sabi_re::GetEnumInfo>::DISCRIMINANTS[#start_discrs]
+                            <= discriminant &&
+                            discriminant <=
+                            <Self as __sabi_re::GetEnumInfo>::DISCRIMINANTS[#end_discrs]
                         )||
                     )*
                     false
@@ -670,29 +678,43 @@ pub(crate) fn tokenize_enum_info<'a>(
 
 
             unsafe impl<#generics_header>
-                __sabi_re::GetNonExhaustive<__Storage>
+                __sabi_re::NonExhaustiveMarker<__Storage>
             for #name <#generics_use>
             #where_clause
             {
-                type NonExhaustive=#nonexhaustive_marker<Self,__Storage>;
+                type Marker = #nonexhaustive_marker<Self,__Storage>;
             }
 
 
         )
         .to_tokens(ts);
 
-        if !this.assert_nonexh.is_empty() {
-            let tests_function = parse_str_as_ident(&format!("{}_storage_assertions", name));
-            let assertions = this.assert_nonexh.iter().cloned();
-            quote!(
-                #[test]
-                fn #tests_function(){
-                    use ::abi_stable::pmr::assert_nonexhaustive;
+        let self_type: syn::Type;
+        let self_type_buf: Vec<&syn::Type>;
+        let assert_nonexh = if this.assert_nonexh.is_empty() && ds.generics.params.is_empty() {
+            let name = ds.name;
+            self_type = syn::parse_quote!(#name);
+            self_type_buf = vec![&self_type];
+            &self_type_buf
+        } else {
+            &this.assert_nonexh
+        };
 
-                    #(
-                        assert_nonexhaustive::<#assertions>();
-                    )*
-                }
+        if !assert_nonexh.is_empty() {
+            let assertions = assert_nonexh.iter().cloned();
+            let assertions_str = assert_nonexh
+                .iter()
+                .map(|x| x.to_token_stream().to_string());
+            let enum_storage_str = enum_storage.to_string();
+            quote!(
+                #(
+                    const _: () = ::abi_stable::pmr::assert_correct_storage::<#assertions, #enum_storage>(
+                        ::abi_stable::pmr::AssertCsArgs{
+                            enum_ty: #assertions_str,
+                            storage_ty: #enum_storage_str,
+                        }
+                    );
+                )*
             )
             .to_tokens(ts);
         }

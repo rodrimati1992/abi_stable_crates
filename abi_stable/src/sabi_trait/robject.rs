@@ -7,7 +7,7 @@ use core_extensions::SelfOps;
 
 use crate::{
     abi_stability::PrefixStableAbi,
-    erased_types::{c_functions::adapt_std_fmt, InterfaceBound},
+    erased_types::{c_functions::adapt_std_fmt, InterfaceType, MakeRequiredTraits},
     pointer_trait::{
         AsMutPtr, AsPtr, CanTransmuteElement, GetPointerKind, PK_Reference, PK_SmartPointer,
         PointerKind, TransmuteElement,
@@ -38,17 +38,19 @@ use crate::{
 /// can be used as a trait object for any combination of
 /// the traits listed below:
 ///
-/// - `Send`
+/// - [`Send`]
 ///
-/// - `Sync`
+/// - [`Sync`]
 ///
-/// - `Debug`
+/// - [`Unpin`](std::marker::Unpin)
 ///
-/// - `Display`
+/// - [`Debug`]
 ///
-/// - `Error`
+/// - [`Display`]
 ///
-/// - `Clone`
+/// - [`Error`](std::error::Error)
+///
+/// - [`Clone`]
 ///
 /// # Deconstruction
 ///
@@ -75,9 +77,9 @@ use crate::{
 #[derive(StableAbi)]
 #[sabi(
     not_stableabi(V),
-    bound = "V:PrefixStableAbi",
-    bound = "I:InterfaceBound",
-    extra_checks = "<I as InterfaceBound>::EXTRA_CHECKS"
+    bound(V: PrefixStableAbi),
+    bound(I: InterfaceType),
+    extra_checks = <I as MakeRequiredTraits>::MAKE,
 )]
 pub struct RObject<'lt, P, I, V>
 where
@@ -85,7 +87,7 @@ where
 {
     vtable: PrefixRef<V>,
     ptr: ManuallyDrop<P>,
-    _marker: PhantomData<(&'lt (), I)>,
+    _marker: PhantomData<(&'lt (), extern "C" fn() -> I)>,
 }
 
 mod clone_impl {
@@ -204,7 +206,7 @@ where
 impl<'lt, P, I, V> std::error::Error for RObject<'lt, P, I, V>
 where
     P: AsPtr<PtrTarget = ()>,
-    I: InterfaceBound<
+    I: InterfaceType<
         Display = Implemented<trait_marker::Display>,
         Debug = Implemented<trait_marker::Debug>,
         Error = Implemented<trait_marker::Error>,
@@ -223,6 +225,14 @@ unsafe impl<'lt, P, I, V> Sync for RObject<'lt, P, I, V>
 where
     P: GetPointerKind,
     I: InterfaceType<Sync = Implemented<trait_marker::Sync>>,
+{
+}
+
+impl<'lt, P, I, V> Unpin for RObject<'lt, P, I, V>
+where
+    // `Unpin` is a property of the referent
+    P: GetPointerKind,
+    I: InterfaceType<Unpin = Implemented<trait_marker::Unpin>>,
 {
 }
 
@@ -245,7 +255,7 @@ where
     ///     (created using `RObject::reborrow` or `RObject::reborrow_mut`).
     ///
     /// - The vtable must be the `SomeVTableName` of a struct declared with
-    ///     `#[derive(StableAbi)] #[sabi(kind(Prefix(prefix_ref="SomeVTableName")))]`.
+    ///     `#[derive(StableAbi)] #[sabi(kind(Prefix(prefix_ref= SomeVTableName)))]`.
     ///
     /// - The vtable must have `RObjectVtable_Ref` as its first declared field
     ///
@@ -257,7 +267,7 @@ where
     {
         RObject {
             vtable,
-            ptr: ManuallyDrop::new(ptr.transmute_element::<()>()),
+            ptr: ManuallyDrop::new(unsafe { ptr.transmute_element::<()>() }),
             _marker: PhantomData,
         }
     }
@@ -266,7 +276,7 @@ where
 impl<'borr, 'a, I, V> RObject<'borr, RRef<'a, ()>, I, V> {
     /// This function allows constructing an RObject in a constant/static.
     ///
-    /// This is mostly intended for `#[sabi_trait] generated trait objects`
+    /// This is mostly intended for `#[sabi_trait]`-generated trait objects
     ///
     /// # Safety
     ///
@@ -279,25 +289,22 @@ impl<'borr, 'a, I, V> RObject<'borr, RRef<'a, ()>, I, V> {
     ///
     /// ```
     /// use abi_stable::sabi_trait::{
-    ///     doc_examples::{ConstExample_CTO, ConstExample_MV},
+    ///     doc_examples::ConstExample_CTO,
     ///     prelude::TD_Opaque,
     /// };
     ///
     /// const EXAMPLE0: ConstExample_CTO<'static, 'static> =
-    ///     ConstExample_CTO::from_const(&0usize, TD_Opaque, ConstExample_MV::VTABLE);
+    ///     ConstExample_CTO::from_const(&0usize, TD_Opaque);
     ///
     /// ```
-    pub const unsafe fn with_vtable_const<T, Downcasting>(
-        ptr: &'a T,
-        vtable: VTableTO_RO<T, RRef<'a, T>, Downcasting, V>,
-    ) -> Self
+    pub const unsafe fn with_vtable_const<T, Downcasting>(ptr: &'a T, vtable: PrefixRef<V>) -> Self
     where
         T: 'borr,
     {
         RObject {
-            vtable: vtable.robject_vtable(),
+            vtable,
             ptr: {
-                let x = RRef::new(ptr).transmute::<()>();
+                let x = unsafe { RRef::new(ptr).transmute::<()>() };
                 ManuallyDrop::new(x)
             },
             _marker: PhantomData,
@@ -316,7 +323,7 @@ where
     where
         T: 'static,
     {
-        let expected_typeid = self.sabi_robject_vtable()._sabi_type_id().get();
+        let expected_typeid = self.sabi_robject_vtable()._sabi_type_id()();
         let actual_typeid = UTypeId::new::<T>();
         if expected_typeid == MaybeCmp::Just(actual_typeid) {
             Ok(())
@@ -519,7 +526,7 @@ where
         P: AsPtr<PtrTarget = ()> + CanTransmuteElement<T>,
     {
         let this = ManuallyDrop::new(self);
-        ptr::read(&*this.ptr).transmute_element::<T>()
+        unsafe { ptr::read(&*this.ptr).transmute_element::<T>() }
     }
 
     /// Unwraps the `RObject<_>` into a reference to T,
@@ -574,7 +581,7 @@ where
     where
         P: AsPtr<PtrTarget = ()>,
     {
-        &*(self.ptr.as_ptr() as *const T)
+        unsafe { &*(self.ptr.as_ptr() as *const T) }
     }
 
     /// Unwraps the `RObject<_>` into a mutable reference to T,
@@ -619,7 +626,7 @@ where
     where
         P: AsMutPtr<PtrTarget = ()>,
     {
-        &mut *(self.ptr.as_mut_ptr() as *mut T)
+        unsafe { &mut *(self.ptr.as_mut_ptr() as *mut T) }
     }
 }
 
@@ -745,7 +752,7 @@ where
 {
     /// Gets the vtable.
     #[inline]
-    pub fn sabi_et_vtable(&self) -> PrefixRef<V> {
+    pub const fn sabi_et_vtable(&self) -> PrefixRef<V> {
         self.vtable
     }
 
@@ -831,6 +838,7 @@ pub struct UneraseError<T> {
     actual_typeid: UTypeId,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> UneraseError<T> {
     fn map<F, U>(self, f: F) -> UneraseError<U>
     where

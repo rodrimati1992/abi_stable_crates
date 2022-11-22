@@ -7,10 +7,7 @@ use core_extensions::SelfOps;
 use abi_stable::std_types::{Tuple1, Tuple2, Tuple3, Tuple4};
 
 use abi_stable::{
-    abi_stability::{
-        check_layout_compatibility,
-        stable_abi_trait::{get_type_layout, GetTypeLayoutCtor, TypeLayoutCtor},
-    },
+    abi_stability::{check_layout_compatibility, stable_abi_trait::get_type_layout},
     std_types::*,
     type_layout::TypeLayout,
     StableAbi,
@@ -24,7 +21,7 @@ use super::shared_types::{
 ////////////////////////////////////////////////////////////////////////////////
 
 /// This is to test that function pointers with 5 or more parameters
-/// store the TypeLayoutCtor for the remaining parameters after the 5th one.
+/// store the type layout for the remaining parameters after the 5th one.
 pub(super) mod many_params {
     use super::RString;
     #[repr(C)]
@@ -47,17 +44,17 @@ struct FnTest {
 
 struct TypeTest {
     layout: &'static TypeLayout,
-    vars_types: Vec<TypeLayoutCtor>,
+    vars_types: Vec<extern "C" fn() -> &'static TypeLayout>,
     field_types: Vec<usize>,
     functions: Vec<Vec<FnTest>>,
 }
 
 #[cfg(not(miri))]
-fn get_tlc<T>() -> TypeLayoutCtor
+fn get_tlc<T>() -> extern "C" fn() -> &'static TypeLayout
 where
     T: StableAbi,
 {
-    GetTypeLayoutCtor::<T>::STABLE_ABI
+    get_type_layout::<T>
 }
 
 #[cfg(not(miri))]
@@ -248,7 +245,7 @@ fn assert_types() {
             let field_layout = field.layout();
             let expected_layout = {
                 let x = ty_test.field_types[field_i];
-                vars_types[x].get()
+                vars_types[x]()
             };
 
             test_layout(field_layout, expected_layout);
@@ -264,15 +261,15 @@ fn assert_types() {
                         .next()
                         .and_then(|x| vars_types.get(*x))
                         .unwrap_or_else(|| panic!("mismatched parameter type: {}", field_func));
-                    test_layout(param.get(), expected_param.get());
+                    test_layout(param(), expected_param());
                 }
 
                 match (
-                    field_func.return_type_layout,
+                    field_func.return_type_layout(),
                     vars_types.get(expected_fn.ret),
                 ) {
                     (Some(found_ret), Some(expected_ret)) => {
-                        test_layout(found_ret.get(), expected_ret.get());
+                        test_layout(found_ret(), expected_ret());
                     }
                     (None, None) => {}
                     _ => panic!(
@@ -284,7 +281,7 @@ fn assert_types() {
                         field_func,
                         type_layouts_fmt(shared_vars.type_layouts().iter().cloned()),
                         type_layouts_fmt(field_func.param_type_layouts.iter()),
-                        type_layouts_fmt(field_func.return_type_layout),
+                        type_layouts_fmt(field_func.return_type_layout()),
                         type_layouts_fmt(expected_fn.params.iter().map(|x| vars_types[*x])),
                         type_layouts_fmt(vars_types.get(expected_fn.ret).cloned()),
                     ),
@@ -295,8 +292,10 @@ fn assert_types() {
 }
 
 #[cfg(not(miri))]
-fn type_layouts_fmt(iter: impl IntoIterator<Item = TypeLayoutCtor>) -> Vec<String> {
+fn type_layouts_fmt(
+    iter: impl IntoIterator<Item = extern "C" fn() -> &'static TypeLayout>,
+) -> Vec<String> {
     iter.into_iter()
-        .map(|x| x.get().full_type().to_string())
+        .map(|x| x().full_type().to_string())
         .collect::<Vec<String>>()
 }

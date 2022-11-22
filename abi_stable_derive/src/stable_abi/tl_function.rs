@@ -3,8 +3,8 @@
 use super::*;
 
 use crate::{
-    composite_collections::SmallStartLen as StartLen, fn_pointer_extractor::TypeVisitor,
-    lifetimes::LifetimeRange,
+    composite_collections::SmallStartLen as StartLen, fn_pointer_extractor::Function,
+    fn_pointer_extractor::TypeVisitor, lifetimes::LifetimeRange,
 };
 
 use std::marker::PhantomData;
@@ -80,7 +80,7 @@ impl<'a> VisitedFieldMap<'a> {
                 let functions = iterated_functions
                     .iter()
                     .enumerate()
-                    .map(|(fn_i, func)| {
+                    .map(|(fn_i, func): (usize, &Function<'_>)| {
                         let name_span = name.span();
                         let name_start_len = if is_function || iterated_functions.len() == 1 {
                             comp_field.name_start_len()
@@ -122,6 +122,7 @@ impl<'a> VisitedFieldMap<'a> {
                             param_type_layouts,
                             paramret_lifetime_range,
                             return_type_layout,
+                            is_unsafe: func.is_unsafe,
                         }
                     })
                     .collect::<Vec<CompTLFunction>>();
@@ -173,6 +174,7 @@ pub struct CompTLFunction {
     return_type_layout: u16,
     paramret_lifetime_range: LifetimeRange,
     param_type_layouts: TypeLayoutRange,
+    is_unsafe: bool,
 }
 
 impl ToTokens for CompTLFunction {
@@ -185,6 +187,11 @@ impl ToTokens for CompTLFunction {
         let return_type_layout = self.return_type_layout;
         let paramret_lifetime_range = self.paramret_lifetime_range.to_u21();
         let param_type_layouts = self.param_type_layouts.to_u64();
+        let is_unsafe = if self.is_unsafe {
+            quote!( .set_unsafe() )
+        } else {
+            TokenStream2::new()
+        };
 
         quote!(
             __CompTLFunction::new(
@@ -195,6 +202,8 @@ impl ToTokens for CompTLFunction {
                 #return_type_layout,
                 #paramret_lifetime_range,
                 #param_type_layouts,
+                __TLFunctionQualifiers::NEW
+                    #is_unsafe,
             )
         )
         .to_tokens(ts);

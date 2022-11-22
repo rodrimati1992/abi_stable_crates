@@ -1,4 +1,5 @@
 //! Contains the ffi-safe equivalent of `std::collections::HashMap`, and related items.
+#![allow(clippy::missing_const_for_fn)]
 
 use std::{
     borrow::Borrow,
@@ -18,9 +19,11 @@ use core_extensions::SelfOps;
 
 use crate::{
     erased_types::trait_objects::HasherObject,
-    marker_type::{ErasedObject, NonOwningPhantom, NotCopyNotClone, UnsafeIgnoredType},
+    marker_type::{
+        ErasedObject, ErasedPrefix, NonOwningPhantom, NotCopyNotClone, UnsafeIgnoredType,
+    },
     pointer_trait::{AsMutPtr, AsPtr},
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::{PrefixRef, WithMetadata},
     sabi_types::{RMut, RRef},
     std_types::*,
     traits::{ErasedType, IntoReprRust},
@@ -100,7 +103,8 @@ pub use self::{
 )]
 pub struct RHashMap<K, V, S = RandomState> {
     map: RBox<ErasedMap<K, V, S>>,
-    vtable: VTable_Ref<K, V, S>,
+    #[sabi(unsafe_change_type = VTable_Ref<K, V, S>)]
+    vtable: PrefixRef<ErasedPrefix>,
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -227,17 +231,18 @@ impl<K, V, S> RHashMap<K, V, S> {
         let mut map = VTable::<K, V, S>::erased_map(hash_builder);
         unsafe {
             ErasedMap::reserve(map.as_rmut(), capacity);
-        }
-        RHashMap {
-            map,
-            vtable: VTable::VTABLE_REF,
+
+            RHashMap {
+                map,
+                vtable: VTable::<K, V, S>::VTABLE_REF.0.cast(),
+            }
         }
     }
 }
 
 impl<K, V, S> RHashMap<K, V, S> {
     fn vtable(&self) -> VTable_Ref<K, V, S> {
-        self.vtable
+        unsafe { VTable_Ref::<K, V, S>(self.vtable.cast()) }
     }
 }
 
@@ -1217,8 +1222,7 @@ where
     K: Eq + Hash,
     S: BuildHasher,
 {
-    const VTABLE_VAL: WithMetadata<VTable<K, V, S>> =
-        { WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE) };
+    const VTABLE_VAL: WithMetadata<VTable<K, V, S>> = WithMetadata::new(Self::VTABLE);
 
     const VTABLE_REF: VTable_Ref<K, V, S> = unsafe { VTable_Ref(Self::VTABLE_VAL.as_prefix()) };
 

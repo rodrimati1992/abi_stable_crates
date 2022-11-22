@@ -7,11 +7,23 @@ use super::*;
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum MonoTLData {
+    ///
     Primitive(TLPrimitive),
+    /// A type that's only compared for size and alignment.
     Opaque,
-    Struct { fields: CompTLFields },
-    Union { fields: CompTLFields },
+    ///
+    Struct {
+        ///
+        fields: CompTLFields,
+    },
+    ///
+    Union {
+        ///
+        fields: CompTLFields,
+    },
+    ///
     Enum(MonoTLEnum),
+    ///
     PrefixType(MonoTLPrefixType),
 }
 
@@ -83,7 +95,7 @@ impl MonoTLData {
 
     /// Converts this into a `TLDataDiscriminant`,
     /// allowing one to query which discriminant this is.
-    pub fn as_discriminant(&self) -> TLDataDiscriminant {
+    pub const fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             MonoTLData::Primitive { .. } => TLDataDiscriminant::Primitive,
             MonoTLData::Opaque { .. } => TLDataDiscriminant::Opaque,
@@ -94,7 +106,7 @@ impl MonoTLData {
         }
     }
 
-    pub(super) fn to_primitive(self) -> Option<TLPrimitive> {
+    pub(super) const fn to_primitive(self) -> Option<TLPrimitive> {
         match self {
             MonoTLData::Primitive(x) => Some(x),
             _ => None,
@@ -164,11 +176,17 @@ impl Display for MismatchedTLDataVariant {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum TLDataDiscriminant {
+    ///
     Primitive,
+    /// A type that's only compared for size and alignment.
     Opaque,
+    ///
     Struct,
+    ///
     Union,
+    ///
     Enum,
+    ///
     PrefixType,
 }
 
@@ -179,18 +197,24 @@ pub enum TLDataDiscriminant {
 #[derive(Copy, Clone, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum GenericTLData {
+    ///
     Primitive,
+    /// A type that's only compared for size and alignment.
     Opaque,
+    ///
     Struct,
+    ///
     Union,
+    ///
     Enum(GenericTLEnum),
+    ///
     PrefixType(GenericTLPrefixType),
 }
 
 impl GenericTLData {
     /// Converts this into a `TLDataDiscriminant`,
     /// allowing one to query which discriminant this is.
-    pub fn as_discriminant(&self) -> TLDataDiscriminant {
+    pub const fn as_discriminant(&self) -> TLDataDiscriminant {
         match self {
             GenericTLData::Primitive { .. } => TLDataDiscriminant::Primitive,
             GenericTLData::Opaque { .. } => TLDataDiscriminant::Opaque,
@@ -222,9 +246,15 @@ pub enum TLData {
     /// with the same byte length as this layout .
     Opaque,
     /// For structs.
-    Struct { fields: TLFields },
+    Struct {
+        ///
+        fields: TLFields,
+    },
     /// For unions.
-    Union { fields: TLFields },
+    Union {
+        ///
+        fields: TLFields,
+    },
     /// For enums.
     Enum(TLEnum),
     /// vtables and modules that can be extended in minor versions.

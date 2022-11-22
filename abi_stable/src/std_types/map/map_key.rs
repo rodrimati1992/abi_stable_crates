@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Clone)]
 pub enum MapKey<K> {
     Value(K),
     /// This is a horrible hack.

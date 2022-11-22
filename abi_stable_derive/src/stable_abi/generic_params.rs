@@ -21,7 +21,7 @@ impl<'a> GenericParams<'a> {
         let type_param_range: StartLen = {
             let shared_vars = std::cell::RefCell::new(&mut *shared_vars);
             let phantom_type_params = config.phantom_type_params.iter().map(|ty| {
-                let ty: &'a syn::Type = *ty;
+                let ty: &'a syn::Type = ty;
                 shared_vars
                     .borrow_mut()
                     .push_type(LayoutConstructor::Regular, ty)

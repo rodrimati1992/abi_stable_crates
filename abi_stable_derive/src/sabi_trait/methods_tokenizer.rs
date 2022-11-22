@@ -191,7 +191,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
             quote_spanned!( method_span=>
                 #optional_field
-                #(#[#derive_attrs])*
+                #(#derive_attrs)*
                 #vis #method_name:
                     #(for< #(#lifetimes,)* >)*
                     unsafe extern "C" fn(
@@ -223,7 +223,7 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
 
             quote_spanned!(method_span=>
                 #[allow(clippy::let_and_return)]
-                #(#[#other_attrs])*
+                #(#other_attrs)*
                 #inherent_method_docs
                 #vis #unsafety #abi fn #method_name #(< #(#lifetimes,)* >)* (
                     #self_param,
@@ -246,15 +246,26 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
             SelfParam::ByVal => &ctokens.ptr_val_bound,
         };
 
+        let output_safety = |output: &mut TokenStream2, input: TokenStream2| {
+            output.append_all(if let Some(safety) = method.unsafety {
+                quote_spanned!(safety.span => { #safety{ #input } })
+            } else {
+                quote_spanned!(method_span => { #input })
+            });
+        };
+
         match (which_item, &method.self_param) {
             (WhichItem::Trait, _) => {
                 method.default.as_ref().map(|x| x.block).to_tokens(ts);
                 method.semicolon.to_tokens(ts);
             }
             (WhichItem::TraitImpl, _) => {
-                ts.append_all(quote_spanned!(method_span=>{
-                    self.#method_name(#(#param_names_c,)*)
-                }));
+                output_safety(
+                    ts,
+                    quote_spanned!(method_span =>
+                        self.#method_name(#(#param_names_c,)*)
+                    ),
+                );
             }
             (WhichItem::TraitObjectImpl, _) => {
                 let method_call = match &method.self_param {
@@ -329,12 +340,14 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                     }
                 });
 
+                let ret = syn::Ident::new("ret", proc_macro2::Span::call_site());
+
                 let transmute_ret = match method.return_borrow_kind {
                     Some(BorrowKind::Reference) => {
-                        quote_spanned!(method_span=> ::std::mem::transmute(ret) )
+                        quote_spanned!(method_span=> ::std::mem::transmute(#ret) )
                     }
                     Some(BorrowKind::MutReference) => {
-                        quote_spanned!(method_span=> ::std::mem::transmute(ret) )
+                        quote_spanned!(method_span=> ::std::mem::transmute(#ret) )
                     }
                     Some(BorrowKind::Other) => {
                         // Motivation:
@@ -342,29 +355,31 @@ impl<'a> ToTokens for MethodTokenizer<'a> {
                         // without adding a `_Self: '_self` bound,
                         // which causes compilation errors due to how HRTB are handled.
                         // The correctness of the lifetime is guaranteed by the trait definition.
-                        quote_spanned!(method_span=> __sabi_re::transmute_ignore_size(ret) )
+                        quote_spanned!(method_span=> __sabi_re::transmute_ignore_size(#ret) )
                     }
-                    None => quote_spanned!(method_span=> ret ),
+                    None => quote_spanned!(method_span=> #ret ),
                 };
 
                 ts.append_all(quote_spanned!(method_span=>{
-                    let ret = ::abi_stable::extern_fn_panic_handling!{no_early_return;
-                        __Trait::#method_name(
-                            &#mut_token *_self.transmute_into_raw::<#self_ty>(),
-                            #(#param_names_c,)*
-                        )
-                    };
+                    unsafe{
+                        let #ret = ::abi_stable::extern_fn_panic_handling!{no_early_return;
+                            __Trait::#method_name(
+                                &#mut_token *_self.transmute_into_raw::<#self_ty>(),
+                                #(#param_names_c,)*
+                            )
+                        };
 
-                    #transmute_ret
+                        #transmute_ret
+                    }
                 }));
             }
             (WhichItem::VtableImpl, SelfParam::ByVal) => {
                 ts.append_all(quote_spanned!(method_span=>{
-                    ::abi_stable::extern_fn_panic_handling!{no_early_return;
+                    ::abi_stable::extern_fn_panic_handling!{no_early_return; unsafe{
                         __Trait::#method_name(
                             (_self as *mut #self_ty).read(),#(#param_names_c,)*
                         )
-                    }
+                    }}
                 }));
             }
         }

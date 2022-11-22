@@ -7,7 +7,7 @@ use crate::{
     *,
 };
 
-use abi_stable_shared::{file_span, test_utils::must_panic};
+use abi_stable_shared::test_utils::must_panic;
 
 mod empty {
     use super::*;
@@ -39,14 +39,14 @@ mod method_disabled_one_default {
     #[sabi_trait]
     pub trait Trait {
         fn first_method(&self) -> u32 {
-            0xf000
+            0xF000
         }
         #[sabi(no_default_fallback)]
         fn apply(&self, l: u32, r: u32) -> u32 {
             (l + r) * 3
         }
         fn last_method(&self) -> u32 {
-            0xfAAA
+            0xFAAA
         }
     }
 
@@ -64,10 +64,10 @@ mod method_disabled_all_default {
     #[sabi(no_default_fallback)]
     pub trait Trait {
         fn first_method(&self) -> u32 {
-            0xf000
+            0xF000
         }
         fn last_method(&self) -> u32 {
-            0xfAAA
+            0xFAAA
         }
     }
 
@@ -97,23 +97,24 @@ fn downcasting_tests() {
     unsafe {
         use self::method_disabled_one_default::*;
         let empty = empty::Trait_TO::from_value((), TD_Opaque);
+        // these transmutes are for testing DynTraits created across library versions
         let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
-        assert_eq!(object.first_method(), 0xf000);
-        assert_eq!(object.last_method(), 0xfAAA);
-        must_panic(file_span!(), || object.apply(2, 5)).unwrap();
+        assert_eq!(object.first_method(), 0xF000);
+        assert_eq!(object.last_method(), 0xFAAA);
+        must_panic(|| object.apply(2, 5)).unwrap();
     }
     unsafe {
         use self::method_disabled_all_default::*;
         let empty = empty::Trait_TO::from_value((), TD_Opaque);
         let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
-        must_panic(file_span!(), || object.first_method()).unwrap();
-        must_panic(file_span!(), || object.last_method()).unwrap();
+        must_panic(|| object.first_method()).unwrap();
+        must_panic(|| object.last_method()).unwrap();
     }
     unsafe {
         use self::method_no_default::*;
         let empty = empty::Trait_TO::from_value((), TD_Opaque);
         let object = mem::transmute::<_, Trait_TO<'_, RBox<()>>>(empty);
-        must_panic(file_span!(), || object.apply(2, 5)).unwrap();
+        must_panic(|| object.apply(2, 5)).unwrap();
     }
     unsafe {
         use self::method_default::*;
@@ -291,4 +292,44 @@ fn borrow_kinds() {
     assert_eq!(obj.non_self_borrow().as_str(), "baz");
     assert_eq!(*obj.mut_borrow(), 3);
     assert_eq!(obj.not_borrow(), 89);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+mod has_docs {
+    /// above
+    #[crate::sabi_trait]
+    /// below
+    #[sabi(debug_output_tokens)]
+    pub trait HasDocs {
+        /// above2
+        /// below2
+        fn foo(&self) {}
+    }
+}
+
+fn remove_whitespace(s: &str) -> String {
+    s.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+#[test]
+fn docs_are_included_test() {
+    let no_whitespace = remove_whitespace(has_docs::TOKENS);
+    assert!(
+        no_whitespace.contains(&*remove_whitespace(
+            "
+                #[doc=\"above\"]
+                #[doc=\"below\"]
+                pub trait HasDocs
+            "
+        )) && no_whitespace.contains(&*remove_whitespace(
+            "
+                #[doc=\"above2\"]
+                #[doc=\"below2\"]
+                fn foo(&self
+            "
+        )) && no_whitespace.contains(&*remove_whitespace("pub fn foo(&self")),
+        "{}",
+        has_docs::TOKENS
+    );
 }

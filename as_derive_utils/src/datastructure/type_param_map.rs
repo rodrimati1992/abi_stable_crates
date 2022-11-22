@@ -86,7 +86,7 @@ impl<'a, T> TypeParamMap<'a, T> {
                 .into_iter()
                 .enumerate()
                 .zip(&self.idents.list)
-                .map(|((i, elem), ident)| f(i, *ident, elem))
+                .map(|((i, elem), ident)| f(i, ident, elem))
                 .collect(),
             idents: self.idents,
         }

@@ -286,7 +286,7 @@ macro_rules! extern_fn_panic_handling {
                 no_early_return;
                 let a = $crate::marker_type::NotCopyNotClone;
                 (move||{
-                    drop(a);
+                    {a};
                     {
                         $($fn_contents)*
                     }
@@ -294,66 +294,6 @@ macro_rules! extern_fn_panic_handling {
             }
         }
     )
-}
-
-///////////////////////////////////////////////////////////////////////
-
-/// Constructs the [`TypeInfo`] for some type.
-///
-/// It's necessary for the type to be `'static` because
-/// [`TypeInfo`] stores a private function that returns the  [`UTypeId`] of that type.
-///
-/// # Example
-///
-/// ```
-/// use abi_stable::{
-///     impl_get_type_info,
-///     erased_types::{TypeInfo,ImplType},
-/// };
-///
-/// #[derive(Default, Clone, Debug)]
-/// struct Foo<T> {
-///     l: u32,
-///     r: u32,
-///     name: T,
-/// }
-///
-/// impl<T> ImplType for Foo<T>
-/// where T: 'static + Send + Sync
-/// {
-///     type Interface = ();
-///
-///     const INFO: &'static TypeInfo = impl_get_type_info! {Self};
-/// }
-///
-///
-/// ```
-///
-/// [`TypeInfo`]: ./erased_types/struct.TypeInfo.html
-/// [`UTypeId`]: ./std_types/struct.UTypeId.html
-///
-#[macro_export]
-macro_rules! impl_get_type_info {
-    ($type:ty) => {{
-        use std::mem;
-        use $crate::{
-            erased_types::TypeInfo,
-            std_types::{utypeid::some_utypeid, RStr},
-        };
-
-        let type_name = $crate::sabi_types::Constructor($crate::utils::get_type_name::<$type>);
-
-        &TypeInfo {
-            size: mem::size_of::<Self>(),
-            alignment: mem::align_of::<Self>(),
-            _uid: $crate::sabi_types::Constructor(some_utypeid::<Self>),
-            type_name,
-            module: RStr::from_str(module_path!()),
-            package: RStr::from_str(env!("CARGO_PKG_NAME")),
-            package_version: $crate::package_version_strings!(),
-            _private_field: (),
-        }
-    }};
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -392,8 +332,8 @@ macro_rules! impl_get_type_info {
 ///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
-/// #[sabi(bound = "T: Copy")]
-/// #[sabi(tag = "TAGS")]
+/// #[sabi(bound(T: Copy))]
+/// #[sabi(tag = TAGS)]
 /// struct Value<T>{
 ///     value: T,
 /// }
@@ -442,10 +382,10 @@ macro_rules! tag {
 
 #[allow(unused_macros)]
 macro_rules! assert_matches {
-    ( $(|)? $($pat:pat)|*  =$expr:expr)=>{{
+    ( $(|)? $($pat:pat_param)|*  =$expr:expr)=>{{
         let ref value=$expr;
         assert!(
-            core_extensions::matches!(*value, $($pat)|* ),
+            matches!(*value, $($pat)|* ),
             "pattern did not match the value:\n\t\
              {:?}
             ",
@@ -712,28 +652,18 @@ macro_rules! make_shared_vars{
         impl<$($impl_gen)*> __ACPromoted<$type>
         where $($($where_clause)*)?
         {
-            $( const CONST_PARAM_UNERASED: &'static $const_ty = &$constants; )?
             const CONST_PARAM: &'static [$crate::abi_stability::ConstGeneric] = {
                 &[
-                    $(ignoring!(
-                        ($constants)
-                        $crate::abi_stability::ConstGeneric::new(
-                            Self::CONST_PARAM_UNERASED,
-                            $crate::abi_stability::ConstGenericVTableFor::NEW,
-                        )
-                    ),)?
+                    $($crate::abi_stability::ConstGeneric::new(&$constants),)?
                 ]
             };
 
             const SHARED_VARS: &'static $crate::type_layout::SharedVars = {
-                #[allow(unused_imports)]
-                use $crate::abi_stability::stable_abi_trait::GetTypeLayoutCtor;
-
                 &$crate::type_layout::SharedVars::new(
                     $mono_shared_vars,
                     rslice![
-                        $( $( GetTypeLayoutCtor::<$ty_layout>::STABLE_ABI,)* )?
-                        $( $( GetTypeLayoutCtor::<$prefix_ty_layout>::PREFIX_STABLE_ABI,)* )?
+                        $( $( $crate::pmr::get_type_layout::<$ty_layout>,)* )?
+                        $( $( $crate::pmr::get_prefix_field_type_layout::<$prefix_ty_layout>,)* )?
                     ],
                     $crate::std_types::RSlice::from_slice(Self::CONST_PARAM),
                 )
@@ -864,7 +794,6 @@ macro_rules! make_shared_vars{
 ///
 /// impl<T> VTable<T>{
 ///    staticref!(const VTABLE_VAL: WithMetadata<Self> = WithMetadata::new(
-///        PrefixTypeTrait::METADATA,
 ///        Self{
 ///            destructor: destroy_box::<T>,
 ///        },
@@ -927,12 +856,6 @@ macro_rules! staticref{
 
 ///////////////////////////////////////////////////////////////////////////////
 
-macro_rules! ignoring {
-    (($($ignore:tt)*) $($passed:tt)* ) => {$($passed)*};
-}
-
-///////////////////////////////////////////////////////////////////////////////
-
 #[allow(unused_macros)]
 macro_rules! delegate_interface_serde {
     (
@@ -942,6 +865,7 @@ macro_rules! delegate_interface_serde {
     ) => (
         impl<$($impl_header)*> $crate::nonexhaustive_enum::SerializeEnum<$this> for $interf
         where
+            $this:$crate::nonexhaustive_enum::GetEnumInfo,
             $delegates_to:
                 $crate::nonexhaustive_enum::SerializeEnum<$this>
         {

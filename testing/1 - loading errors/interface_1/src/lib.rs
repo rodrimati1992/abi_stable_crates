@@ -17,7 +17,7 @@ impl RootModule for TestingMod_Ref {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "TestingMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = TestingMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct TestingMod {
     #[sabi(last_prefix_field)]
@@ -33,7 +33,7 @@ pub struct TestingMod {
 /// The reason that needs to be printed is because the
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "WithIncompatibleLayout_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = WithIncompatibleLayout_Ref)))]
 pub struct WithIncompatibleLayout {
     #[sabi(last_prefix_field)]
     pub __foo: u64,
@@ -54,7 +54,7 @@ impl RootModule for WithIncompatibleLayout_Ref {
 /// The reason that needs to be printed is because the
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "NonAbiStableLib_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = NonAbiStableLib_Ref)))]
 pub struct NonAbiStableLib {
     #[sabi(last_prefix_field)]
     pub __foo: u64,

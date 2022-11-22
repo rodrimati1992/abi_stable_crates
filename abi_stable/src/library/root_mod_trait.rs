@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::{marker_type::NonOwningPhantom, prefix_type::PrefixRefTrait, utils::leak_value};
+use crate::{prefix_type::PrefixRefTrait, utils::leak_value};
 
 /// The root module of a dynamic library,
 /// which may contain other modules,function pointers,and static references.
@@ -19,7 +19,7 @@ use crate::{marker_type::NonOwningPhantom, prefix_type::PrefixRefTrait, utils::l
 ///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
-/// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+/// #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
 /// pub struct Module {
 ///     pub first: u8,
 ///     // The `#[sabi(last_prefix_field)]` attribute here means that this is
@@ -56,24 +56,20 @@ pub trait RootModule: Sized + StableAbi + PrefixRefTrait + 'static {
     /// All the constants of this trait and supertraits.
     ///
     /// It can safely be used as a proxy for the associated constants of this trait.
-    const CONSTANTS: RootModuleConsts<Self> = RootModuleConsts {
-        inner: ErasedRootModuleConsts {
-            base_name: RStr::from_str(Self::BASE_NAME),
-            name: RStr::from_str(Self::NAME),
-            version_strings: Self::VERSION_STRINGS,
-            layout: IsLayoutChecked::Yes(<Self as StableAbi>::LAYOUT),
-            c_abi_testing_fns: crate::library::c_abi_testing::C_ABI_TESTING_FNS,
-            _priv: (),
-        },
-        _priv: NonOwningPhantom::NEW,
+    const CONSTANTS: RootModuleConsts = RootModuleConsts {
+        base_name: RStr::from_str(Self::BASE_NAME),
+        name: RStr::from_str(Self::NAME),
+        version_strings: Self::VERSION_STRINGS,
+        layout: IsLayoutChecked::Yes(<Self as StableAbi>::LAYOUT),
+        c_abi_testing_fns: crate::library::c_abi_testing::C_ABI_TESTING_FNS,
+        _priv: (),
     };
 
     /// Like `Self::CONSTANTS`,
     /// except without including the type layout constant for the root module.
-    const CONSTANTS_NO_ABI_INFO: RootModuleConsts<Self> = {
-        let mut consts = Self::CONSTANTS;
-        consts.inner.layout = IsLayoutChecked::No;
-        consts
+    const CONSTANTS_NO_ABI_INFO: RootModuleConsts = RootModuleConsts {
+        layout: IsLayoutChecked::No,
+        ..Self::CONSTANTS
     };
 
     /// Gets the statics for Self.
@@ -259,7 +255,7 @@ where
 pub unsafe fn lib_header_from_raw_library(
     raw_library: &RawLibrary,
 ) -> Result<&'static LibHeader, LibraryError> {
-    abi_header_from_raw_library(raw_library)?.upgrade()
+    unsafe { abi_header_from_raw_library(raw_library)?.upgrade() }
 }
 
 /// Gets the AbiHeaderRef of a library.
@@ -281,7 +277,7 @@ pub unsafe fn abi_header_from_raw_library(
     raw_library: &RawLibrary,
 ) -> Result<AbiHeaderRef, LibraryError> {
     let mangled = ROOT_MODULE_LOADER_NAME_WITH_NUL;
-    let header: AbiHeaderRef = *raw_library.get::<AbiHeaderRef>(mangled.as_bytes())?;
+    let header: AbiHeaderRef = unsafe { *raw_library.get::<AbiHeaderRef>(mangled.as_bytes())? };
 
     Ok(header)
 }
@@ -355,27 +351,12 @@ macro_rules! declare_root_module_consts {
             ),* $(,)*
         ]
     ) => (
-        /// All the constants of the [`RootModule`] trait for `M`,
-        /// used mostly to construct a `LibHeader` with `LibHeader::from_constructor`.
-        ///
-        /// This is constructed with [`RootModule::CONSTANTS`].
-        ///
-        /// [`RootModule`]: ./trait.RootModule.html
-        /// [`RootModule::CONSTANTS`]: ./trait.RootModule.html#associatedconstant.CONSTANTS
-        #[repr(C)]
-        #[derive(StableAbi,Copy,Clone)]
-        pub struct RootModuleConsts<M>{
-            inner:ErasedRootModuleConsts,
-            _priv:NonOwningPhantom<M>,
-        }
-
-
         /// All the constants of the [`RootModule`] trait for some erased type.
         ///
         /// [`RootModule`]: ./trait.RootModule.html
         #[repr(C)]
         #[derive(StableAbi,Copy,Clone)]
-        pub struct ErasedRootModuleConsts{
+        pub struct RootModuleConsts{
             $(
                 $(#[$field_meta])*
                 $field : $field_ty,
@@ -383,21 +364,7 @@ macro_rules! declare_root_module_consts {
             _priv:(),
         }
 
-
-        impl<M> RootModuleConsts<M>{
-            /// Gets the type-erased version of this type.
-            pub const fn erased(&self)->ErasedRootModuleConsts{
-                self.inner
-            }
-            $(
-                #[doc=$method_docs]
-                pub const fn $field(&self)->$field_ty{
-                    self.inner.$field
-                }
-            )*
-        }
-
-        impl ErasedRootModuleConsts{
+        impl RootModuleConsts{
             $(
                 #[doc=$method_docs]
                 pub const fn $field(&self)->$field_ty{

@@ -8,8 +8,8 @@ use std::{
 
 use crate::{
     external_types::RMutex,
-    pointer_trait::{ImmutableRef, ImmutableRefTarget},
-    prefix_type::{PointsToPrefixFields, PrefixRef},
+    pointer_trait::{GetPointerKind, ImmutableRef, PK_Reference},
+    prefix_type::{PrefixRef, PrefixRefTrait},
 };
 
 /// A late-initialized static reference,with fallible initialization.
@@ -128,7 +128,7 @@ impl<T> LateStaticRef<&'static T> {
     }
 }
 
-impl<T: 'static> LateStaticRef<T> {
+impl<T> LateStaticRef<T> {
     /// Constructs `LateStaticRef` from a [`PrefixRef`].
     ///
     /// # Example
@@ -151,7 +151,7 @@ impl<T: 'static> LateStaticRef<T> {
     ///     //
     ///     // If you don't need a `LateStaticRef` you can construct a `PersonMod_Ref` constant,
     ///     // and use that.
-    ///     LateStaticRef::from_prefixref(PrefixRefTrait::PREFIX_FIELDS, MODULE.0)
+    ///     LateStaticRef::from_prefixref(MODULE.0)
     /// };
     ///
     /// #[repr(C)]
@@ -168,7 +168,7 @@ impl<T: 'static> LateStaticRef<T> {
     ///
     /// const MODULE: PersonMod_Ref = {
     ///     const S: &WithMetadata<PersonMod> =
-    ///         &WithMetadata::new(PrefixTypeTrait::METADATA, PersonMod { get_number });
+    ///         &WithMetadata::new(PersonMod { get_number });
     ///
     ///     PersonMod_Ref(S.static_as_prefix())
     /// };
@@ -179,19 +179,20 @@ impl<T: 'static> LateStaticRef<T> {
     /// ```
     ///
     /// [`PrefixRef`]: ../prefix_type/struct.PrefixRef.html
-    pub const fn from_prefixref<P>(_: PointsToPrefixFields<T, P>, ptr: PrefixRef<P>) -> Self
+    pub const fn from_prefixref(ptr: PrefixRef<T::PrefixFields>) -> Self
     where
-        P: 'static,
+        T: PrefixRefTrait + 'static,
+        T::PrefixFields: 'static,
     {
         Self {
             lock: LOCK,
-            pointer: AtomicPtr::new(ptr.const_to_raw_ptr() as *mut ()),
+            pointer: AtomicPtr::new(ptr.to_raw_ptr() as *mut ()),
             _marker: PhantomData,
         }
     }
 }
 
-impl<T: 'static> LateStaticRef<T> {
+impl<T> LateStaticRef<T> {
     /// Constructs `LateStaticRef` from a `NonNull` pointer.
     ///
     /// # Safety
@@ -208,7 +209,9 @@ impl<T: 'static> LateStaticRef<T> {
     ///
     /// ```rust
     /// use abi_stable::{
-    ///     pointer_trait::ImmutableRef, sabi_types::LateStaticRef, utils::ref_as_nonnull,
+    ///     pointer_trait::{GetPointerKind, PK_Reference},
+    ///     sabi_types::LateStaticRef,
+    ///     utils::ref_as_nonnull,
     ///     StableAbi,
     /// };
     ///
@@ -223,20 +226,22 @@ impl<T: 'static> LateStaticRef<T> {
     ///     }
     /// }
     ///
-    /// unsafe impl<'a> ImmutableRef for Foo<'a> {
-    ///     type Target = u64;
+    /// unsafe impl<'a> GetPointerKind for Foo<'a> {
+    ///     type PtrTarget = u64;
+    ///     type Kind = PK_Reference;
     /// }
     ///
     /// const MODULE: LateStaticRef<Foo<'static>> = {
     ///     unsafe {
-    ///         LateStaticRef::from_custom(ImmutableRef::TARGET, Foo(&100).as_nonnull())
+    ///         LateStaticRef::from_custom(Foo(&100).as_nonnull())
     ///     }
     /// };
     /// ```
-    pub const unsafe fn from_custom<U: 'static>(
-        _target: ImmutableRefTarget<T, U>,
-        ptr: NonNull<U>,
-    ) -> Self {
+    pub const unsafe fn from_custom(ptr: NonNull<T::PtrTarget>) -> Self
+    where
+        T: GetPointerKind<Kind = PK_Reference> + 'static,
+        T::PtrTarget: 'static,
+    {
         Self {
             lock: LOCK,
             pointer: AtomicPtr::new(ptr.as_ptr() as *mut ()),
@@ -298,7 +303,7 @@ where
         let pointer = initializer()?;
 
         self.pointer.store(
-            pointer.to_raw_ptr() as *mut T::Target as *mut (),
+            pointer.to_raw_ptr() as *mut T::PtrTarget as *mut (),
             Ordering::Release,
         );
 
@@ -364,7 +369,7 @@ where
     ///
     /// ```
     pub fn get(&self) -> Option<T> {
-        unsafe { T::from_raw_ptr(self.pointer.load(Ordering::Acquire) as *const T::Target) }
+        unsafe { T::from_raw_ptr(self.pointer.load(Ordering::Acquire) as *const T::PtrTarget) }
     }
 }
 

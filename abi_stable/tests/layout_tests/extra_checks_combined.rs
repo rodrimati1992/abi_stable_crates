@@ -2,7 +2,7 @@ use abi_stable::{
     abi_stability::{
         abi_checking::{check_layout_compatibility_with_globals, AbiInstability, CheckingGlobals},
         extra_checks::{
-            ExtraChecks, ExtraChecksBox, ExtraChecksError, ExtraChecksRef, ExtraChecks_MV,
+            ExtraChecks, ExtraChecksBox, ExtraChecksError, ExtraChecksRef,
             ForExtraChecksImplementor, StoredExtraChecks, TypeCheckerMut,
         },
         stable_abi_trait::get_type_layout,
@@ -40,7 +40,7 @@ where
             if l_i <= r_i {
                 assert_eq!(res, Ok(()), "\n\nl_i:{} r_i:{}\n\n", l_i, r_i);
             } else {
-                if let Ok(_) = res {
+                if res.is_ok() {
                     let _ = dbg!(l_i);
                     let _ = dbg!(r_i);
                 }
@@ -52,12 +52,12 @@ where
     }
 }
 
-const LAYOUT0: &'static TypeLayout = <WithConstant<V1_0> as StableAbi>::LAYOUT;
-const LAYOUT1: &'static TypeLayout = <WithConstant<V1_1> as StableAbi>::LAYOUT;
-const LAYOUT1B: &'static TypeLayout = <WithConstant<V1_1_Incompatible> as StableAbi>::LAYOUT;
-const LAYOUT2: &'static TypeLayout = <WithConstant<V1_2> as StableAbi>::LAYOUT;
-const LAYOUT3: &'static TypeLayout = <WithConstant<V1_3> as StableAbi>::LAYOUT;
-const LAYOUT3B: &'static TypeLayout = <WithConstant<V1_3_Incompatible> as StableAbi>::LAYOUT;
+const LAYOUT0: &TypeLayout = <WithConstant<V1_0> as StableAbi>::LAYOUT;
+const LAYOUT1: &TypeLayout = <WithConstant<V1_1> as StableAbi>::LAYOUT;
+const LAYOUT1B: &TypeLayout = <WithConstant<V1_1_Incompatible> as StableAbi>::LAYOUT;
+const LAYOUT2: &TypeLayout = <WithConstant<V1_2> as StableAbi>::LAYOUT;
+const LAYOUT3: &TypeLayout = <WithConstant<V1_3> as StableAbi>::LAYOUT;
+const LAYOUT3B: &TypeLayout = <WithConstant<V1_3_Incompatible> as StableAbi>::LAYOUT;
 
 #[test]
 fn test_subsets() {
@@ -151,8 +151,8 @@ fn test_incompatible() {
     // Replaces the C:StableAbi constraint with `C:GetStaticEquivalent` 
     // (a supertrait of StableAbi).
     not_stableabi(C),
-    bound="C:GetConstant",
-    extra_checks="Self::CHECKER"
+    bound(C: GetConstant),
+    extra_checks = Self::CHECKER,
 )]
 struct WithConstant<C> {
     // UnsafeIgnoredType is equivalent to PhantomData,
@@ -246,7 +246,7 @@ unsafe impl ExtraChecks for ConstChecker {
         })
     }
 
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
         RCow::from_slice(&[])
     }
 
@@ -331,7 +331,7 @@ unsafe impl ExtraChecks for IdentityChecker {
         })
     }
 
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
         vec![self.type_layout.get()].into()
     }
 }
@@ -352,7 +352,6 @@ where
                 type_layout: Constructor(get_type_layout::<T>),
             },
             TD_Opaque,
-            ExtraChecks_MV::VTABLE,
         ));
 }
 
@@ -361,15 +360,12 @@ where
     T: StableAbi,
 {
     <()>::LAYOUT
-        .clone()
         ._set_extra_checks(
             WrapTypeLayout::<T>::EXTRA_CHECKS
                 .piped(Some)
                 .piped(CmpIgnored::new),
         )
-        ._set_type_id(Constructor(
-            abi_stable::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>,
-        ))
+        ._set_type_id(abi_stable::std_types::utypeid::new_utypeid::<Blah<T::StaticEquivalent>>)
         .piped(leak_value)
 }
 
@@ -401,8 +397,8 @@ fn test_identity_extra_checker() {
         wrap_type_layout::<Option<extern "C" fn()>>(),
         wrap_type_layout::<ROption<()>>(),
         wrap_type_layout::<ROption<u32>>(),
-        wrap_type_layout::<RCow<'_, str>>(),
-        wrap_type_layout::<RCow<'_, [u32]>>(),
+        wrap_type_layout::<RCowStr<'_>>(),
+        wrap_type_layout::<RCowSlice<'_, u32>>(),
         wrap_type_layout::<RArc<()>>(),
         wrap_type_layout::<RArc<u32>>(),
         wrap_type_layout::<RBox<()>>(),
@@ -469,7 +465,7 @@ fn test_identity_extra_checker() {
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(extra_checks = "Self::NEW")]
+#[sabi(extra_checks = Self::NEW)]
 struct WithCyclicExtraChecker;
 
 impl WithCyclicExtraChecker {
@@ -505,7 +501,7 @@ fn test_cyclic_extra_checker() {
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(extra_checks = "Self::EXTRA_CHECKER")]
+#[sabi(extra_checks = Self::EXTRA_CHECKER)]
 struct WithLocalExtraChecker<C0, C1> {
     _marker: UnsafeIgnoredType<(C0, C1)>,
 }
@@ -563,7 +559,7 @@ unsafe impl ExtraChecks for LocalExtraChecker {
         )
     }
 
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
         vec![self.comp0, self.comp1].into()
     }
 }

@@ -79,7 +79,7 @@ mod private {
     /// ```
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(bound = "T: 'a")]
+    #[sabi(bound(T: 'a))]
     //#[sabi(debug_print)]
     pub struct RSlice<'a, T> {
         data: *const T,
@@ -155,18 +155,23 @@ mod private {
     }
 
     impl<'a, T> RSlice<'a, T> {
-        /// Creates an `&'a [T]` with access to all the elements of this slice.
-        ///
-        /// # Example
-        ///
-        /// ```
-        /// use abi_stable::std_types::RSlice;
-        ///
-        /// assert_eq!(RSlice::from_slice(&[0, 1, 2, 3]).as_slice(), &[0, 1, 2, 3]);
-        ///
-        /// ```
-        pub fn as_slice(&self) -> &'a [T] {
-            unsafe { ::std::slice::from_raw_parts(self.data, self.length) }
+        conditionally_const! {
+            feature = "rust_1_64"
+            /// Creates an `&'a [T]` with access to all the elements of this slice.
+            ///
+            ;
+            ///
+            /// # Example
+            ///
+            /// ```
+            /// use abi_stable::std_types::RSlice;
+            ///
+            /// assert_eq!(RSlice::from_slice(&[0, 1, 2, 3]).as_slice(), &[0, 1, 2, 3]);
+            ///
+            /// ```
+            pub fn as_slice(&self) -> &'a [T] {
+                unsafe { ::std::slice::from_raw_parts(self.data, self.length) }
+            }
         }
 
         /// Gets a raw pointer to the start of the slice.
@@ -315,7 +320,7 @@ impl<'a, T> RSlice<'a, T> {
         U: 'a,
     {
         let len = self.len();
-        RSlice::from_raw_parts(self.as_ptr() as *const T as *const U, len)
+        unsafe { RSlice::from_raw_parts(self.as_ptr() as *const T as *const U, len) }
     }
 }
 
@@ -363,7 +368,6 @@ slice_like_impl_cmp_traits! {
     &[U],
 }
 
-#[cfg(feature = "const_params")]
 slice_like_impl_cmp_traits! {
     impl[const N: usize] RSlice<'_, T>,
     where[];
@@ -374,7 +378,7 @@ slice_like_impl_cmp_traits! {
     impl[] RSlice<'_, T>,
     where[T: Clone, U: Clone];
     std::borrow::Cow<'_, [U]>,
-    crate::std_types::RCow<'_, [U]>,
+    crate::std_types::RCowSlice<'_, U>,
 }
 
 impl<'a, T: 'a> Deref for RSlice<'a, T> {
@@ -498,6 +502,15 @@ mod test {
 
         assert_eq!(a, &*b);
         assert_eq!(a.len(), b.len());
+    }
+
+    #[cfg(feature = "rust_1_64")]
+    #[test]
+    fn const_as_slice_test() {
+        const RS: RSlice<'_, u8> = RSlice::from_slice(&[3, 5, 8]);
+        const SLICE: &[u8] = RS.as_slice();
+
+        assert_eq!(SLICE, [3, 5, 8]);
     }
 
     #[test]

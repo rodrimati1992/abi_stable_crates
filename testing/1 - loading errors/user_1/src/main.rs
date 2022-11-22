@@ -21,11 +21,7 @@ fn main() {
         let err = WithIncompatibleLayout_Ref::load_from_directory("foo/bar/bar".as_ref())
             .err()
             .unwrap();
-        assert!(
-            core_extensions::matches!(err, LibraryError::OpenError { .. }),
-            "{:?}",
-            err,
-        );
+        assert!(matches!(err, LibraryError::OpenError { .. }), "{:?}", err,);
     }
 
     {
@@ -34,7 +30,7 @@ fn main() {
             .err()
             .unwrap();
         assert!(
-            core_extensions::matches!(err, LibraryError::GetSymbolError { .. }),
+            matches!(err, LibraryError::GetSymbolError { .. }),
             "{:?}",
             err,
         );
@@ -47,11 +43,7 @@ fn main() {
             .err()
             .unwrap();
 
-        assert!(
-            core_extensions::matches!(err, LibraryError::AbiInstability(_)),
-            "{:#}",
-            err,
-        );
+        assert!(matches!(err, LibraryError::AbiInstability(_)), "{:#}", err,);
 
         // Doing this to make sure that the error formatting is not optimized out.
         let formatted = format!("{0} {0:?}", err);
@@ -77,13 +69,13 @@ fn main() {
 
                 if let LibraryError::RootModule { err: rm_err, .. } = &err {
                     assert!(
-                        core_extensions::matches!(
-                            (&envars.return_what, rm_err),
-                            |(ReturnWhat::Error, RootModuleError::Returned { .. })| (
-                                ReturnWhat::Panic,
-                                RootModuleError::Unwound { .. }
-                            )
-                        ),
+                        matches!((&envars.return_what, rm_err), |(
+                            ReturnWhat::Error,
+                            RootModuleError::Returned { .. },
+                        )| (
+                            ReturnWhat::Panic,
+                            RootModuleError::Unwound { .. }
+                        )),
                         "return_what: {:?}\nerror: {:?}",
                         envars.return_what,
                         rm_err,

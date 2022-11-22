@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_fn)]
+
 use std::{
     borrow::Borrow,
     cmp::{Eq, PartialEq},
@@ -393,8 +395,6 @@ mod tests {
 
     use crate::test_utils::must_panic;
 
-    use abi_stable_shared::file_span;
-
     #[test]
     fn equality() {
         fn insert(map: &mut MultiKeyMap<u32, u32>, key: u32, value: u32) {
@@ -472,15 +472,15 @@ mod tests {
 
         let (ret, ret_discr) = map.get_or_insert(10, 1).split();
         *ret.value = 1234;
-        assert_matches!(InsertionTime::Now { .. } = ret_discr);
+        assert_matches!(ret_discr, InsertionTime::Now { .. });
 
         assert_matches!(
-            (&mut 1234, InsertionTime::Before { .. }) =
-                map.get_or_insert(10, 2).map(|x| x.value).split()
+            map.get_or_insert(10, 2).map(|x| x.value).split(),
+            (&mut 1234, InsertionTime::Before { .. })
         );
         assert_matches!(
-            (&mut 1234, InsertionTime::Before { .. }) =
-                map.get_or_insert(10, 3).map(|x| x.value).split()
+            map.get_or_insert(10, 3).map(|x| x.value).split(),
+            (&mut 1234, InsertionTime::Before { .. })
         );
     }
 
@@ -491,7 +491,7 @@ mod tests {
         let (ret, ret_discr) = map.get_or_insert(100, 1).split();
         let index0 = ret.index;
         *ret.value = 1234;
-        assert_matches!(InsertionTime::Now { .. } = ret_discr);
+        assert_matches!(ret_discr, InsertionTime::Now { .. });
 
         let index1 = map.get_or_insert(200, 200).into_inner().index;
         let index2 = map.get_or_insert(300, 300).into_inner().index;
@@ -545,10 +545,10 @@ mod tests {
         assert_eq!(map.associate_key_forced(200, index2), None);
         assert_eq!(map.associate_key_forced(30, index2), Some(2000));
 
-        must_panic(file_span!(), || map.associate_key_forced(100, index0)).unwrap();
-        must_panic(file_span!(), || map.associate_key_forced(200, index0)).unwrap();
-        must_panic(file_span!(), || map.associate_key_forced(20, index0)).unwrap();
-        must_panic(file_span!(), || map.associate_key_forced(30, index0)).unwrap();
+        must_panic(|| map.associate_key_forced(100, index0)).unwrap();
+        must_panic(|| map.associate_key_forced(200, index0)).unwrap();
+        must_panic(|| map.associate_key_forced(20, index0)).unwrap();
+        must_panic(|| map.associate_key_forced(30, index0)).unwrap();
     }
 
     #[test]
@@ -654,6 +654,7 @@ mod tests {
             (2000, index1, 300),
             (3000, index2, 400),
         ];
+        #[allow(clippy::deref_addrof)]
         for (key, index, val) in expected {
             assert_eq!(*map.get_with_index(index).unwrap(), val);
             assert_eq!(*map.get(&key).unwrap(), val);

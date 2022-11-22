@@ -4,3 +4,4 @@
 Cargo.lock
 __ignored__*
 playground/*
+run_tests.sh

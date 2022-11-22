@@ -65,8 +65,8 @@ mod many_types {
         Option<extern "C" fn()>,
         ROption<()>,
         ROption<u32>,
-        RCow<'static, str>,
-        RCow<'static, [u32]>,
+        RCowStr<'static>,
+        RCowSlice<'static, u32>,
         RArc<()>,
         RArc<u32>,
         RBox<()>,
@@ -97,21 +97,16 @@ mod many_types {
         marker_type::UnsafeIgnoredType<u32>,
         marker_type::NonOwningPhantom<u32>,
         marker_type::NonOwningPhantom<RString>,
+        f32,
+        f64,
     );
-
-    // Adding more types in a patch release,
-    // you can merge this with ManyTypes in the next breaking release.
-    #[cfg(feature = "new_abi_stable")]
-    #[repr(C)]
-    #[derive(abi_stable::StableAbi)]
-    pub struct ManyTypes2(f32, f64);
 }
 
 pub use many_types::ManyTypes;
 
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "RootMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = RootMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct RootMod {
     pub abi_stable_version: VersionStrings,

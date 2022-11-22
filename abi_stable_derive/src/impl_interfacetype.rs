@@ -202,8 +202,8 @@ usable_traits! {
     partial_ord=(PartialOrd,"::std::cmp::PartialOrd",false,UB::DYN_TRAIT),
     hash=(Hash,"::std::hash::Hash",false,UB::DYN_TRAIT),
     deserialize=(Deserialize,"::serde::Deserialize",false,UB::DYN_TRAIT),
-    send=(Send,"::std::marker::Send",true ,UB::ROBJECT_AND_DYN_TRAIT),
-    sync=(Sync,"::std::marker::Sync",true ,UB::ROBJECT_AND_DYN_TRAIT),
+    send=(Send,"::std::marker::Send",false ,UB::ROBJECT_AND_DYN_TRAIT),
+    sync=(Sync,"::std::marker::Sync",false ,UB::ROBJECT_AND_DYN_TRAIT),
     iterator=(Iterator,"::std::iter::Iterator",false,UB::DYN_TRAIT),
     double_ended_iterator=(
         DoubleEndedIterator,"::std::iter::DoubleEndedIterator",false,UB::DYN_TRAIT
@@ -214,6 +214,7 @@ usable_traits! {
     io_read=(IoRead,"::std::io::Read",false,UB::DYN_TRAIT),
     io_buf_read=(IoBufRead,"::std::io::BufRead",false,UB::DYN_TRAIT),
     error=(Error,"::std::error::Error",false,UB::ROBJECT_AND_DYN_TRAIT),
+    unpin=(Unpin,"::std::marker::Unpin",false,UB::ROBJECT_AND_DYN_TRAIT),
 }
 
 pub(crate) fn private_associated_type() -> syn::Ident {

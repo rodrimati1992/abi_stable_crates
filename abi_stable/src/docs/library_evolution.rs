@@ -5,7 +5,7 @@ This document describes what changes are valid/invalid for a library using `abi_
 Note that all of these only applies to types that implement `StableAbi`,
 and are checked when loading the dynamic libraries using
 the functions in `abi_stable::library::RootModule`.
-Those dynamic libraries use the `export_root_module` attribute on some function
+Those dynamic libraries use the [`export_root_module`] attribute on some function
 that export the root module
 ([a struct of function pointers and other nested modules](../prefix_types/index.html)).
 
@@ -22,7 +22,7 @@ Types cannot be renamed.
 
 A type cannot be replaced with a `#[repr(transparent)]` types wrappig it.
 
-If you rename a field,remember to use the `#[sabi(rename="the_old_name")]` attribute,
+If you rename a field,remember to use the `#[sabi(rename=the_old_name)]` attribute,
 field names are part of the ABI of a type.
 
 
@@ -125,4 +125,6 @@ If you add StableAbi types to abi_stable,make sure to add them to the list of ty
 (the crate is in testing/version_compatibility/interface/)
 
 
+
+[`export_root_module`]: crate::export_root_module
 */

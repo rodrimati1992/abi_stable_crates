@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_fn)]
+
 use super::{lib_header::AbiHeader, root_mod_trait::RootModule};
 
 use crate::{
@@ -19,27 +21,38 @@ use core_extensions::SelfOps;
 pub enum LibraryError {
     /// When a library can't be loaded, because it doesn't exist.
     OpenError {
+        /// The path to the library
         path: PathBuf,
+        /// The cause of the error
         err: Box<libloading::Error>,
     },
     /// When a function/static does not exist.
     GetSymbolError {
+        /// The path to the library
         library: PathBuf,
         /// The name of the function/static.Does not have to be utf-8.
         symbol: Vec<u8>,
+        /// The cause of the error
         err: Box<libloading::Error>,
     },
     /// The version string could not be parsed into a version number.
     ParseVersionError(ParseVersionError),
     /// The version numbers of the library was incompatible.
     IncompatibleVersionNumber {
+        ///
         library_name: &'static str,
+        ///
         expected_version: VersionNumber,
+        ///
         actual_version: VersionNumber,
     },
+    /// Error returned by the root module
     RootModule {
+        /// The error returned by the `#[export_root_module]` function.
         err: RootModuleError,
+        ///
         module_name: &'static str,
+        ///
         version: VersionStrings,
     },
     /// The abi is incompatible.
@@ -51,7 +64,9 @@ pub enum LibraryError {
     InvalidAbiHeader(AbiHeader),
     /// When Rust changes how it implements the C abi,
     InvalidCAbi {
+        ///
         expected: RBoxError,
+        ///
         found: RBoxError,
     },
     /// There could have been 0 or more errors in the function.
@@ -149,7 +164,9 @@ impl ::std::error::Error for LibraryError {}
 #[repr(u8)]
 #[derive(Debug, StableAbi)]
 pub enum RootModuleError {
+    /// When the root loader function returned an error normally
     Returned(RBoxError),
+    /// When the root loader function panicked
     Unwound,
 }
 
@@ -232,20 +249,17 @@ mod tests {
 
     use crate::{
         for_examples::{Module, Module_Ref},
-        prefix_type::{PrefixTypeTrait, WithMetadata},
+        prefix_type::WithMetadata,
         std_types::{RBox, RErr, ROk, RSome},
     };
 
     use std::fmt::Error as FmtError;
 
-    const MOD_WM: &WithMetadata<Module> = &WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        Module {
-            first: RSome(5),
-            second: rstr!(""),
-            third: 13,
-        },
-    );
+    const MOD_WM: &WithMetadata<Module> = &WithMetadata::new(Module {
+        first: RSome(5),
+        second: rstr!(""),
+        third: 13,
+    });
 
     // `const PREFIX` can have different address every time it's used,
     // to fix that I made it a static

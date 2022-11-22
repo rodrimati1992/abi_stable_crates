@@ -1,10 +1,12 @@
 /**
 
-The `GetStaticEquivalent` macro derives the `GetStaticEquivalent_` trait.
+The `GetStaticEquivalent` macro derives the [`GetStaticEquivalent_`] trait.
 
-Implementing `GetStaticEquivalent` allows the type to be passed as a 
+Implementing [`GetStaticEquivalent_`] allows the type to be passed as a 
 type argument of a type deriving `StableAbi`,
-that used the `#[sabi(not_stableabi(TypeParameter))]` helper attribute.
+that used the 
+[`#[sabi(not_stableabi(TypeParameter))]`](derive@crate::StableAbi#sabinot_stableabitypeparameter)
+helper attribute.
 
 # Container Attributes
 
@@ -49,8 +51,8 @@ use abi_stable::{
 #[derive(StableAbi)]
 #[sabi(
     not_stableabi(T),
-    bound = "T: WithName",
-    tag = "tag!( <T as WithName>::NAME )"
+    bound(T: WithName),
+    tag = tag!( <T as WithName>::NAME )
 )]
 struct WithMarker<T>(UnsafeIgnoredType<T>);
 
@@ -118,7 +120,7 @@ use abi_stable::{std_types::RVec, StableAbi};
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(not_stableabi(I), bound = "<I as IntoIterator>::Item : StableAbi")]
+#[sabi(not_stableabi(I), bound(<I as IntoIterator>::Item : StableAbi))]
 pub struct CollectedIterator<I>
 where
     I: IntoIterator,
@@ -129,6 +131,8 @@ where
 
 ```
 
+
+[`GetStaticEquivalent_`]: abi_stable::abi_stability::get_static_equivalent::GetStaticEquivalent_
 
 */
 

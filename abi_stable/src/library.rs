@@ -68,7 +68,7 @@ pub use self::{
     raw_library::RawLibrary,
     root_mod_trait::{
         abi_header_from_path, abi_header_from_raw_library, lib_header_from_path,
-        lib_header_from_raw_library, ErasedRootModuleConsts, RootModule, RootModuleConsts,
+        lib_header_from_raw_library, RootModule, RootModuleConsts,
     },
 };
 
@@ -97,16 +97,32 @@ pub enum LibraryPath<'a> {
 
 //////////////////////////////////////////////////////////////////////
 
+/// Tells [`LibHeader::from_constructor`] whether to
+/// include the layout of the root module for checking it when loaded.
+pub enum CheckTypeLayout {
+    /// Include the layout of the root module
+    Yes,
+    /// Exclude the layout of the root module
+    No,
+}
+
+//////////////////////////////////////////////////////////////////////
+
 /// Whether the ABI of a root module is checked.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, StableAbi)]
 pub enum IsLayoutChecked {
+    /// The ABI is checked
     Yes(&'static TypeLayout),
+    /// The ABI is not checked
     No,
 }
 
 impl IsLayoutChecked {
-    pub fn into_option(self) -> Option<&'static TypeLayout> {
+    /// Converts this into an `Option`.
+    ///
+    /// `Ỳes` corresponds to `Some`, and `No` corresponds to `None`.
+    pub const fn into_option(self) -> Option<&'static TypeLayout> {
         match self {
             IsLayoutChecked::Yes(x) => Some(x),
             IsLayoutChecked::No => None,
@@ -162,7 +178,7 @@ impl<M> RootModuleStatics<M> {
 ///
 /// #[repr(C)]
 /// #[derive(StableAbi)]
-/// #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+/// #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
 /// pub struct Module{
 ///     pub first: u8,
 ///     #[sabi(last_prefix_field)]
@@ -243,15 +259,6 @@ macro_rules! declare_root_module_statics {
 }
 
 //////////////////////////////////////////////////////////////////////
-
-#[deprecated(
-    since = "0.10.3",
-    note = "Use the ROOT_MODULE_LOADER_NAME constant instead"
-)]
-/// Gets the name of the static that contains the LibHeader of an abi_stable library.
-pub fn mangled_root_module_loader_name() -> String {
-    abi_stable_shared::mangled_root_module_loader_name()
-}
 
 abi_stable_derive::__const_mangled_root_module_loader_name! {}
 

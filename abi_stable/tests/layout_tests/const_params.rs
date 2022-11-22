@@ -4,7 +4,6 @@ use abi_stable::{
     StableAbi,
 };
 
-#[cfg(feature = "const_params")]
 mod with_const_generics;
 
 mod one_phantom {
@@ -12,7 +11,7 @@ mod one_phantom {
 
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    #[sabi(bound = "T:AssocStr", phantom_const_param = "T::STR")]
+    #[sabi(bound(T: AssocStr), phantom_const_param = T::STR)]
     pub struct Struct<T>(UnsafeIgnoredType<T>);
 }
 
@@ -21,7 +20,7 @@ mod one_phantom_u8 {
 
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    #[sabi(bound = "T:AssocInt", phantom_const_param = "T::NUM")]
+    #[sabi(bound(T: AssocInt), phantom_const_param = T::NUM)]
     pub struct Struct<T>(UnsafeIgnoredType<T>);
 }
 
@@ -31,10 +30,10 @@ mod two_phantom {
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
     #[sabi(
-        bound = "T:AssocStr",
-        bound = "U:AssocStr",
-        phantom_const_param = "T::STR",
-        phantom_const_param = "U::STR"
+        bound(T: AssocStr),
+        bound(U: AssocStr),
+        phantom_const_param = T::STR,
+        phantom_const_param = U::STR,
     )]
     pub struct Struct<T, U>(UnsafeIgnoredType<Tuple2<T, U>>);
 }
@@ -96,7 +95,6 @@ fn test_compatibility() {
         <two_phantom::Struct<i8, i64> as StableAbi>::LAYOUT,
     ];
 
-    #[cfg(feature = "const_params")]
     {
         use self::with_const_generics::{single_integer, single_integer_one_phantom, two_integer};
         list.extend(vec![

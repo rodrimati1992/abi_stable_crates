@@ -31,7 +31,6 @@ where
     F: FnMut(&mut TokenStream),
 {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut func = RefCell::borrow_mut(&self.func);
-        (&mut *func)(tokens);
+        RefCell::borrow_mut(&self.func)(tokens);
     }
 }

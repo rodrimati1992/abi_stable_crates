@@ -1,4 +1,5 @@
 // This pub module only tests that the code inside compiles
+#![allow(clippy::derive_partial_eq_without_eq)]
 #![allow(dead_code)]
 
 use std::{
@@ -13,6 +14,8 @@ use std::{
 
 use crate::{
     sabi_trait,
+    std_types::RBox,
+    test_utils::{GetImpls, GetImplsHelper},
     type_level::downcasting::{TD_CanDowncast, TD_Opaque},
 };
 
@@ -28,6 +31,18 @@ pub mod no_supertraits {
 
     impl Trait for Struct {}
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_ERROR);
+    }
+
     fn test_constructible() {
         let object = Trait_TO::from_value(Struct, TD_CanDowncast);
         object.method();
@@ -41,41 +56,40 @@ pub mod static_supertrait {
     pub trait Trait: 'static {
         fn method(&self) {}
     }
-    use self::Trait_trait::Trait_Bounds;
 
     pub struct Struct<'a>(&'a str);
 
-    impl Trait for Struct<'_> {}
+    impl Trait for Struct<'static> {}
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_ERROR);
+    }
 
     fn test_constructible() {
         let object = Trait_TO::from_value(Struct(""), TD_CanDowncast);
         object.method();
     }
 
-    // Testing that Trait_Bounds has 'static as a supertrait,
+    // Testing that Trait has 'static as a supertrait,
     trait Dummy {
         fn dummy<T>()
         where
-            T: Trait_Bounds;
+            T: Trait;
     }
     impl Dummy for () {
         fn dummy<T>()
         where
-            T: Trait_Bounds + 'static,
+            T: Trait + 'static,
         {
         }
-    }
-
-    // Testing that Trait does not have 'static as a supertrait.
-    fn assert_trait_inner<T>(_: T)
-    where
-        T: Trait,
-    {
-    }
-    fn assert_trait() {
-        let mut a = String::new();
-        a.push_str("w");
-        assert_trait_inner(Struct(&a));
     }
 }
 
@@ -86,28 +100,39 @@ pub mod nonstatic_supertrait {
     pub trait Trait<'a>: 'a {
         fn method(&self) {}
     }
-    use self::Trait_trait::Trait_Bounds;
 
     pub struct Struct<'a>(&'a str);
 
-    impl<'a, 'b> Trait<'a> for Struct<'b> {}
-    impl<'a, T> Trait<'a> for Option<T> {}
+    impl<'a, 'b: 'a> Trait<'a> for Struct<'b> {}
+    impl<'a, T: 'a> Trait<'a> for Option<T> {}
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, 'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_ERROR);
+    }
 
     fn test_constructible() {
         let object = Trait_TO::from_value(Struct(""), TD_CanDowncast);
         object.method();
     }
 
-    // Testing that Trait_Bounds has 'a as a supertrait,
+    // Testing that Trait has 'a as a supertrait,
     trait Dummy {
         fn dummy<'a, T>()
         where
-            T: Trait_Bounds<'a>;
+            T: Trait<'a>;
     }
     impl Dummy for () {
         fn dummy<'a, T>()
         where
-            T: Trait_Bounds<'a> + 'a,
+            T: Trait<'a> + 'a,
         {
         }
     }
@@ -121,8 +146,7 @@ pub mod nonstatic_supertrait {
     {
         pub const NONE: Option<&'a T> = None;
 
-        pub const CONST: Trait_CTO<'a, 'a, 'b> =
-            Trait_CTO::from_const(&Self::NONE, TD_Opaque, Trait_MV::VTABLE);
+        pub const CONST: Trait_CTO<'a, 'a, 'b> = Trait_CTO::from_const(&Self::NONE, TD_Opaque);
         pub fn get_const(_: &'a T) -> Trait_CTO<'a, 'a, 'b> {
             Self::CONST
         }
@@ -136,7 +160,7 @@ pub mod nonstatic_supertrait {
     }
     fn assert_trait() {
         let mut a = String::new();
-        a.push_str("w");
+        a.push('w');
         assert_trait_inner(Struct(&a));
 
         {
@@ -158,6 +182,18 @@ pub mod only_clone {
         fn method(&self) {}
     }
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_ERROR);
+    }
+
     #[derive(Clone)]
     pub struct Struct;
 
@@ -177,6 +213,18 @@ pub mod only_display {
     #[sabi(use_dyntrait)]
     pub trait Trait: Display {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     pub struct Struct;
@@ -202,6 +250,18 @@ pub mod only_debug {
     #[sabi_trait]
     pub trait Trait: Debug {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     #[derive(Debug)]
@@ -230,7 +290,7 @@ pub mod only_debug {
 
 //     impl Trait for Struct{}
 
-//     impl SerializeImplType for Struct {
+//     impl SerializeType for Struct {
 //         fn serialize_impl<'a>(&'a self) -> Result<RCow<'a, str>, RBoxError>{
 //             Ok(RCow::from("Struct"))
 //         }
@@ -263,7 +323,7 @@ pub mod only_debug {
 //         type Deserialized=Trait_Backend<'a,RBox<()>>;
 
 //         fn deserialize_impl(s: RStr<'_>) -> Result<Self::Deserialized, RBoxError>{
-//             Ok(DynTrait::from_any_value(Struct,Trait_Interface::NEW))
+//             Ok(DynTrait::from_value(Struct,Trait_Interface::NEW))
 //         }
 //     }
 
@@ -294,6 +354,32 @@ pub mod only_partial_eq {
         fn method(&self) {}
     }
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
+
     #[derive(PartialEq)]
     pub struct Struct;
 
@@ -319,6 +405,32 @@ pub mod only_eq {
     #[sabi(use_dyntrait)]
     pub trait Trait: Eq {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(GI::IMPLS_EQ);
+        assert!(GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     #[derive(Eq, PartialEq)]
@@ -348,6 +460,31 @@ pub mod only_partial_ord {
         fn method(&self) {}
     }
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
     #[derive(PartialEq, PartialOrd)]
     pub struct Struct;
 
@@ -373,6 +510,32 @@ pub mod only_ord {
     #[sabi(use_dyntrait)]
     pub trait Trait: Ord {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(GI::IMPLS_EQ);
+        assert!(GI::IMPLS_PARTIAL_EQ);
+        assert!(GI::IMPLS_ORD);
+        assert!(GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     #[derive(PartialEq, PartialOrd, Eq, Ord)]
@@ -402,6 +565,32 @@ pub mod only_hash {
         fn method(&self) {}
     }
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
+
     #[derive(Hash)]
     pub struct Struct;
 
@@ -427,6 +616,32 @@ pub mod only_iterator_a {
     #[sabi(use_dyntrait)]
     pub trait Trait<'a, T: 'a>: Iterator<Item = &'a T> {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, 'static, RBox<()>, ()>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     pub struct Struct<'a, T>(&'a T);
@@ -462,6 +677,32 @@ pub mod only_iterator_b {
         fn method(&self) {}
     }
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>, ()>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
+
     pub struct Struct;
 
     impl Trait<i32> for Struct {}
@@ -493,6 +734,32 @@ pub mod only_de_iterator {
     #[sabi(use_dyntrait)]
     pub trait Trait<T: 'static>: DoubleEndedIterator<Item = &'static T> {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>, ()>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(GI::IMPLS_ITERATOR);
+        assert!(GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     pub struct Struct;
@@ -534,6 +801,32 @@ pub mod only_error {
         fn method(&self) {}
     }
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(GI::IMPLS_DISPLAY);
+        assert!(GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(GI::IMPLS_ERROR);
+    }
+
     #[derive(Debug)]
     pub struct Struct;
 
@@ -569,6 +862,32 @@ pub mod only_fmt_write {
         fn method(&self) {}
     }
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
+
     pub struct Struct;
 
     impl FmtWriteTrait for Struct {
@@ -599,6 +918,32 @@ pub mod only_io_write {
     #[sabi(use_dyntrait)]
     pub trait Trait: IoWrite {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     pub struct Struct;
@@ -636,6 +981,32 @@ pub mod only_io_read {
         fn method(&self) {}
     }
 
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
+    }
+
     pub struct Struct;
 
     impl IoReadTrait for Struct {
@@ -666,6 +1037,32 @@ pub mod only_io_bufread {
     #[sabi(use_dyntrait)]
     pub trait Trait: IoBufRead {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(!GI::IMPLS_IO_SEEK);
+        assert!(GI::IMPLS_IO_READ);
+        assert!(GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     pub struct Struct;
@@ -705,6 +1102,32 @@ pub mod only_io_seek {
     #[sabi(use_dyntrait)]
     pub trait Trait: IoSeek {
         fn method(&self) {}
+    }
+
+    #[test]
+    fn test_impls() {
+        type GI = GetImpls<Trait_TO<'static, RBox<()>>>;
+        assert!(!GI::IMPLS_SEND);
+        assert!(!GI::IMPLS_SYNC);
+        assert!(!GI::IMPLS_UNPIN);
+        assert!(!GI::IMPLS_CLONE);
+        assert!(!GI::IMPLS_DISPLAY);
+        assert!(!GI::IMPLS_DEBUG);
+        assert!(!GI::IMPLS_SERIALIZE);
+        assert!(!GI::IMPLS_EQ);
+        assert!(!GI::IMPLS_PARTIAL_EQ);
+        assert!(!GI::IMPLS_ORD);
+        assert!(!GI::IMPLS_PARTIAL_ORD);
+        assert!(!GI::IMPLS_HASH);
+        assert!(!GI::IMPLS_DESERIALIZE);
+        assert!(!GI::IMPLS_ITERATOR);
+        assert!(!GI::IMPLS_DOUBLE_ENDED_ITERATOR);
+        assert!(!GI::IMPLS_FMT_WRITE);
+        assert!(!GI::IMPLS_IO_WRITE);
+        assert!(GI::IMPLS_IO_SEEK);
+        assert!(!GI::IMPLS_IO_READ);
+        assert!(!GI::IMPLS_IO_BUF_READ);
+        assert!(!GI::IMPLS_ERROR);
     }
 
     pub struct Struct;
@@ -755,6 +1178,9 @@ pub mod every_trait {
         + IoRead
         + IoBufRead
         + IoSeek
+        + Send
+        + Sync
+        + Unpin
     {
         fn method(&self) {}
     }
@@ -836,7 +1262,10 @@ pub mod every_trait {
             + IoWriteTrait
             + IoReadTrait
             + IoBufReadTrait
-            + IoSeekTrait,
+            + IoSeekTrait
+            + Send
+            + Sync
+            + Unpin,
     {
     }
 
@@ -1051,8 +1480,6 @@ pub mod every_trait_nonstatic {
     }
 
     fn test_constructible() {
-        use crate::std_types::RBox;
-
         let string = String::new();
         let value = Struct(&string);
         let object = Trait_TO::from_ptr(RBox::new(value), TD_Opaque);
@@ -1069,12 +1496,12 @@ pub mod every_trait_nonstatic {
     }
 
     const CONST_A: Trait_CTO<'static, 'static, 'static> =
-        Trait_CTO::from_const(&Struct(""), TD_Opaque, Trait_MV::VTABLE);
+        Trait_CTO::from_const(&Struct(""), TD_Opaque);
 
     fn constructs_const_a<'a, 'b, 'borr, T>(ref_: &'b T) -> Trait_CTO<'a, 'borr, 'b>
     where
         T: 'borr + 'a + Trait<'a>,
     {
-        Trait_CTO::from_const(ref_, TD_Opaque, Trait_MV::VTABLE)
+        Trait_CTO::from_const(ref_, TD_Opaque)
     }
 }

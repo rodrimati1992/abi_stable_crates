@@ -14,7 +14,7 @@ use abi_stable::{
     library::{LibraryError, RootModule},
     package_version_strings,
     sabi_types::{RMut, VersionStrings},
-    std_types::{RArc, RBox, RBoxError, RCow, RResult, RStr, RString},
+    std_types::{RArc, RBox, RBoxError, RCowStr, RResult, RStr, RString},
     DynTrait, StableAbi,
 };
 
@@ -25,7 +25,7 @@ use abi_stable::{
 /// call <TextOpsMod_Ref as RootModule>::load_from_directory(some_directory_path)
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "TextOpsMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = TextOpsMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct TextOpsMod {
     /// Constructs TOStateBox,state that is passed to other functions in this module.
@@ -75,7 +75,7 @@ impl RootModule for TextOpsMod_Ref {
 /// A module for all deserialization functions.
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "DeserializerMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = DeserializerMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct DeserializerMod {
     pub something: std::marker::PhantomData<()>,
@@ -121,7 +121,7 @@ pub struct TOState;
 /// The state passed to most functions in the TextOpsMod_Ref module.
 pub type TOStateBox = DynTrait<'static, RBox<()>, TOState>;
 
-/// First <ConcreteType as DeserializeImplType>::serialize_impl returns
+/// First <ConcreteType as DeserializeType>::serialize_impl returns
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
 impl<'a> SerializeProxyType<'a> for TOState {
@@ -162,7 +162,7 @@ impl<'a> IteratorItem<'a> for TOCommand {
     type Item = &'a mut RString;
 }
 
-/// First <ConcreteType as DeserializeImplType>::serialize_impl returns
+/// First <ConcreteType as DeserializeType>::serialize_impl returns
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
 impl<'a> SerializeProxyType<'a> for TOCommand {
@@ -197,7 +197,7 @@ pub struct TOReturnValue;
 /// A de/serializable opaque command enum,returned by the TextOpsMod_Ref::run_command function.
 pub type TOReturnValueArc = DynTrait<'static, RArc<()>, TOReturnValue>;
 
-/// First <ConcreteType as SerializeImplType>::serialize_impl returns
+/// First <ConcreteType as SerializeType>::serialize_impl returns
 /// a RawValueBox containing the serialized data,
 /// then the returned RawValueBox is serialized.
 impl<'a> SerializeProxyType<'a> for TOReturnValue {
@@ -232,7 +232,7 @@ pub struct CowStrIter;
 /// This specifies the type Item type that `DynTrait<_,CowStrIter>`
 /// yields when iterating.
 impl<'a> IteratorItem<'a> for CowStrIter {
-    type Item = RCow<'a, str>;
+    type Item = RCowStr<'a>;
 }
 
 /// The parameters for the `TextOpsMod_Ref.remove_words` function.
@@ -243,9 +243,9 @@ pub struct RemoveWords<'a, 'b> {
     pub string: RStr<'a>,
     /// The words that will be removed from self.string.
     ///
-    /// An iterator over `RCow<'a,str>`,
-    /// constructed from a `&'b mut impl Iterator<RCow<'a,str>>`
-    /// with `DynTrait::from_borrowing_ptr(iter,CowStrIter)`.
+    /// An iterator over `RCowStr<'a>`,
+    /// constructed from a `&'b mut impl Iterator<RCowStr<'a>>`
+    /// with `DynTrait::from_borrowing_ptr(iter)`.
     pub words: DynTrait<'a, RMut<'b, ()>, CowStrIter>,
 }
 

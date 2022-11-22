@@ -1,5 +1,7 @@
+#![allow(clippy::derive_partial_eq_without_eq)]
+
 use crate::{
-    prefix_type::{PrefixRef, PrefixTypeTrait, WithMetadata},
+    prefix_type::{PrefixRef, WithMetadata},
     StableAbi,
 };
 
@@ -9,15 +11,15 @@ mod cond_fields {
     /// This type is used in prefix type examples.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+    #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
     pub struct Module {
-        #[sabi(accessible_if = "true")]
+        #[sabi(accessible_if = true)]
         pub first: usize,
 
         #[sabi(last_prefix_field)]
         pub second: usize,
 
-        #[sabi(accessible_if = "true")]
+        #[sabi(accessible_if = true)]
         pub third: usize,
 
         pub fourth: usize,
@@ -36,15 +38,12 @@ mod cond_fields {
         }
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        Module {
-            first: 5,
-            second: 8,
-            third: 13,
-            fourth: 21,
-        },
-    );
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(Module {
+        first: 5,
+        second: 8,
+        third: 13,
+        fourth: 21,
+    });
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }
@@ -87,7 +86,7 @@ mod different_alignments {
     /// This type is used in prefix type examples.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(kind(Prefix(prefix_ref = "Module_Ref", prefix_fields = "Module_Prefix")))]
+    #[sabi(kind(Prefix(prefix_ref = Module_Ref, prefix_fields = Module_Prefix)))]
     pub struct Module {
         pub f0: u64,
         #[sabi(last_prefix_field)]
@@ -100,19 +99,16 @@ mod different_alignments {
         pub f7: u8,
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        Module {
-            f0: 5,
-            f1: 8,
-            f2: 13,
-            f3: 21,
-            f4: 34,
-            f5: 55,
-            f6: 89,
-            f7: 144,
-        },
-    );
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(Module {
+        f0: 5,
+        f1: 8,
+        f2: 13,
+        f3: 21,
+        f4: 34,
+        f5: 55,
+        f6: 89,
+        f7: 144,
+    });
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }
@@ -162,18 +158,15 @@ mod overaligned {
         pub f6: u8,
     }
 
-    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        Module {
-            f0: 5,
-            f1: 8,
-            f2: 13,
-            f3: AlignTo32(21),
-            f4: AlignTo64(34),
-            f5: 55,
-            f6: 89,
-        },
-    );
+    pub const MOD_VAL: &WithMetadata<Module> = &WithMetadata::new(Module {
+        f0: 5,
+        f1: 8,
+        f2: 13,
+        f3: AlignTo32(21),
+        f4: AlignTo64(34),
+        f5: 55,
+        f6: 89,
+    });
 
     pub const PREFIX: PrefixRef<Module_Prefix> = MOD_VAL.static_as_prefix();
 }

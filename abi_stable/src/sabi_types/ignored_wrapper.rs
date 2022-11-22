@@ -60,6 +60,7 @@ use std::{
 #[repr(transparent)]
 #[derive(Default, Copy, Clone, StableAbi)]
 pub struct CmpIgnored<T> {
+    ///
     pub value: T,
 }
 
@@ -142,6 +143,9 @@ impl<T> Hash for CmpIgnored<T> {
     where
         H: Hasher,
     {
-        ().hash(state)
+        Unit.hash(state)
     }
 }
+
+#[derive(Hash)]
+struct Unit;

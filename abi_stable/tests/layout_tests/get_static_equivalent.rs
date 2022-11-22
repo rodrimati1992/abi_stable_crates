@@ -1,3 +1,5 @@
+#![allow(clippy::extra_unused_lifetimes)]
+
 use abi_stable::{
     abi_stability::{
         abi_checking::check_layout_compatibility,
@@ -73,7 +75,7 @@ mod sabi_with_1_ty_params {
 
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(not_stableabi(T), bound = "T:UniqueId", tag = " tag!{ T::UID } ")]
+    #[sabi(not_stableabi(T), bound(T: UniqueId), tag = tag!{ T::UID })]
     pub(super) struct Struct<T> {
         _inner: UnsafeIgnoredType<T>,
     }
@@ -89,9 +91,9 @@ mod sabi_with_2_ty_params {
     #[sabi(
         not_stableabi(T),
         not_stableabi(U),
-        bound = "T:UniqueId",
-        bound = "U:UniqueId",
-        tag = " tag![[ tag!(T::UID) , tag!(U::UID) ]] "
+        bound(T: UniqueId),
+        bound(U: UniqueId),
+        tag = tag![[ tag!(T::UID) , tag!(U::UID) ]]
     )]
     pub(super) struct Struct<T, U> {
         _inner: UnsafeIgnoredType<(T, U)>,

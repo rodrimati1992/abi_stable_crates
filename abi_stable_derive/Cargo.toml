@@ -1,8 +1,9 @@
 [package]
 name = "abi_stable_derive"
-version = "0.10.3"
+version = "0.11.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
-edition = "2018"
+rust-version = "1.61.0"
+edition = "2021"
 description = "Implementation detail of abi_stable."
 license = "MIT/Apache-2.0"
 documentation = "https://docs.rs/abi_stable/"
@@ -20,30 +21,30 @@ include = [
 [features]
 
 [dependencies]
-abi_stable_shared= {version="0.10.3",path="../abi_stable_shared"}
+abi_stable_shared= {version="0.11.0",path="../abi_stable_shared"}
 
-quote = "1.0.7"
+quote = "1.0.15"
 typed-arena = "2.0.1"
-proc-macro2 = "1.0.24"
+proc-macro2 = "1.0.36"
 
 [dependencies.core_extensions]
 default_features=false
 features=["std", "iterators", "self_ops", "slices", "type_level_bool"]
-version= "1.4.2"
+version= "1.5.2"
 
 [dependencies.syn]
-version = "1.0.46"
+version = "1.0.86"
 features=["full","extra-traits","visit","visit-mut"]
 
 
 ###### as_derive_utils
 
 [dependencies.as_derive_utils]
-version="0.10.3"
+version="0.11.0"
 path="../as_derive_utils"
 
 [dev-dependencies.as_derive_utils]
-version="0.10.3"
+version="0.11.0"
 path="../as_derive_utils"
 features=["testing"]
 
@@ -55,4 +56,4 @@ proc-macro = true
 
 
 [build-dependencies]
-rustc_version = "0.2.3"
+rustc_version = "0.4.0"

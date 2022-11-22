@@ -30,7 +30,7 @@ pub struct _private_MonoTypeLayoutDerive {
 
 /// Information about where a type was declared.
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, StableAbi)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct ItemInfo {
     /// The package where the type was defined,and the version string.

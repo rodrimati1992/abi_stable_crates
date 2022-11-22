@@ -68,39 +68,49 @@ where
 
 //////////////////////////////////////
 
+macro_rules! min_max {
+    ($l:expr, $r:expr) => {
+        if $l < $r {
+            ($l, $r)
+        } else {
+            ($r, $l)
+        }
+    };
+}
+
 /// The minimum of two `u64`s
 pub const fn min_u8(l: u8, r: u8) -> u8 {
-    [r, l][(l < r) as usize]
+    min_max!(l, r).0
 }
 
 /// The minimum of two `u64`s
 pub const fn min_u16(l: u16, r: u16) -> u16 {
-    [r, l][(l < r) as usize]
+    min_max!(l, r).0
 }
 
 /// The minimum of two `u64`s
 pub const fn min_u64(l: u64, r: u64) -> u64 {
-    [r, l][(l < r) as usize]
+    min_max!(l, r).0
 }
 
 /// The minimum of two `usize`s
 pub const fn min_usize(l: usize, r: usize) -> usize {
-    [r, l][(l < r) as usize]
+    min_max!(l, r).0
 }
 
 /// The maximum of two `u64`s
 pub const fn max_u64(l: u64, r: u64) -> u64 {
-    [l, r][(l < r) as usize]
+    min_max!(l, r).1
 }
 
 /// The maximum of two `usize`s
 pub const fn max_usize(l: usize, r: usize) -> usize {
-    [l, r][(l < r) as usize]
+    min_max!(l, r).1
 }
 
 /// The minimum and maximum of two `usize`s
 pub const fn min_max_usize(l: usize, r: usize) -> (usize, usize) {
-    [(r, l), (l, r)][(l < r) as usize]
+    min_max!(l, r)
 }
 
 //////////////////////////////////////
@@ -113,42 +123,10 @@ pub const fn abs_sub_usize(l: usize, r: usize) -> usize {
 
 //////////////////////////////////////
 
-/// Saturating substraction of `usize`s.
-pub const fn saturating_sub_usize(l: usize, r: usize) -> usize {
-    let mask = -((r < l) as isize);
-    l.wrapping_sub(r) & (mask as usize)
-}
-
-/// Saturating substraction of `u8`s.
-pub const fn saturating_sub_u8(l: u8, r: u8) -> u8 {
-    let mask = -((r < l) as i8);
-    l.wrapping_sub(r) & (mask as u8)
-}
-
 /// The base 2 logarithm of a usize.
 pub const fn log2_usize(n: usize) -> u8 {
     const USIZE_BITS: u8 = (std::mem::size_of::<usize>() * 8) as u8;
-    saturating_sub_u8(USIZE_BITS - n.leading_zeros() as u8, 1) as u8
-}
-
-//////////////////////////////////////
-
-/// Allows converting between `Copy` generic types that are the same concrete type.
-///
-/// # Safety
-///
-/// This is safe to do,
-/// since both types are required to be the same concrete type inside the macro.
-#[macro_export]
-macro_rules! type_identity {
-    ($from:ty=>$to:ty; $expr:expr ) => {{
-        let from = $expr;
-        unsafe {
-            let _: $crate::pmr::AssertEq<$from, $to>;
-
-            $crate::utils::Transmuter::<$from, $to> { from }.to
-        }
-    }};
+    (USIZE_BITS - n.leading_zeros() as u8).saturating_sub(1)
 }
 
 //////////////////////////////////////

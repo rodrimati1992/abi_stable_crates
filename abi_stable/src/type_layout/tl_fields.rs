@@ -53,7 +53,7 @@ impl CompTLFields {
     }
 
     /// Accesses a slice of all the compressed fields in this `CompTLFields`.
-    pub fn comp_fields_rslice(&self) -> RSlice<'static, CompTLField> {
+    pub const fn comp_fields_rslice(&self) -> RSlice<'static, CompTLField> {
         unsafe { RSlice::from_raw_parts(self.comp_fields, self.comp_fields_len as usize) }
     }
 
@@ -80,17 +80,17 @@ impl CompTLFields {
     }
 
     /// The amount of fields this represents
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.comp_fields_len as usize
     }
 
     /// Whether there are no fields.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.comp_fields_len == 0
     }
 
     /// Expands this into a TLFields,allowing access to expanded fields.
-    pub fn expand(self, shared_vars: &'static SharedVars) -> TLFields {
+    pub const fn expand(self, shared_vars: &'static SharedVars) -> TLFields {
         TLFields {
             shared_vars,
             comp_fields: self.comp_fields_rslice(),
@@ -115,24 +115,24 @@ pub struct TLFields {
 
 impl TLFields {
     /// Constructs a TLFields from the compressed fields,without any functions.
-    pub fn from_fields(
+    pub const fn from_fields(
         comp_fields: &'static [CompTLField],
         shared_vars: &'static SharedVars,
     ) -> Self {
         Self {
-            comp_fields: comp_fields.into(),
+            comp_fields: RSlice::from_slice(comp_fields),
             shared_vars,
             functions: None,
         }
     }
 
     /// The amount of fields this represents
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         self.comp_fields.len()
     }
 
     /// Whether this contains any fields
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.comp_fields.is_empty()
     }
 

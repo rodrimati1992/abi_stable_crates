@@ -24,8 +24,6 @@ fn instantiate_root_module() -> ShopMod_Ref {
         new,
         deserialize_command,
         deserialize_ret_val,
-        serialize_command,
-        serialize_ret_val,
     }
     .leak_into_prefix()
 }
@@ -176,38 +174,12 @@ fn deserialize_ret_val(s: RStr<'_>) -> RResult<ReturnVal_NE, RBoxError> {
     deserialize_json::<ReturnVal>(s).map(NonExhaustiveFor::new)
 }
 
-#[sabi_extern_fn]
-fn serialize_command(s: &Command_NE) -> RResult<RawValueBox, RBoxError> {
-    s.as_enum()
-        .into_c()
-        .map_err(RBoxError::from)
-        .and_then(serialize_json)
-}
-
-#[sabi_extern_fn]
-fn serialize_ret_val(s: &ReturnVal_NE) -> RResult<RawValueBox, RBoxError> {
-    s.as_enum()
-        .into_c()
-        .map_err(RBoxError::from)
-        .and_then(serialize_json)
-}
-
 fn deserialize_json<'a, T>(s: RStr<'a>) -> RResult<T, RBoxError>
 where
     T: serde::Deserialize<'a>,
 {
     match serde_json::from_str::<T>(s.into()) {
         Ok(x) => ROk(x),
-        Err(e) => RErr(RBoxError::new(e)),
-    }
-}
-
-fn serialize_json<T>(value: &T) -> RResult<RawValueBox, RBoxError>
-where
-    T: serde::Serialize,
-{
-    match serde_json::to_string::<T>(&value) {
-        Ok(v) => unsafe { ROk(RawValueBox::from_string_unchecked(v)) },
         Err(e) => RErr(RBoxError::new(e)),
     }
 }

@@ -19,7 +19,9 @@ use crate::{
 /// Information about a panic, used in `ffi_panic_message`.
 #[derive(Debug, Copy, Clone)]
 pub struct PanicInfo {
+    ///
     pub file: &'static str,
+    ///
     pub line: u32,
 }
 
@@ -36,6 +38,28 @@ pub fn ffi_panic_message(info: &'static PanicInfo) -> ! {
 
 //////////////////////////////////
 
+/// Only used inside `PhantomData`,
+/// workaround for `PhantomData<&mut T>` not being constructible in const fns.
+#[repr(transparent)]
+pub(crate) struct MutRef<'a, T>(&'a mut T);
+
+unsafe impl<'a, T> crate::abi_stability::GetStaticEquivalent_ for MutRef<'a, T>
+where
+    T: crate::abi_stability::GetStaticEquivalent_,
+{
+    type StaticEquivalent = crate::abi_stability::GetStaticEquivalent<&'a mut T>;
+}
+unsafe impl<'a, T> crate::StableAbi for MutRef<'a, T>
+where
+    T: crate::StableAbi + 'a,
+{
+    type IsNonZeroType = crate::type_level::bools::True;
+
+    const LAYOUT: &'static crate::type_layout::TypeLayout = <&'a mut T as crate::StableAbi>::LAYOUT;
+}
+
+//////////////////////////////////
+
 /// Converts a `&T` to a `NonNull<T>`.
 ///
 /// # Example
@@ -48,7 +72,7 @@ pub fn ffi_panic_message(info: &'static PanicInfo) -> ! {
 /// const NUMBER: NonNull<u64> = ref_as_nonnull(&100);
 ///
 /// ```
-pub const fn ref_as_nonnull<T>(reference: &T) -> NonNull<T> {
+pub const fn ref_as_nonnull<T: ?Sized>(reference: &T) -> NonNull<T> {
     unsafe { NonNull::new_unchecked(reference as *const T as *mut T) }
 }
 
@@ -88,9 +112,50 @@ impl Drop for AbortBomb {
 /// [`std::mem::transmute_copy`]: https://doc.rust-lang.org/std/mem/fn.transmute_copy.html
 #[repr(C)]
 pub union Transmuter<T: Copy, U: Copy> {
+    ///
     pub from: T,
+    ///
     pub to: U,
 }
+
+//////////////////////////////////
+
+#[repr(C)]
+pub(crate) union Dereference<'a, T> {
+    pub ptr: *const T,
+    pub reff: &'a T,
+}
+
+macro_rules! deref {
+    ($ptr:expr) => {
+        crate::utils::Dereference { ptr: $ptr }.reff
+    };
+}
+pub(crate) use deref;
+
+//////////////////////////////////
+
+/// Helper type for transmuting non-Copy types without adding any overhead in debug builds.
+///
+#[doc(hidden)]
+#[repr(C)]
+pub union TransmuterMD<T, U> {
+    pub from: ManuallyDrop<T>,
+    pub to: ManuallyDrop<U>,
+}
+
+macro_rules! const_transmute {
+    ($from:ty, $to:ty, $val:expr) => {
+        $crate::pmr::ManuallyDrop::into_inner(
+            $crate::utils::TransmuterMD::<$from, $to> {
+                from: $crate::pmr::ManuallyDrop::new($val),
+            }
+            .to,
+        )
+    };
+}
+
+pub(crate) use const_transmute;
 
 //////////////////////////////////
 
@@ -124,8 +189,8 @@ where
 /// `T` has to have an alignment and be compatible with `U`.
 #[inline]
 #[allow(clippy::needless_lifetimes)]
-pub unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
-    &*(ref_ as *const _ as *const U)
+pub const unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
+    unsafe { &*(ref_ as *const _ as *const U) }
 }
 
 /// Transmute a mutable reference to another mutable reference,
@@ -138,7 +203,7 @@ pub unsafe fn transmute_reference<T, U>(ref_: &T) -> &U {
 #[inline]
 #[allow(clippy::needless_lifetimes)]
 pub unsafe fn transmute_mut_reference<'a, T, U>(ref_: &'a mut T) -> &'a mut U {
-    &mut *(ref_ as *mut _ as *mut U)
+    unsafe { &mut *(ref_ as *mut _ as *mut U) }
 }
 
 //////////////////////////////////////
@@ -252,12 +317,12 @@ impl_fmt_padding! { RString }
 /// After this function is called `slot` will become uninitialized and
 /// must not be read again.
 pub unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
-    ManuallyDrop::take(slot)
+    unsafe { ManuallyDrop::take(slot) }
 }
 
 #[doc(hidden)]
 #[inline(always)]
-pub fn assert_fnonce<F, R>(_: &F)
+pub const fn assert_fnonce<F, R>(_: &F)
 where
     F: FnOnce() -> R,
 {

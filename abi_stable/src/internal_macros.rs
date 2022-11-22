@@ -2,11 +2,13 @@
 #[macro_export]
 macro_rules! _sabi_type_layouts {
     (internal; $ty:ty )=>{{
-        // let _: <$ty as $crate::StableAbi>::IsNonZeroType;
-        __GetTypeLayoutCtor::<$ty>::STABLE_ABI
+        $crate::pmr::get_type_layout::<$ty>
     }};
-    (internal; $ty:ty=$assoc_const:ident )=>{
-        __GetTypeLayoutCtor::<$ty>::$assoc_const
+    (internal; $ty:ty = SABI_OPAQUE_FIELD)=>{
+        $crate::pmr::__sabi_opaque_field_type_layout::<$ty>
+    };
+    (internal; $ty:ty = OPAQUE_FIELD)=>{
+        $crate::pmr::__opaque_field_type_layout::<$ty>
     };
     (
         $( $ty:ty $( = $assoc_const:ident )? ,)*
@@ -18,62 +20,3 @@ macro_rules! _sabi_type_layouts {
         ]
     }};
 }
-
-/*
-macro_rules! with_shared_attrs {
-    (
-        internal-0;
-        $shared_attrs:tt;
-
-        $((
-            $( #[$before_shared:meta] )*;
-            $( #[$after_shared:meta] )*;
-            $($item:tt)*
-        ))*
-    ) => {
-        $(
-            with_shared_attrs!{
-                internal-1;
-                $shared_attrs;
-
-                $( #[$before_shared] )*;
-                $( #[$after_shared] )*;
-                $($item)*
-            }
-        )*
-    };
-    (
-        internal-1;
-        ($(#[$shared_attrs:meta])*);
-
-        $( #[$before_shared:meta] )*;
-        $( #[$after_shared:meta] )*;
-        $($item:tt)*
-    ) => {
-        $( #[$before_shared] )*
-        $( #[$shared_attrs] )*
-        $( #[$after_shared] )*
-        $($item)*
-    };
-    (
-        $(#[$shared_attrs:meta])*
-
-        $((
-            $( #[$before_shared:meta] )*;
-            $( #[$after_shared:meta] )*;
-            $($item:tt)*
-        ))*
-    ) => {
-        with_shared_attrs!{
-            internal-0;
-            ($( #[$shared_attrs] )*);
-
-            $((
-                $( #[$before_shared] )*;
-                $( #[$after_shared] )*;
-                $($item)*
-            ))*
-        }
-    };
-}
-*/

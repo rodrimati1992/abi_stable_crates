@@ -13,12 +13,12 @@ use core_extensions::{matches, StringExt};
 use crate::{
     abi_stability::{
         extra_checks::{ExtraChecksStaticRef, StoredExtraChecks},
-        stable_abi_trait::{AbiConsts, TypeLayoutCtor},
+        stable_abi_trait::AbiConsts,
     },
     const_utils::log2_usize,
     prefix_type::{FieldAccessibility, FieldConditionality},
     reflection::ModReflMode,
-    sabi_types::{CmpIgnored, Constructor, NulStr, VersionStrings},
+    sabi_types::{CmpIgnored, NulStr, VersionStrings},
     std_types::{RSlice, RStr, UTypeId},
 };
 
@@ -54,7 +54,10 @@ pub use self::{
     },
     tl_field::{CompTLField, CompTLFieldRepr, TLField},
     tl_fields::{CompTLFields, TLFields, TLFieldsIterator},
-    tl_functions::{CompTLFunction, TLFunction, TLFunctionIter, TLFunctionSlice, TLFunctions},
+    tl_functions::{
+        CompTLFunction, TLFunction, TLFunctionIter, TLFunctionQualifiers, TLFunctionSlice,
+        TLFunctions,
+    },
     tl_lifetimes::{
         LifetimeArrayOrSlice, LifetimeIndex, LifetimeIndexArray, LifetimeIndexPair,
         LifetimeIndexPairRepr, LifetimeRange,
@@ -105,7 +108,7 @@ pub struct TypeLayout {
     extra_checks: CmpIgnored<Option<&'static ManuallyDrop<StoredExtraChecks>>>,
 
     /// A function to get the unique identifier for some type
-    type_id: Constructor<UTypeId>,
+    type_id: extern "C" fn() -> UTypeId,
 }
 
 unsafe impl Send for TypeLayout {}
@@ -127,7 +130,7 @@ impl TypeLayout {
             shared_vars,
             mono,
             is_nonzero: abi_consts.is_nonzero,
-            type_id: abi_consts.type_id,
+            type_id: abi_consts.type_id.0,
             alignment_power_of_two: log2_usize(mem::align_of::<T>()),
             size: mem::size_of::<T>(),
             data,
@@ -142,7 +145,7 @@ impl TypeLayout {
             shared_vars: p.shared_vars,
             mono: p.mono,
             is_nonzero: p.abi_consts.is_nonzero,
-            type_id: p.abi_consts.type_id,
+            type_id: p.abi_consts.type_id.0,
             alignment_power_of_two: log2_usize(mem::align_of::<T>()),
             size: mem::size_of::<T>(),
             data: p.data,
@@ -188,12 +191,12 @@ impl TypeLayout {
     }
 
     /// Gets which line the type was defined in.
-    pub fn line(&self) -> u32 {
+    pub const fn line(&self) -> u32 {
         self.item_info().line
     }
 
     /// Gets the full path to the module where the type was defined.
-    pub fn mod_path(&self) -> ModPath {
+    pub const fn mod_path(&self) -> ModPath {
         self.item_info().mod_path
     }
 
@@ -219,13 +222,15 @@ impl TypeLayout {
     /// - structs/unions/prefix types:
     ///     It returns `Some()` with all the fields in the order that they were declared.
     ///
-    pub fn get_fields(&self) -> Option<TLFields> {
-        let fields = self.mono.get_fields()?;
-        Some(fields.expand(self.shared_vars))
+    pub const fn get_fields(&self) -> Option<TLFields> {
+        match self.mono.get_fields() {
+            Some(fields) => Some(fields.expand(self.shared_vars)),
+            None => None,
+        }
     }
 
     /// Whether this is a prefix-type(module or vtable).
-    pub fn is_prefix_kind(&self) -> bool {
+    pub const fn is_prefix_kind(&self) -> bool {
         matches!(self.data, GenericTLData::PrefixType { .. })
     }
 
@@ -238,7 +243,7 @@ impl TypeLayout {
     /// Gets whether the type is a NonZero type,
     /// which can be put in an `Option` while being ffi-safe.
     #[inline]
-    pub fn is_nonzero(&self) -> bool {
+    pub const fn is_nonzero(&self) -> bool {
         self.is_nonzero
     }
 
@@ -261,7 +266,7 @@ impl TypeLayout {
 
     #[doc(hidden)]
     #[cfg(feature = "testing")]
-    pub const fn _set_type_id(mut self, type_id: Constructor<UTypeId>) -> Self {
+    pub const fn _set_type_id(mut self, type_id: extern "C" fn() -> UTypeId) -> Self {
         self.type_id = type_id;
         self
     }
@@ -270,36 +275,39 @@ impl TypeLayout {
     /// which is an ffi safe equivalent of `TypeId`.
     #[inline]
     pub fn get_utypeid(&self) -> UTypeId {
-        self.type_id.get()
+        (self.type_id)()
     }
 
     /// Gets information about where a type was declared.
     #[inline]
-    pub fn item_info(&self) -> &ItemInfo {
+    pub const fn item_info(&self) -> &ItemInfo {
         self.mono.item_info()
     }
 
     /// Gets the alignment of the type.
     #[inline]
-    pub fn alignment(&self) -> usize {
+    pub const fn alignment(&self) -> usize {
         1_usize << (self.alignment_power_of_two as u32)
     }
 
     /// Gets the size of the type.
     #[inline]
-    pub fn size(&self) -> usize {
+    pub const fn size(&self) -> usize {
         self.size
     }
 
     /// Gets the `Tag` associated with a type,
     /// a JSON-like datastructure which is another way to
     /// check extra properties about a type.
-    pub fn tag(&self) -> &'static Tag {
-        self.tag.unwrap_or(Tag::NULL)
+    pub const fn tag(&self) -> &'static Tag {
+        match self.tag {
+            Some(x) => x,
+            None => Tag::NULL,
+        }
     }
 
     /// Gets the representation attribute of the type.
-    pub fn repr_attr(&self) -> ReprAttr {
+    pub const fn repr_attr(&self) -> ReprAttr {
         self.mono.repr_attr()
     }
 
@@ -322,7 +330,7 @@ impl TypeLayout {
 
     /// Describes whether the type is a primitive/enum/struct/union,
     /// every variant corresponds to a `TLData` variant of the same name.
-    pub fn data_discriminant(&self) -> TLDataDiscriminant {
+    pub const fn data_discriminant(&self) -> TLDataDiscriminant {
         self.mono.data.as_discriminant()
     }
 
@@ -345,7 +353,7 @@ impl TypeLayout {
     }
 
     /// Gets the parts of the type layout that don't change with generic parameters.
-    pub fn mono_type_layout(&self) -> &MonoTypeLayout {
+    pub const fn mono_type_layout(&self) -> &MonoTypeLayout {
         self.mono
     }
 }
@@ -490,7 +498,7 @@ impl MonoTypeLayout {
     /// - structs/unions/prefix types:
     ///     It returns `Some()` with all the fields in the order that they were declared.
     ///
-    pub fn get_fields(&self) -> Option<CompTLFields> {
+    pub const fn get_fields(&self) -> Option<CompTLFields> {
         match self.data {
             MonoTLData::Primitive { .. } => None,
             MonoTLData::Opaque => None,

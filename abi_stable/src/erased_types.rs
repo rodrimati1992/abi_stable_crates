@@ -36,21 +36,21 @@ pub(crate) mod vtable;
 
 pub(crate) mod traits;
 
-#[doc(no_inline)]
+#[doc(inline)]
 pub use crate::DynTrait;
 
 pub use self::{
-    dyn_trait::{DynTraitBound, GetVWInterface, UneraseError},
+    dyn_trait::UneraseError,
     traits::{
-        DeserializeDyn, ImplType, InterfaceType, IteratorItem, IteratorItemOrDefault,
-        SerializeImplType, SerializeProxyType,
+        DeserializeDyn, InterfaceType, IteratorItem, IteratorItemOrDefault, SerializeProxyType,
+        SerializeType,
     },
     type_info::TypeInfo,
-    vtable::{InterfaceBound, VTableDT},
+    vtable::{MakeRequiredTraits, RequiredTraits},
 };
 
-#[doc(hidden)]
-pub use self::vtable::GetVtable;
+pub use self::vtable::MakeVTable;
+pub use self::vtable::VTable_Ref;
 
 #[doc(no_inline)]
 pub use crate::type_level::downcasting::{TD_CanDowncast, TD_Opaque};

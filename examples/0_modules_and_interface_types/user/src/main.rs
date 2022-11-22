@@ -132,7 +132,7 @@ fn main() -> io::Result<()> {
         assert_eq!(mods.get_processed_bytes()(&state), 10);
 
         mods.set_initial_processed_bytes()(4000);
-        let mut state = mods.new()();
+        let state = mods.new()();
         assert_eq!(mods.get_processed_bytes()(&state), 4000);
     }
 
@@ -148,7 +148,7 @@ fn main() -> io::Result<()> {
                 let mut words = words.iter().map(RCow::from);
                 let params = RemoveWords {
                     string: line.into(),
-                    words: DynTrait::from_borrowing_ptr(&mut words, CowStrIter),
+                    words: DynTrait::from_borrowing_ptr(&mut words),
                 };
 
                 mods.remove_words()(&mut state, params)

@@ -3,8 +3,6 @@ use syn::{
     Type, Visibility,
 };
 
-use core_extensions::matches;
-
 use quote::ToTokens;
 
 use proc_macro2::{Span, TokenStream};
@@ -164,6 +162,7 @@ struct StructParams<'a> {
 }
 
 /// A struct/union or a variant of an enum.
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Struct<'a> {
     /// The attributes of this `Struct`.
@@ -188,7 +187,6 @@ pub struct Struct<'a> {
     /// If this is an None:
     ///     This is either a struct/union or an enum variant without an explicit discriminant.
     pub discriminant: Option<&'a syn::Expr>,
-    _priv: (),
 }
 
 impl<'a> Struct<'a> {
@@ -231,7 +229,6 @@ impl<'a> Struct<'a> {
             kind,
             pub_field_count,
             fields,
-            _priv: (),
         }
     }
 }

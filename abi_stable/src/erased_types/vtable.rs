@@ -1,4 +1,5 @@
 //! Contains `DynTrait<_>`'s vtable,and related types/traits.
+#![allow(missing_docs)]
 
 use std::{
     fmt::{self, Debug, Write as FmtWrite},
@@ -9,83 +10,40 @@ use std::{
 use super::{
     c_functions::*,
     iterator::{DoubleEndedIteratorFns, IteratorFns, MakeDoubleEndedIteratorFns, MakeIteratorFns},
-    traits::{GetSerializeProxyType, InterfaceFor, IteratorItemOrDefault, SerializeImplType},
+    traits::{GetSerializeProxyType, IteratorItemOrDefault, SerializeType},
+    type_info::TypeInfoFor,
     *,
 };
 
 use crate::{
     marker_type::{ErasedObject, NonOwningPhantom},
-    pointer_trait::{AsPtr, CanTransmuteElement, GetPointerKind},
-    prefix_type::{panic_on_missing_fieldname, PrefixTypeTrait, WithMetadata},
-    sabi_types::{RMut, RRef},
+    pointer_trait::GetPointerKind,
+    prefix_type::{panic_on_missing_fieldname, WithMetadata},
+    sabi_types::{RMut, RRef, StaticRef},
     std_types::{RIoError, RNone, RSeekFrom, RSome},
     type_level::{
-        impl_enum::{Implementability, Implemented, Unimplemented},
+        downcasting::GetUTID,
+        impl_enum::{Implemented, Unimplemented},
         trait_marker,
     },
     utils::Transmuter,
-    StableAbi,
+    InterfaceType, StableAbi,
 };
 
-use core_extensions::TypeIdentity;
+/// Csontructs a vtable.
+///
+/// This is only exposed to allow users to construct
+/// [`DynTrait`]s with a generic `I` type parameter.
+pub trait MakeVTable<'borr, T, OrigPtr, CanDowncast> {
+    type Helper0;
 
-/// Returns the vtable used by DynTrait to do dynamic dispatch.
-pub trait GetVtable<'borr, This, ErasedPtr, OrigPtr, I: InterfaceBound> {
-    #[doc(hidden)]
-    const TMP_VTABLE: VTable<'borr, ErasedPtr, I>;
+    const HELPER0: Self::Helper0;
 
-    staticref! {
-        #[doc(hidden)]
-        const _WM_VTABLE: WithMetadata<VTable<'borr,ErasedPtr,I>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::TMP_VTABLE)
-    }
+    type Helper1;
 
-    #[doc(hidden)]
-    const _GET_INNER_VTABLE: VTable_Ref<'borr, ErasedPtr, I> =
-        VTable_Ref(Self::_WM_VTABLE.as_prefix());
-}
+    const HELPER1: Self::Helper1;
 
-/// A helper type for constructing a `DynTrait` at compile-time,
-/// by passing `VTableDT::GET` to `DynTrait::from_const`.
-#[repr(transparent)]
-pub struct VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> {
-    pub(super) vtable: VTable_Ref<'borr, ErasedPtr, I>,
-    _for: NonOwningPhantom<(T, OrigPtr, Downcasting)>,
-}
-
-impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> Copy
-    for VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
-{
-}
-
-impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting> Clone
-    for VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
-{
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
-    VTableDT<'borr, T, ErasedPtr, OrigPtr, I, Downcasting>
-where
-    OrigPtr: CanTransmuteElement<(), PtrTarget = T, TransmutedPtr = ErasedPtr>,
-    ErasedPtr: AsPtr<PtrTarget = ()>,
-    I: InterfaceBound,
-    InterfaceFor<T, I, Downcasting>: GetVtable<'borr, T, ErasedPtr, OrigPtr, I>,
-{
-    /// Constructs a `VTableDT`.
-    pub const GET: Self =
-        Self {
-            vtable: <InterfaceFor<T, I, Downcasting> as GetVtable<
-                'borr,
-                T,
-                ErasedPtr,
-                OrigPtr,
-                I,
-            >>::_GET_INNER_VTABLE,
-            _for: NonOwningPhantom::NEW,
-        };
+    const VTABLE_REF: Self;
 }
 
 macro_rules! declare_meta_vtable {
@@ -94,16 +52,21 @@ macro_rules! declare_meta_vtable {
         value=$value:ident;
         erased_pointer=$erased_ptr:ident;
         original_pointer=$orig_ptr:ident;
+        can_downcast=$can_downcast:ident;
 
         auto_traits[
             $([
-                impl $auto_trait:ident where [ $($phantom_where_clause:tt)* ]
+                impl $auto_trait:ident ($auto_trait_path:path)
+                where [ $($phantom_where_clause:tt)* ]
+                query_fn = $auto_trait_query:ident;
             ])*
         ]
 
         marker_traits[
             $([
-                impl $marker_trait:ident where [ $($marker_where_clause:tt)* ]
+                impl $marker_trait:ident($marker_trait_path:path)
+                where [ $($marker_where_clause:tt)* ]
+                query_fn = $marker_trait_query:ident;
             ])*
         ]
 
@@ -113,10 +76,11 @@ macro_rules! declare_meta_vtable {
             priv $priv_field:ident;
             option=$option_ty:ident,$some_constr:ident,$none_constr:ident;
             field_index=$field_index:ident;
+            query_fn = $trait_query:ident;
 
             $(struct_bound=$struct_bound:expr;)*
 
-            impl[$($impl_params:tt)*] VtableFieldValue<$selector:ident($selector_const:ident)>
+            impl[$($impl_params:tt)*] VtableFieldValue<$selector:ident($trait_path:path)>
             where [ $($where_clause:tt)* ]
             { $field_value:expr }
         ])*
@@ -129,15 +93,18 @@ macro_rules! declare_meta_vtable {
         #[sabi(
             // debug_print,
             with_field_indices,
-            kind(Prefix),
+            kind(Prefix(prefix_ref_docs = "\
+                A pointer to the vtable of [`DynTrait`].\
+                \n\n\
+                This is only exposed to allow users to construct\
+                [`DynTrait`]s with a generic `I` type parameter.\
+            ")),
             missing_field(panic),
-            prefix_bound="I:InterfaceBound",
-            bound="I:IteratorItemOrDefault<'borr>",
-            bound="<I as IteratorItemOrDefault<'borr>>::Item:StableAbi",
-            bound="I: GetSerializeProxyType<'borr>",
-            bound="<I as GetSerializeProxyType<'borr>>::ProxyType:StableAbi",
-            // bound="I:for<'s> GetSerializeProxyType<'s>",
-            // bound="for<'s> <I as GetSerializeProxyType<'s>>::ProxyType:StableAbi",
+            prefix_bound(I: InterfaceType),
+            bound(I: IteratorItemOrDefault<'borr>),
+            bound(<I as IteratorItemOrDefault<'borr>>::Item: StableAbi),
+            bound(I: GetSerializeProxyType<'borr>),
+            bound(<I as GetSerializeProxyType<'borr>>::ProxyType: StableAbi),
             $($(bound=$struct_bound,)*)*
         )]
         pub struct VTable<'borr,$erased_ptr,$interf>{
@@ -155,7 +122,7 @@ macro_rules! declare_meta_vtable {
             $(
                 pub fn $field(&self)->$field_ty
                 where
-                    $interf:InterfaceBound<$selector=Implemented<trait_marker::$selector>>,
+                    $interf:InterfaceType<$selector=Implemented<trait_marker::$selector>>,
                 {
                     match self.$priv_field().into() {
                         Some(v)=>v,
@@ -172,7 +139,7 @@ macro_rules! declare_meta_vtable {
                 &self
             )->IteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >
             where
-                $interf:InterfaceBound<Iterator=Implemented<trait_marker::Iterator>>,
+                $interf:InterfaceType<Iterator=Implemented<trait_marker::Iterator>>,
                 $interf:IteratorItemOrDefault<'borr>,
             {
                 unsafe{
@@ -187,7 +154,7 @@ macro_rules! declare_meta_vtable {
                 &self
             )->DoubleEndedIteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >
             where
-                $interf:InterfaceBound<
+                $interf:InterfaceType<
                     DoubleEndedIterator=Implemented<trait_marker::DoubleEndedIterator>
                 >,
                 $interf:IteratorItemOrDefault<'borr>,
@@ -202,7 +169,7 @@ macro_rules! declare_meta_vtable {
 
             pub fn serialize<'s>(&self)->UnerasedSerializeFn<'s,I>
             where
-                I:InterfaceBound<Serialize=Implemented<trait_marker::Serialize>>,
+                I:InterfaceType<Serialize=Implemented<trait_marker::Serialize>>,
                 I:GetSerializeProxyType<'s>,
             {
                 unsafe{
@@ -232,19 +199,19 @@ macro_rules! declare_meta_vtable {
 
         /// Returns the value of a vtable field in the current binary
         /// (this can be a different value in a dynamically_linked_library/executable).
-        pub trait VTableFieldValue<'borr,Ty,IsImpld,$value,$erased_ptr,$orig_ptr,$interf>{
+        pub trait VTableFieldValue<'borr,Ty,$value,$erased_ptr,$orig_ptr,$interf>{
             const FIELD:Ty;
         }
 
-        pub trait MarkerTrait<'borr,IsImpld,$value,$erased_ptr,$orig_ptr>{}
+        pub trait MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>{}
 
 
         $(
             impl<'borr,$value,$erased_ptr,$orig_ptr,$interf>
                 VTableFieldType_<'borr,$value,$erased_ptr,$orig_ptr,$interf>
-            for trait_selector::$selector
+            for trait_marker::$selector
             where
-                $interf:InterfaceBound,
+                $interf:InterfaceType,
             {
                 type Field=$field_ty;
             }
@@ -254,100 +221,78 @@ macro_rules! declare_meta_vtable {
                 VTableFieldValue<
                     'borr,
                     $option_ty<AnyFieldTy>,
-                    Unimplemented<trait_marker::$selector>,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
                     $interf
                 >
-            for trait_selector::$selector
+            for Unimplemented<trait_marker::$selector>
             {
                 const FIELD:$option_ty<AnyFieldTy>=$none_constr;
             }
 
-            impl<'borr,FieldTy,$value,$erased_ptr,$orig_ptr,$interf,$($impl_params)*>
+            impl<'borr,$value,$erased_ptr,$orig_ptr,$interf,$($impl_params)*>
                 VTableFieldValue<
                     'borr,
-                    $option_ty<FieldTy>,
-                    Implemented<trait_marker::$selector>,
+                    $option_ty<$field_ty>,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
                     $interf
                 >
-            for trait_selector::$selector
+            for Implemented<trait_marker::$selector>
             where
-                $interf:InterfaceBound,
-                $field_ty:TypeIdentity<Type=FieldTy>,
-                FieldTy:Copy,
+                $interf:InterfaceType,
                 $($where_clause)*
             {
-                const FIELD:$option_ty<FieldTy>=
-                    $some_constr(type_identity!($field_ty=>FieldTy;$field_value));
+                const FIELD:$option_ty<$field_ty>=
+                    $some_constr($field_value);
             }
         )*
 
 
 
-        impl<'borr,Anything,$value,X,$erased_ptr,$orig_ptr>
-            MarkerTrait<'borr,Unimplemented<X>,$value,$erased_ptr,$orig_ptr>
-        for Anything
+        impl<'borr,Anything,$value,$erased_ptr,$orig_ptr>
+            MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>
+        for Unimplemented<Anything>
         {}
 
         $(
-            impl<'borr,$value,X,$erased_ptr,$orig_ptr>
-                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr>
-            for trait_selector::$auto_trait
+            impl<'borr,$value,$erased_ptr,$orig_ptr>
+                MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>
+            for Implemented<trait_marker::$auto_trait>
             where $($phantom_where_clause)*
             {}
         )*
 
         $(
-            impl<'borr,$value,X,$erased_ptr,$orig_ptr>
-                MarkerTrait<'borr,Implemented<X>,$value,$erased_ptr,$orig_ptr>
-            for trait_selector::$marker_trait
+            impl<'borr,$value,$erased_ptr,$orig_ptr>
+                MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>
+            for Implemented<trait_marker::$marker_trait>
             where $($marker_where_clause)*
             {}
         )*
 
         ///////////////////////////////////////////////////////////
 
-        /// Contains marker types representing traits of the same name.
-        pub mod trait_selector{
-            $(
-                /// Marker type representing the trait of the same name.
-                pub struct $auto_trait;
-            )*
-            $(
-                /// Marker type representing the trait of the same name.
-                pub struct $marker_trait;
-            )*
-            $(
-                /// Marker type representing the trait of the same name.
-                pub struct $selector;
-            )*
-        }
-
-
-        impl<'borr,This,$value,$erased_ptr,$orig_ptr,$interf>
-            GetVtable<'borr,$value,$erased_ptr,$orig_ptr,$interf>
-        for This
+        impl<'borr,$value,$erased_ptr,$orig_ptr,$interf,$can_downcast>
+            MakeVTable<'borr,$value,$orig_ptr,$can_downcast>
+        for VTable_Ref<'borr,$erased_ptr,$interf>
         where
-            This:ImplType<Interface=$interf>,
-            $interf:InterfaceBound,
+            $interf:InterfaceType,
+            $can_downcast: GetUTID<$value>,
             $(
-                trait_selector::$auto_trait:
-                    MarkerTrait<'borr,$interf::$auto_trait,$value,$erased_ptr,$orig_ptr>,
+                $interf::$auto_trait:
+                    MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>,
             )*
             $(
-                trait_selector::$marker_trait:
-                    MarkerTrait<'borr,$interf::$marker_trait,$value,$erased_ptr,$orig_ptr>,
+                $interf::$marker_trait:
+                    MarkerTrait<'borr,$value,$erased_ptr,$orig_ptr>,
             )*
             $(
-                trait_selector::$selector:VTableFieldValue<
+                $interf::$selector: VTableFieldValue<
                     'borr,
                     $option_ty<$field_ty>,
-                    $interf::$selector,
                     $value,
                     $erased_ptr,
                     $orig_ptr,
@@ -355,22 +300,25 @@ macro_rules! declare_meta_vtable {
                 >,
             )*
         {
-            const TMP_VTABLE:VTable<'borr,$erased_ptr,$interf>=VTable{
-                type_info:This::INFO,
+            #[doc(hidden)]
+            type Helper0 = WithMetadata<VTable<'borr,$erased_ptr,$interf>>;
+
+            #[doc(hidden)]
+            const HELPER0: Self::Helper0 = WithMetadata::new(VTable{
+                type_info: <TypeInfoFor<$value, $interf, $can_downcast>>::INFO,
                 drop_ptr:drop_pointer_impl::<$orig_ptr,$erased_ptr>,
                 $(
                     $priv_field:
-                        <trait_selector::$selector as
+                        <$interf::$selector as
                             VTableFieldValue<
                                 $option_ty<VTableFieldType<
                                     'borr,
-                                    trait_selector::$selector,
+                                    trait_marker::$selector,
                                     $value,
                                     $erased_ptr,
                                     $orig_ptr,
                                     $interf,
                                 >>,
-                                $interf::$selector,
                                 $value,
                                 $erased_ptr,
                                 $orig_ptr,
@@ -379,92 +327,49 @@ macro_rules! declare_meta_vtable {
                         >::FIELD,
                 )*
                 _marker:NonOwningPhantom::NEW,
+            });
+
+            #[doc(hidden)]
+            type Helper1 = StaticRef<WithMetadata<VTable<'borr,ErasedPtr,I>>>;
+
+            #[doc(hidden)]
+            const HELPER1: Self::Helper1 = unsafe {
+                // relying on static promotion, this will compile-error otherwise
+                StaticRef::from_raw(
+                    &<Self as MakeVTable<'borr,$value,$orig_ptr,$can_downcast>>::HELPER0
+                )
             };
+
+            const VTABLE_REF: Self = Self(
+                <Self as MakeVTable<'borr,$value,$orig_ptr,$can_downcast>>::HELPER1.as_prefix()
+            );
 
         }
 
-
-
-        /// Associated constant equivalents of the associated types in `InterfaceType`.
+        /// For constructing a [`RequiredTraits`] constant.
         #[allow(non_upper_case_globals)]
-        pub trait InterfaceBound:InterfaceType {
+        pub trait MakeRequiredTraits: InterfaceType {
             #[doc(hidden)]
             // Used to prevent users from implementing this trait.
-            const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>;
+            const __MakeRequiredTraits_BLANKET_IMPL: PrivStruct<Self>;
 
-            /// Describes which traits are implemented,
-            /// stored in the `TypeLayout` for `DynTrait`,
-            #[doc(hidden)]
-            const EXTRA_CHECKS:EnabledTraits;
-
-            $(
-                /// Whether the trait is required,
-                /// and is usable by a `DynTrait` parameterized with this `InterfaceType`.
-                const $selector_const:bool;
-            )*
-
-        }
-
-        const fn if_u16(cond:bool,if_true:u16)->u16{
-            0_u16.wrapping_sub(cond as u16) & if_true
-        }
-
-        const fn if_u64(cond:bool,if_true:u64)->u64{
-            0_u64.wrapping_sub(cond as u64) & if_true
+            /// Describes which traits are required by `Self: `[`InterfaceType`],
+            const MAKE: RequiredTraits = RequiredTraits::new::<Self>();
         }
 
         #[allow(non_upper_case_globals)]
-        impl<I> InterfaceBound for I
+        impl<I> MakeRequiredTraits for I
         where
             I:InterfaceType,
-            $( I::$auto_trait:Implementability, )*
-            $( I::$marker_trait:Implementability, )*
-            $( I::$selector:Implementability, )*
         {
-            #[doc(hidden)]
-            const EXTRA_CHECKS:EnabledTraits=EnabledTraits{
-
-                // Auto traits have to be equivalent in every linked library,
-                // this is why this is an array,it must match exactly.
-                auto_traits:
-                    $(
-                        if_u16(
-                            <I::$auto_trait as Implementability>::IS_IMPLD,
-                            enabled_traits::auto_trait_mask::$auto_trait
-                        )|
-                    )*
-                    0,
-
-                // These traits can be a superset of the interface in the loaded library,
-                // that is why it uses a map.
-                regular_traits:
-                    $(
-                        if_u64(
-                            <I::$marker_trait as Implementability>::IS_IMPLD,
-                            enabled_traits::regular_trait_mask::$marker_trait
-                        )|
-                    )*
-                    $(
-                        if_u64(
-                            <I::$selector as Implementability>::IS_IMPLD,
-                            enabled_traits::regular_trait_mask::$selector
-                        )|
-                    )*
-                    0,
-            };
-
-            $(
-                const $selector_const:bool=<I::$selector as Implementability>::IS_IMPLD;
-            )*
-
-            const __InterfaceBound_BLANKET_IMPL:PrivStruct<Self>=
+            const __MakeRequiredTraits_BLANKET_IMPL:PrivStruct<Self>=
                 PrivStruct(PhantomData);
         }
 
 
         impl<'borr,$erased_ptr,$interf> Debug for VTable_Ref<'borr,$erased_ptr,$interf>
         where
-            $interf:InterfaceBound,
+            $interf:InterfaceType,
         {
             fn fmt(&self,f:&mut fmt::Formatter<'_>)->fmt::Result {
                 f.debug_struct("VTable_Ref")
@@ -473,22 +378,17 @@ macro_rules! declare_meta_vtable {
             }
         }
 
-        use self::enabled_traits::*;
+        declare_enabled_traits!{
+            auto_traits[
+                $(($auto_trait, $auto_trait_query, $auto_trait_path),)*
+            ]
 
-        pub mod enabled_traits{
-            declare_enabled_traits!{
-                auto_traits[
-                    $($auto_trait,)*
-                ]
-
-                regular_traits[
-                    $($marker_trait,)*
-                    $($selector,)*
-                ]
-            }
+            regular_traits[
+                $(($marker_trait, $marker_trait_query, $marker_trait_path),)*
+                $(($selector, $trait_query, $trait_path),)*
+                (Deserialize, contains_deserialize, serde::Deserialize),
+            ]
         }
-
-
     )
 }
 
@@ -497,43 +397,53 @@ declare_meta_vtable! {
     value  =T;
     erased_pointer=ErasedPtr;
     original_pointer=OrigP;
+    can_downcast = CanDowncast;
 
     auto_traits[
         [
-            impl Send where [OrigP:Send,T:Send]
+            impl Send(std::marker::Send) where [OrigP:Send, T:Send]
+            query_fn = contains_send;
         ]
         [
-            impl Sync where [OrigP:Sync,T:Sync]
+            impl Sync(std::marker::Sync) where [OrigP:Sync, T:Sync]
+            query_fn = contains_sync;
+        ]
+        [
+            impl Unpin(std::marker::Unpin) where [T: Unpin]
+            query_fn = contains_unpin;
         ]
     ]
 
     marker_traits[
         [
-            impl Error where [T:std::error::Error]
+            impl Error(std::error::Error) where [T:std::error::Error]
+            query_fn = contains_error;
         ]
     ]
 
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::CLONE")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_clone())]
         clone_ptr:    unsafe extern "C" fn(RRef<'_, ErasedPtr>)->ErasedPtr;
         priv _clone_ptr;
         option=Option,Some,None;
         field_index=field_index_for__clone_ptr;
+        query_fn = contains_clone;
 
-        impl[] VtableFieldValue<Clone(CLONE)>
+        impl[] VtableFieldValue<Clone(std::clone::Clone)>
         where [OrigP:Clone]
         {
             clone_pointer_impl::<OrigP,ErasedPtr>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::DEFAULT")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_default())]
         default_ptr: unsafe extern "C" fn()->ErasedPtr ;
         priv _default_ptr;
         option=Option,Some,None;
         field_index=field_index_for__default_ptr;
+        query_fn = contains_default;
 
-        impl[] VtableFieldValue<Default(DEFAULT)>
+        impl[] VtableFieldValue<Default(std::default::Default)>
         where [
             OrigP:GetPointerKind,
             OrigP:DefaultImpl<<OrigP as GetPointerKind>::Kind>,
@@ -542,47 +452,50 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::DISPLAY")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_display())]
         display:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>;
         priv _display;
         option=Option,Some,None;
         field_index=field_index_for__display;
+        query_fn = contains_display;
 
-        impl[] VtableFieldValue<Display(DISPLAY)>
+        impl[] VtableFieldValue<Display(std::fmt::Display)>
         where [T:Display]
         {
             display_impl::<T>
         }
     ]
     [
-    #[sabi(accessible_if="<I as InterfaceBound>::DEBUG")]
+    #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_debug())]
         debug:unsafe extern "C" fn(RRef<'_, ErasedObject>,FormattingMode,&mut RString)->RResult<(),()>;
         priv _debug;
         option=Option,Some,None;
         field_index=field_index_for__debug;
+        query_fn = contains_debug;
 
-        impl[] VtableFieldValue<Debug(DEBUG)>
+        impl[] VtableFieldValue<Debug(std::fmt::Debug)>
         where [T:Debug]
         {
             debug_impl::<T>
         }
     ]
     [
-        #[sabi(unsafe_change_type=r#"
+        #[sabi(unsafe_change_type=
             for<'s>
             unsafe extern "C" fn(
                 RRef<'s, ErasedObject>
             )->RResult<<I as GetSerializeProxyType<'s>>::ProxyType,RBoxError>
-        "#)]
-        #[sabi(accessible_if="<I as InterfaceBound>::SERIALIZE")]
+        )]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_serialize())]
         erased_serialize:unsafe extern "C" fn(RRef<'_, ErasedObject>)->RResult<ErasedObject,RBoxError>;
         priv priv_serialize;
         option=Option,Some,None;
         field_index=field_index_for_priv_serialize;
+        query_fn = contains_serialize;
 
-        impl[] VtableFieldValue<Serialize(SERIALIZE)>
+        impl[] VtableFieldValue<Serialize(serde::Serialize)>
         where [
-            T:for<'s>SerializeImplType<'s,Interface=I>,
+            T:for<'s>SerializeType<'s,Interface=I>,
             I:for<'s>SerializeProxyType<'s>,
         ]{
             unsafe{
@@ -598,52 +511,56 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::PARTIAL_EQ")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_partial_eq())]
         partial_eq: unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->bool;
         priv _partial_eq;
         option=Option,Some,None;
         field_index=field_index_for__partial_eq;
+        query_fn = contains_partial_eq;
 
-        impl[] VtableFieldValue<PartialEq(PARTIAL_EQ)>
+        impl[] VtableFieldValue<PartialEq(std::cmp::PartialEq)>
         where [T:PartialEq,]
         {
             partial_eq_impl::<T>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::ORD")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_cmp())]
         cmp:        unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->RCmpOrdering;
         priv _cmp;
         option=Option,Some,None;
         field_index=field_index_for__cmp;
+        query_fn = contains_cmp;
 
-        impl[] VtableFieldValue<Ord(ORD)>
+        impl[] VtableFieldValue<Ord(std::cmp::Ord)>
         where [T:Ord,]
         {
             cmp_ord::<T>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::PARTIAL_ORD")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_partial_cmp())]
         partial_cmp:unsafe extern "C" fn(RRef<'_, ErasedObject>,RRef<'_, ErasedObject>)->ROption<RCmpOrdering>;
         priv _partial_cmp;
         option=Option,Some,None;
         field_index=field_index_for__partial_cmp;
+        query_fn = contains_partial_cmp;
 
-        impl[] VtableFieldValue<PartialOrd(PARTIAL_ORD)>
+        impl[] VtableFieldValue<PartialOrd(std::cmp::PartialOrd)>
         where [T:PartialOrd,]
         {
             partial_cmp_ord::<T>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::HASH")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_hash())]
         hash:unsafe extern "C" fn(RRef<'_, ErasedObject>,trait_objects::HasherObject<'_>);
         priv _hash;
         option=Option,Some,None;
         field_index=field_index_for__hash;
+        query_fn = contains_hash;
 
-        impl[] VtableFieldValue<Hash(HASH)>
+        impl[] VtableFieldValue<Hash(std::hash::Hash)>
         where [T:Hash]
         {
             hash_Hash::<T>
@@ -652,15 +569,16 @@ declare_meta_vtable! {
     [
         #[sabi(
             unsafe_change_type=
-            "ROption<IteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>"
+            ROption<IteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>
         )]
-        #[sabi(accessible_if="<I as InterfaceBound>::ITERATOR")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_iterator())]
         erased_iter:IteratorFns< () >;
         priv _iter;
         option=ROption,RSome,RNone;
         field_index=field_index_for__iter;
+        query_fn = contains_iterator;
 
-        impl[] VtableFieldValue<Iterator(ITERATOR)>
+        impl[] VtableFieldValue<Iterator(std::iter::Iterator)>
         where [
             T:Iterator,
             I:IteratorItemOrDefault<'borr,Item=<T as Iterator>::Item>,
@@ -671,15 +589,16 @@ declare_meta_vtable! {
     [
         #[sabi(
             unsafe_change_type=
-            "ROption<DoubleEndedIteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>"
+            ROption<DoubleEndedIteratorFns< <I as IteratorItemOrDefault<'borr>>::Item >>
         )]
-        #[sabi(accessible_if="<I as InterfaceBound>::DOUBLE_ENDED_ITERATOR")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_double_ended_iterator())]
         erased_back_iter:DoubleEndedIteratorFns< () >;
         priv _back_iter;
         option=ROption,RSome,RNone;
         field_index=field_index_for__back_iter;
+        query_fn = contains_double_ended_iterator;
 
-        impl[] VtableFieldValue<DoubleEndedIterator(DOUBLE_ENDED_ITERATOR)>
+        impl[] VtableFieldValue<DoubleEndedIterator(std::iter::DoubleEndedIterator)>
         where [
             T:DoubleEndedIterator,
             I:IteratorItemOrDefault<'borr,Item=<T as Iterator>::Item>,
@@ -688,52 +607,56 @@ declare_meta_vtable! {
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::FMT_WRITE")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_fmt_write())]
         fmt_write_str:unsafe extern "C" fn(RMut<'_, ErasedObject>,RStr<'_>)->RResult<(),()>;
         priv _fmt_write_str;
         option=Option,Some,None;
         field_index=field_index_for__fmt_write_str;
+        query_fn = contains_fmt_write;
 
-        impl[] VtableFieldValue<FmtWrite(FMT_WRITE)>
+        impl[] VtableFieldValue<FmtWrite(std::fmt::Write)>
         where [ T:FmtWrite ]
         {
             write_str_fmt_write::<T>
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IO_WRITE")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_io_write())]
         io_write:IoWriteFns;
         priv _io_write;
         option=ROption,RSome,RNone;
         field_index=field_index_for__io_write;
+        query_fn = contains_io_write;
 
-        impl[] VtableFieldValue<IoWrite(IO_WRITE)>
+        impl[] VtableFieldValue<IoWrite(std::io::Write)>
         where [ T:io::Write ]
         {
             MakeIoWriteFns::<T>::NEW
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IO_READ")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_io_read())]
         io_read:IoReadFns;
         priv _io_read;
         option=ROption,RSome,RNone;
         field_index=field_index_for__io_read;
+        query_fn = contains_io_read;
 
-        impl[] VtableFieldValue<IoRead(IO_READ)>
+        impl[] VtableFieldValue<IoRead(std::io::Read)>
         where [ T:io::Read ]
         {
             MakeIoReadFns::<T>::NEW
         }
     ]
     [
-        #[sabi(accessible_if="<I as InterfaceBound>::IO_BUF_READ")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_io_bufread())]
         io_bufread:IoBufReadFns;
         priv _io_bufread;
         option=ROption,RSome,RNone;
         field_index=field_index_for__io_bufread;
+        query_fn = contains_io_bufread;
 
-        impl[] VtableFieldValue<IoBufRead(IO_BUF_READ)>
+        impl[] VtableFieldValue<IoBufRead(std::io::BufRead)>
         where [
             T:io::BufRead,
             I:InterfaceType<IoRead= Implemented<trait_marker::IoRead>>
@@ -743,13 +666,14 @@ declare_meta_vtable! {
     ]
     [
         #[sabi(last_prefix_field)]
-        #[sabi(accessible_if="<I as InterfaceBound>::IO_SEEK")]
+        #[sabi(accessible_if= <I as MakeRequiredTraits>::MAKE.contains_io_seek())]
         io_seek:unsafe extern "C" fn(RMut<'_, ErasedObject>,RSeekFrom)->RResult<u64,RIoError>;
         priv _io_seek;
         option=Option,Some,None;
         field_index=field_index_for__io_seek;
+        query_fn = contains_io_seek;
 
-        impl[] VtableFieldValue<IoSeek(IO_SEEK)>
+        impl[] VtableFieldValue<IoSeek(std::io::Seek)>
         where [ T:io::Seek ]
         {
             io_Seek_seek::<T>
@@ -759,7 +683,7 @@ declare_meta_vtable! {
 
 //////////////
 
-/// Used to prevent InterfaceBound being implemented outside this module,
-/// since it is only constructed in the impl of InterfaceBound in this module.
+/// Used to prevent MakeRequiredTraits being implemented outside this module,
+/// since it is only constructed in the impl of MakeRequiredTraits in this module.
 #[doc(hidden)]
 pub struct PrivStruct<T>(PhantomData<T>);

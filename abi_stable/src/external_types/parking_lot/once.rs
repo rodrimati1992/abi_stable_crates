@@ -6,14 +6,12 @@ use std::{
     panic::{self, AssertUnwindSafe},
 };
 
-use core_extensions::matches;
-
 use parking_lot::{Once as PLOnce, OnceState};
 
 use super::{UnsafeOveralignedField, RAW_LOCK_SIZE};
 
 use crate::{
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::RMut,
     std_types::{RErr, ROk, RResult},
 };
@@ -27,11 +25,7 @@ const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<PLOnce>();
 #[allow(clippy::declare_interior_mutable_const)]
 const OPAQUE_ONCE: OpaqueOnce = OpaqueOnce::new(parking_lot::Once::new(), [0u8; OM_PADDING]);
 
-#[allow(dead_code)]
-fn assert_mutex_size() {
-    let _assert_size: [(); RAW_LOCK_SIZE - mem::size_of::<OpaqueOnce>()];
-    let _assert_size: [(); mem::size_of::<OpaqueOnce>() - RAW_LOCK_SIZE];
-}
+const _: () = assert!(RAW_LOCK_SIZE == mem::size_of::<OpaqueOnce>());
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -89,7 +83,10 @@ impl ROnce {
             vtable: VTable::VTABLE,
         }
     }
+}
 
+#[allow(clippy::missing_const_for_fn)]
+impl ROnce {
     /// Constructs an ROnce.
     ///
     /// # Example
@@ -275,6 +272,7 @@ pub enum ROnceState {
     Done,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl ROnceState {
     /// Whether the ROnce is poisoned,requiring call_once_force to run.
     ///
@@ -398,7 +396,7 @@ impl<F> Closure<F> {
     where
         F: FnOnce(),
     {
-        Self::run_call(this, state, |f, _| f())
+        unsafe { Self::run_call(this, state, |f, _| f()) }
     }
 
     unsafe extern "C" fn run_call_once_forced(
@@ -408,7 +406,7 @@ impl<F> Closure<F> {
     where
         F: FnOnce(ROnceState),
     {
-        Self::run_call(this, state, |f, state| f(state))
+        unsafe { Self::run_call(this, state, |f, state| f(state)) }
     }
 
     #[inline]
@@ -420,7 +418,7 @@ impl<F> Closure<F> {
     where
         M: FnOnce(F, ROnceState),
     {
-        let mut this = this.transmute_into_mut::<Self>();
+        let mut this = unsafe { this.transmute_into_mut::<Self>() };
         let res = panic::catch_unwind(AssertUnwindSafe(|| {
             let closure = this.closure.take().unwrap();
             method(closure, state);
@@ -451,14 +449,11 @@ struct VTable {
 impl VTable {
     // The VTABLE for this type in this executable/library
     const VTABLE: VTable_Ref = {
-        const S: &WithMetadata<VTable> = &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            VTable {
-                state,
-                call_once,
-                call_once_force,
-            },
-        );
+        const S: &WithMetadata<VTable> = &WithMetadata::new(VTable {
+            state,
+            call_once,
+            call_once_force,
+        });
 
         VTable_Ref(S.static_as_prefix())
     };
@@ -477,7 +472,7 @@ unsafe extern "C" fn call_once(
     runner: RunClosure,
 ) -> RResult<(), ()> {
     call_with_closure(|| {
-        this.value.call_once(|| {
+        this.value.call_once(|| unsafe {
             (runner.func)(erased_closure, ROnceState::New).unwrap();
         });
     })
@@ -488,7 +483,7 @@ unsafe extern "C" fn call_once_force(
     runner: RunClosure,
 ) -> RResult<(), ()> {
     call_with_closure(|| {
-        this.value.call_once_force(|state| {
+        this.value.call_once_force(|state| unsafe {
             (runner.func)(erased_closure, state.into()).unwrap();
         });
     })
@@ -508,14 +503,14 @@ where
 
 ///////////////////////////////////////////////////////////////////////////////
 
-#[cfg(all(test, not(feature = "only_new_tests")))]
+#[cfg(all(test, not(feature = "test_miri_track_raw")))]
 //#[cfg(test)]
 mod tests {
     use super::*;
 
     use crossbeam_utils::thread::scope as scoped_thread;
 
-    use abi_stable_shared::{file_span, test_utils::must_panic};
+    use abi_stable_shared::test_utils::must_panic;
 
     #[test]
     #[cfg(not(all(miri, target_os = "windows")))]
@@ -529,7 +524,7 @@ mod tests {
         {
             let once = ROnce::new();
             assert_eq!(once.state(), ROnceState::New);
-            must_panic(file_span!(), || {
+            must_panic(|| {
                 once.call_once(|| panic!());
             })
             .unwrap();
@@ -570,11 +565,11 @@ mod tests {
         {
             let once = ROnce::new();
             let mut a = 0;
-            must_panic(file_span!(), || {
+            must_panic(|| {
                 once.call_once(|| panic!());
             })
             .unwrap();
-            must_panic(file_span!(), || {
+            must_panic(|| {
                 once.call_once(|| a += 2);
             })
             .unwrap();
@@ -594,7 +589,7 @@ mod tests {
         {
             let once = ROnce::new();
             let a = &mut 0;
-            must_panic(file_span!(), || {
+            must_panic(|| {
                 once.call_once_force(|state| {
                     assert_eq!(state, ROnceState::New);
                     panic!()

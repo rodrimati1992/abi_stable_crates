@@ -29,7 +29,7 @@ pub(crate) unsafe fn adapt_std_fmt<T>(
         FormattingMode::Default_
     };
 
-    function(value, mode, &mut buf)
+    unsafe { function(value, mode, &mut buf) }
         .into_rust()
         .map_err(|_| fmt::Error)?;
 
@@ -37,10 +37,10 @@ pub(crate) unsafe fn adapt_std_fmt<T>(
 }
 
 pub(crate) unsafe extern "C" fn drop_pointer_impl<OrigP, ErasedPtr>(this: RMut<'_, ErasedPtr>) {
-    extern_fn_panic_handling! {
-        let this=this.transmute_into_mut::<OrigP>();
+    extern_fn_panic_handling! {no_early_return; unsafe {
+        let this = this.transmute_into_mut::<OrigP>();
         ptr::drop_in_place(this);
-    }
+    }}
 }
 
 pub(crate) unsafe extern "C" fn clone_pointer_impl<OrigP, ErasedPtr>(
@@ -49,10 +49,10 @@ pub(crate) unsafe extern "C" fn clone_pointer_impl<OrigP, ErasedPtr>(
 where
     OrigP: Clone,
 {
-    extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_ref::<OrigP>() };
-        let clone=this.clone();
-        transmute_ignore_size(clone)
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_ref::<OrigP>() };
+        let clone = this.clone();
+        unsafe { transmute_ignore_size(clone) }
     }
 }
 
@@ -94,9 +94,9 @@ where
     OrigP: GetPointerKind,
     OrigP: DefaultImpl<<OrigP as GetPointerKind>::Kind>,
 {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return; unsafe {
         transmute_ignore_size( OrigP::default_impl() )
-    }
+    }}
 }
 
 /////////////
@@ -109,9 +109,9 @@ pub(crate) unsafe extern "C" fn display_impl<T>(
 where
     T: Display,
 {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return;
         use std::fmt::Write;
-        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let this = unsafe { this.transmute_into_ref::<T>() };
 
         let res = match mode {
             FormattingMode::Default_ => write!(buf, "{}", this),
@@ -132,10 +132,10 @@ pub(crate) unsafe extern "C" fn debug_impl<T>(
 where
     T: Debug,
 {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return;
         use std::fmt::Write;
 
-        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let this = unsafe { this.transmute_into_ref::<T>() };
 
         let res = match mode {
             FormattingMode::Default_ => write!(buf, "{:?}", this),
@@ -152,10 +152,10 @@ pub(crate) unsafe extern "C" fn serialize_impl<'s, T, I>(
     this: RRef<'s, ErasedObject>,
 ) -> RResult<<I as SerializeProxyType<'s>>::Proxy, RBoxError>
 where
-    T: for<'borr> SerializeImplType<'borr, Interface = I>,
+    T: for<'borr> SerializeType<'borr, Interface = I>,
     I: for<'borr> SerializeProxyType<'borr>,
 {
-    extern_fn_panic_handling! {
+    extern_fn_panic_handling! {no_early_return; unsafe {
         let ret: RResult<<I as SerializeProxyType<'_>>::Proxy, RBoxError> =
             this
             .transmute_into_ref::<T>()
@@ -163,7 +163,7 @@ where
             .into_c();
 
         core_extensions::utils::transmute_ignore_size(ret)
-    }
+    }}
 }
 
 pub(crate) unsafe extern "C" fn partial_eq_impl<T>(
@@ -173,9 +173,9 @@ pub(crate) unsafe extern "C" fn partial_eq_impl<T>(
 where
     T: PartialEq,
 {
-    extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_ref::<T>() };
-        let other=unsafe{ other.transmute_into_ref::<T>() };
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_ref::<T>() };
+        let other = unsafe { other.transmute_into_ref::<T>() };
         this == other
     }
 }
@@ -187,9 +187,9 @@ pub(crate) unsafe extern "C" fn cmp_ord<T>(
 where
     T: Ord,
 {
-    extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_ref::<T>() };
-        let other=unsafe{ other.transmute_into_ref::<T>() };
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_ref::<T>() };
+        let other = unsafe { other.transmute_into_ref::<T>() };
         this.cmp(other).into_c()
     }
 }
@@ -201,9 +201,9 @@ pub(crate) unsafe extern "C" fn partial_cmp_ord<T>(
 where
     T: PartialOrd,
 {
-    extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_ref::<T>() };
-        let other=unsafe{ other.transmute_into_ref::<T>() };
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_ref::<T>() };
+        let other = unsafe { other.transmute_into_ref::<T>() };
 
         this.partial_cmp(other).map(IntoReprC::into_c).into_c()
     }
@@ -218,8 +218,8 @@ pub(crate) unsafe extern "C" fn hash_Hash<T>(
 ) where
     T: Hash,
 {
-    extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_ref::<T>() };
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_ref::<T>() };
 
         this.hash(&mut state);
     }
@@ -228,23 +228,57 @@ pub(crate) unsafe extern "C" fn hash_Hash<T>(
 //////////////////
 // Hasher
 
-pub(crate) unsafe extern "C" fn hash_slice_Hasher<T>(
-    this: RMut<'_, ErasedObject>,
-    slic_: RSlice<'_, u8>,
-) where
+pub(crate) unsafe extern "C" fn write_Hasher<T>(this: RMut<'_, ErasedObject>, slic_: RSlice<'_, u8>)
+where
     T: Hasher,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_mut::<T>() };
+        let this = unsafe { this.transmute_into_mut::<T>() };
         this.write(slic_.into());
     }
 }
+
+macro_rules! fn_write {
+    ( $(($ty:ty, $delegated_fn:ident, $new_fn:ident)),* ) => {
+        $(
+            pub(crate) unsafe extern "C" fn $new_fn<T>(
+                this: RMut<'_, ErasedObject>,
+                val: $ty,
+            ) where
+                T: Hasher,
+            {
+                extern_fn_panic_handling! {
+                    let this = unsafe { this.transmute_into_mut::<T>() };
+                    this.$delegated_fn(val);
+                }
+            }
+        )*
+    }
+}
+
+fn_write!(
+    // No c-compatible layout for u128 yet
+    // (i128, write_i128, write_i128_Hasher),
+    (i16, write_i16, write_i16_Hasher),
+    (i32, write_i32, write_i32_Hasher),
+    (i64, write_i64, write_i64_Hasher),
+    (i8, write_i8, write_i8_Hasher),
+    (isize, write_isize, write_isize_Hasher),
+    // No c-compatible layout for u128 yet
+    // (u128, write_u128, write_u128_Hasher),
+    (u16, write_u16, write_u16_Hasher),
+    (u32, write_u32, write_u32_Hasher),
+    (u64, write_u64, write_u64_Hasher),
+    (u8, write_u8, write_u8_Hasher),
+    (usize, write_usize, write_usize_Hasher)
+);
+
 pub(crate) unsafe extern "C" fn finish_Hasher<T>(this: RRef<'_, ErasedObject>) -> u64
 where
     T: Hasher,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_ref::<T>() };
+        let this = unsafe { this.transmute_into_ref::<T>() };
 
         this.finish()
     }
@@ -262,7 +296,7 @@ where
     T: fmt::Write,
 {
     extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_mut::<T>() };
+        let this = unsafe { this.transmute_into_mut::<T>() };
         match fmt::Write::write_str(this,data.as_str()) {
             Ok(())=>ROk(()),
             Err(_)=>RErr(()),
@@ -321,8 +355,8 @@ pub(super) unsafe extern "C" fn io_Write_write<W>(
 where
     W: IoWrite,
 {
-    extern_fn_panic_handling! {
-        let this=this.transmute_into_mut::<W>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<W>() };
 
         convert_io_result(this.write(buf.into()))
     }
@@ -335,8 +369,8 @@ pub(super) unsafe extern "C" fn io_Write_write_all<W>(
 where
     W: IoWrite,
 {
-    extern_fn_panic_handling! {
-        let this=this.transmute_into_mut::<W>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<W>() };
 
         convert_io_result(this.write_all(buf.into()))
     }
@@ -348,8 +382,8 @@ pub(super) unsafe extern "C" fn io_Write_flush<W>(
 where
     W: IoWrite,
 {
-    extern_fn_panic_handling! {
-        let this=this.transmute_into_mut::<W>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<W>() };
 
         convert_io_result(this.flush())
     }
@@ -386,8 +420,8 @@ pub(super) unsafe extern "C" fn io_Read_read<R>(
 where
     R: Read,
 {
-    extern_fn_panic_handling! {
-        let this=this.transmute_into_mut::<R>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<R>() };
 
         convert_io_result(this.read(buf.into()))
     }
@@ -400,8 +434,8 @@ pub(super) unsafe extern "C" fn io_Read_read_exact<R>(
 where
     R: Read,
 {
-    extern_fn_panic_handling! {
-        let this=this.transmute_into_mut::<R>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<R>() };
 
         convert_io_result(this.read_exact(buf.into()))
     }
@@ -436,22 +470,26 @@ pub(super) unsafe extern "C" fn io_BufRead_fill_buf<R>(
 where
     R: BufRead,
 {
-    extern_fn_panic_handling! {
-        let this=this.transmute_into_mut::<R>();
+    extern_fn_panic_handling! {no_early_return; unsafe {
+        let this = this.transmute_into_mut::<R>();
 
+        // safety: the lifetime is guaranteed correct because the returned lifetime is
+        // the same as the input lifetime,
+        //
+        // This is a workaround to avoid having to write a `R: BufRead + 'a` bound
         mem::transmute::<
             RResult<RSlice<'_,u8>,RIoError>,
             RResult<RSlice<'_,u8>,RIoError>
         >(convert_io_result(this.fill_buf()))
-    }
+    }}
 }
 
 pub(super) unsafe extern "C" fn io_BufRead_consume<R>(this: RMut<'_, ErasedObject>, amount: usize)
 where
     R: BufRead,
 {
-    extern_fn_panic_handling! {
-        let this=this.transmute_into_mut::<R>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<R>() };
 
         this.consume(amount)
     }
@@ -466,8 +504,8 @@ pub(super) unsafe extern "C" fn io_Seek_seek<S>(
 where
     S: io::Seek,
 {
-    extern_fn_panic_handling! {
-        let this=unsafe{ this.transmute_into_mut::<S>() };
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<S>() };
 
         convert_io_result(this.seek(seek_from.into()))
     }

@@ -33,14 +33,18 @@ use crate::std_types::Tuple2;
 use super::{
     c_functions::adapt_std_fmt,
     trait_objects::*,
-    traits::{DeserializeDyn, GetSerializeProxyType, InterfaceFor},
-    vtable::{GetVtable, VTable_Ref},
+    traits::{DeserializeDyn, GetSerializeProxyType},
+    type_info::TypeInfoFor,
+    vtable::{MakeVTable, VTable_Ref},
     IteratorItemOrDefault, *,
 };
 
 // #[cfg(test)]
 #[cfg(all(test, not(feature = "only_new_tests")))]
 mod tests;
+
+#[cfg(doctest)]
+pub mod doctests;
 
 mod priv_ {
     use super::*;
@@ -60,25 +64,14 @@ mod priv_ {
     /// - `Interface` is an [`InterfaceType`], which describes what traits are
     ///     required when constructing the `DynTrait<_>` and which ones it implements.
     ///
-    /// The [`InterfaceType`] trait allows describing which traits are required
-    /// when constructing a `DynTrait<_>`, and which ones it implements.
-    ///
     /// ###  Construction
     ///
     /// To construct a `DynTrait<_>` one can use these associated functions:
     ///     
     /// - [`from_value`](#method.from_value):
-    ///     Can be constructed from the value directly.
-    ///     Requires a value that implements ImplType.
-    ///     
-    /// - [`from_ptr`](#method.from_ptr):
-    ///     Can be constructed from a pointer of a value.
-    ///     Requires a value that implements ImplType.
-    ///     
-    /// - [`from_any_value`](#method.from_any_value):
     ///     Can be constructed from the value directly.Requires a `'static` value.
     ///     
-    /// - [`from_any_ptr`](#method.from_any_ptr)
+    /// - [`from_ptr`](#method.from_ptr)
     ///     Can be constructed from a pointer of a value.Requires a `'static` value.
     ///
     /// - [`from_borrowing_value`](#method.from_borrowing_value):
@@ -98,48 +91,50 @@ mod priv_ {
     ///
     /// These are the traits:
     ///
-    /// - Send
+    /// - [`Send`]
     ///
-    /// - Sync
+    /// - [`Sync`]
     ///
-    /// - Iterator
+    /// - [`Unpin`]
     ///
-    /// - DoubleEndedIterator
+    /// - [`Iterator`]
     ///
-    /// - std::fmt::Write
+    /// - [`DoubleEndedIterator`]
     ///
-    /// - std::io::Write
+    /// - [`std::fmt::Write`]
     ///
-    /// - std::io::Seek
+    /// - [`std::io::Write`]
     ///
-    /// - std::io::Read
+    /// - [`std::io::Seek`]
     ///
-    /// - std::io::BufRead
+    /// - [`std::io::Read`]
     ///
-    /// - Clone
+    /// - [`std::io::BufRead`]
     ///
-    /// - Display
+    /// - [`Clone`]
     ///
-    /// - Debug
+    /// - [`Display`]
     ///
-    /// - std::error::Error
+    /// - [`Debug`]
     ///
-    /// - Default: Can be called as an inherent method.
+    /// - [`std::error::Error`]
     ///
-    /// - Eq
+    /// - [`Default`]: Can only be called as an inherent method.
     ///
-    /// - PartialEq
+    /// - [`Eq`]
     ///
-    /// - Ord
+    /// - [`PartialEq`]
     ///
-    /// - PartialOrd
+    /// - [`Ord`]
     ///
-    /// - Hash
+    /// - [`PartialOrd`]
     ///
-    /// - serde::Deserialize:
+    /// - [`Hash`]
+    ///
+    /// - [`serde::Deserialize`]:
     ///     first deserializes from a string, and then calls the objects' Deserialize impl.
     ///
-    /// - serde::Serialize:
+    /// - [`serde::Serialize`]:
     ///     first calls the objects' Deserialize impl, then serializes that as a string.
     ///
     /// ###  Deconstruction
@@ -147,21 +142,6 @@ mod priv_ {
     /// `DynTrait<_>` can then be unwrapped into a concrete type,
     /// within the same dynamic library/executable that constructed it,
     /// using these (fallible) conversion methods:
-    ///
-    /// - [`downcast_into_impltype`](#method.downcast_into_impltype):
-    ///     Unwraps into a pointer to `T`.
-    ///     Where `DynTrait<P<()>, Interface>`'s
-    ///         Interface must equal `<T as ImplType>::Interface`
-    ///
-    /// - [`downcast_as_impltype`](#method.downcast_as_impltype):
-    ///     Unwraps into a `&T`.
-    ///     Where `DynTrait<P<()>, Interface>`'s
-    ///         Interface must equal `<T as ImplType>::Interface`
-    ///
-    /// - [`downcast_as_mut_impltype`](#method.downcast_as_mut_impltype):
-    ///     Unwraps into a `&mut T`.
-    ///     Where `DynTrait<P<()>, Interface>`'s
-    ///         Interface must equal `<T as ImplType>::Interface`
     ///
     /// - [`downcast_into`](#method.downcast_into):
     /// Unwraps into a pointer to `T`.Requires `T:'static`.
@@ -205,159 +185,6 @@ mod priv_ {
     /// - lib1 or lib2 attempt to call methods that require the traits that were added
     ///     to the [`InterfaceType`], in versions of that interface that only they know about.
     ///
-    ///
-    ///
-    ///
-    /// # serializing/deserializing DynTraits
-    ///
-    /// To be able to serialize and deserialize a DynTrait,
-    /// the interface it uses must implement [`SerializeProxyType`] and [`DeserializeDyn`],
-    /// and the implementation type must implement [`SerializeImplType`].
-    ///
-    /// For a more realistic example you can look at the
-    /// "examples/0_modules_and_interface_types" crates in the repository for this crate.
-    ///
-    /// ```
-    /// use abi_stable::{
-    ///     erased_types::{
-    ///         DeserializeDyn, ImplType, InterfaceType, SerializeImplType,
-    ///         SerializeProxyType, TypeInfo,
-    ///     },
-    ///     external_types::{RawValueBox, RawValueRef},
-    ///     impl_get_type_info,
-    ///     prefix_type::{PrefixTypeTrait, WithMetadata},
-    ///     sabi_extern_fn,
-    ///     std_types::{RBox, RBoxError, RErr, ROk, RResult, RStr},
-    ///     traits::IntoReprC,
-    ///     type_level::bools::*,
-    ///     DynTrait, StableAbi,
-    /// };
-    ///
-    /// //////////////////////////////////
-    /// ////   In interface crate    /////
-    /// //////////////////////////////////
-    ///
-    /// use serde::{Deserialize, Serialize};
-    ///
-    /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
-    /// #[repr(C)]
-    /// #[derive(StableAbi)]
-    /// #[sabi(impl_InterfaceType(Sync, Debug, Clone, Serialize, Deserialize, PartialEq))]
-    /// pub struct FooInterface;
-    ///
-    /// /// The state passed to most functions in the TextOpsMod module.
-    /// pub type FooInterfaceBox = DynTrait<'static, RBox<()>, FooInterface>;
-    ///
-    /// /// First <ConcreteType as DeserializeImplType>::serialize_impl returns
-    /// /// a RawValueBox containing the serialized data,
-    /// /// then the returned RawValueBox is serialized.
-    /// impl<'s> SerializeProxyType<'s> for FooInterface {
-    ///     type Proxy = RawValueBox;
-    /// }
-    ///
-    /// impl<'borr> DeserializeDyn<'borr, FooInterfaceBox> for FooInterface {
-    ///     type Proxy = RawValueRef<'borr>;
-    ///
-    ///     fn deserialize_dyn(
-    ///         s: RawValueRef<'borr>,
-    ///     ) -> Result<FooInterfaceBox, RBoxError> {
-    ///         MODULE.deserialize_foo()(s.get_rstr()).into_result()
-    ///     }
-    /// }
-    ///
-    /// // `#[sabi(kind(Prefix))]` declares this type as being a prefix-type,
-    /// // generating both of these types:<br>
-    /// //
-    /// //     - Module_Prefix`:
-    /// //     A struct with the fields up to (and including) the field with the
-    /// //     `#[sabi(last_prefix_field)]` attribute.
-    /// //
-    /// //     - Module_Ref`:
-    /// //      An ffi-safe pointer to a `Module`, with methods to get `Module`'s fields.
-    /// #[repr(C)]
-    /// #[derive(StableAbi)]
-    /// #[sabi(kind(Prefix))]
-    /// #[sabi(missing_field(panic))]
-    /// pub struct Module {
-    ///     #[sabi(last_prefix_field)]
-    ///     pub deserialize_foo:
-    ///         extern "C" fn(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError>,
-    /// }
-    ///
-    /// // This is how ffi-safe pointers to non-generic prefix types are constructed
-    /// // at compile-time.
-    /// const MODULE: Module_Ref = {
-    ///     const S: &WithMetadata<Module> =
-    ///         &WithMetadata::new(PrefixTypeTrait::METADATA, Module { deserialize_foo });
-    ///
-    ///     Module_Ref(S.static_as_prefix())
-    /// };
-    ///
-    /// /////////////////////////////////////////////////////////////////////////////////////////
-    /// ////   In implementation crate (the one that gets compiled as a dynamic library)    /////
-    /// /////////////////////////////////////////////////////////////////////////////////////////
-    ///
-    /// #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    /// pub struct Foo {
-    ///     name: String,
-    /// }
-    ///
-    /// impl ImplType for Foo {
-    ///     type Interface = FooInterface;
-    ///
-    ///     const INFO: &'static TypeInfo = impl_get_type_info! { Foo };
-    /// }
-    ///
-    /// impl<'s> SerializeImplType<'s> for Foo {
-    ///     type Interface = FooInterface;
-    ///
-    ///     fn serialize_impl(&'s self) -> Result<RawValueBox, RBoxError> {
-    ///         match serde_json::to_string(self) {
-    ///             Ok(v) => RawValueBox::try_from_string(v).map_err(RBoxError::new),
-    ///             Err(e) => Err(RBoxError::new(e)),
-    ///         }
-    ///     }
-    /// }
-    ///
-    /// #[sabi_extern_fn]
-    /// pub fn deserialize_foo(s: RStr<'_>) -> RResult<FooInterfaceBox, RBoxError> {
-    ///     match serde_json::from_str::<Foo>(s.into()) {
-    ///         Ok(x) => ROk(DynTrait::from_value(x)),
-    ///         Err(e) => RErr(RBoxError::new(e)),
-    ///     }
-    /// }
-    ///
-    /// # /*
-    /// #[test]
-    /// fn testing_serialization_deserialization() {
-    /// # */ fn main() {
-    ///     let foo = Foo {
-    ///         name: "nope".into(),
-    ///     };
-    ///     let object = DynTrait::from_value(foo.clone());
-    ///
-    ///     assert_eq!(
-    ///         serde_json::from_str::<FooInterfaceBox>(
-    ///             r##"
-    ///         {
-    ///             "name":"nope"
-    ///         }
-    ///     "##
-    ///         )
-    ///         .unwrap(),
-    ///         object
-    ///     );
-    ///
-    ///     assert_eq!(
-    ///         serde_json::to_string(&object).unwrap(),
-    ///         r##"{"name":"nope"}"##
-    ///     );
-    /// }
-    ///
-    /// ```
-    ///
-    ///
-    ///
     /// # Examples
     ///
     /// ###  In the Readme
@@ -369,6 +196,10 @@ mod priv_ {
     /// [crates.io](https://crates.io/crates/abi_stable),
     /// [lib.rs](https://lib.rs/crates/abi_stable).
     ///
+    /// ### Serialization/Deserialization
+    ///
+    /// The [`DeserializeDyn`] and [`SerializeType`] demonstrate how `DynTrait`
+    /// can be de/serialized.
     ///
     /// ###  Comparing DynTraits
     ///
@@ -389,22 +220,22 @@ mod priv_ {
     ///     // `DynTrait`s constructed from `&` are `DynTrait<'_, RRef<'_, ()>, _>`
     ///     // since `&T` can't soundly be transmuted back and forth into `&()`
     ///     let left: DynTrait<'static, RRef<'_, ()>, PartialEqInterface> =
-    ///         DynTrait::from_any_ptr(&100, PartialEqInterface);
+    ///         DynTrait::from_ptr(&100);
     ///
     ///     let mut n100 = 100;
     ///     // `DynTrait`s constructed from `&mut` are `DynTrait<'_, RMut<'_, ()>, _>`
     ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
     ///     let right: DynTrait<'static, RMut<'_, ()>, PartialEqInterface> =
-    ///         DynTrait::from_any_ptr(&mut n100, PartialEqInterface);
+    ///         DynTrait::from_ptr(&mut n100).interface(PartialEqInterface);
     ///
     ///     assert_eq!(left, right);
     /// }
     /// {
-    ///     let left: DynTrait<'static, RBox<()>, _> =
-    ///         DynTrait::from_any_value(200, PartialEqInterface);
+    ///     let left: DynTrait<'static, RBox<()>, PartialEqInterface> =
+    ///         DynTrait::from_value(200);
     ///
     ///     let right: DynTrait<'static, RArc<()>, _> =
-    ///         DynTrait::from_any_ptr(RArc::new(200), PartialEqInterface);
+    ///         DynTrait::from_ptr(RArc::new(200)).interface(PartialEqInterface);
     ///
     ///     assert_eq!(left, right);
     /// }
@@ -423,7 +254,7 @@ mod priv_ {
     /// let mut buffer = String::new();
     ///
     /// let mut wrapped: DynTrait<'static, RMut<'_, ()>, FmtWriteInterface> =
-    ///     DynTrait::from_any_ptr(&mut buffer, FmtWriteInterface);
+    ///     DynTrait::from_ptr(&mut buffer);
     ///
     /// write!(wrapped, "Foo").unwrap();
     /// write!(wrapped, "Bar").unwrap();
@@ -444,7 +275,7 @@ mod priv_ {
     /// ```
     /// use abi_stable::{erased_types::interfaces::DEIteratorInterface, DynTrait};
     ///
-    /// let mut wrapped = DynTrait::from_any_value(0..=10, DEIteratorInterface::NEW);
+    /// let mut wrapped = DynTrait::from_value(0..=10).interface(DEIteratorInterface::NEW);
     ///
     /// assert_eq!(
     ///     wrapped.by_ref().take(5).collect::<Vec<_>>(),
@@ -488,7 +319,7 @@ mod priv_ {
     ///
     ///     // The type annotation here is just to show the type, it's not necessary.
     ///     let mut wrapper: DynTrait<'_, NewtypeBox<()>, IteratorInterface> =
-    ///         DynTrait::from_borrowing_ptr(iter, IteratorInterface);
+    ///         DynTrait::from_borrowing_ptr(iter);
     ///
     ///     // You can clone the DynTrait!
     ///     let clone = wrapper.clone();
@@ -582,29 +413,29 @@ mod priv_ {
     ///
     /// ```
     ///
-    /// [`AsPtr`]: ./pointer_trait/trait.AsPtr.html
-    /// [`InterfaceType`]: ./trait.InterfaceType.html
+    /// [`AsPtr`]: crate::pointer_trait::AsPtr
+    /// [`InterfaceType`]: crate::InterfaceType
     /// [`NonNull`]: https://doc.rust-lang.org/std/ptr/struct.NonNull.html
-    /// [`SerializeProxyType`]: ./erased_types/trait.SerializeProxyType.html
-    /// [`DeserializeDyn`]: ./erased_types/trait.DeserializeDyn.html
-    /// [`AsMutPtr`]: ./pointer_trait/trait.AsMutPtr.html
-    /// [`CanTransmuteElement`]: ./pointer_trait/trait.CanTransmuteElement.html
-    /// [`GetPointerKind`]: ./pointer_trait/trait.GetPointerKind.html
-    /// [`RRef`]: ./sabi_types/struct.RRef.html
-    /// [`RMut`]: ./sabi_types/struct.RMut.html
-    /// [`RBox`]: ./std_types/struct.RBox.html
-    /// [`PK_Reference`]: ./pointer_trait/struct.PK_Reference.html
-    /// [`PK_MutReference`]: ./pointer_trait/struct.PK_MutReference.html
-    /// [`PK_SmartPointer`]: ./pointer_trait/struct.PK_SmartPointer.html
-    /// [`SerializeImplType`]: ./erased_types/trait.SerializeImplType.html
+    /// [`SerializeProxyType`]: crate::erased_types::SerializeProxyType
+    /// [`DeserializeDyn`]: crate::erased_types::DeserializeDyn
+    /// [`AsMutPtr`]: crate::pointer_trait::AsMutPtr
+    /// [`CanTransmuteElement`]: crate::pointer_trait::CanTransmuteElement
+    /// [`GetPointerKind`]: crate::pointer_trait::GetPointerKind
+    /// [`RRef`]: crate::sabi_types::RRef
+    /// [`RMut`]: crate::sabi_types::RMut
+    /// [`RBox`]: crate::std_types::RBox
+    /// [`PK_Reference`]: crate::pointer_trait::PK_Reference
+    /// [`PK_MutReference`]: crate::pointer_trait::PK_MutReference
+    /// [`PK_SmartPointer`]: crate::pointer_trait::PK_SmartPointer
+    /// [`SerializeType`]: crate::erased_types::SerializeType
     ///
     #[repr(C)]
     #[derive(StableAbi)]
     #[sabi(
         // debug_print,
-        bound ="I: InterfaceBound",
-        bound ="VTable_Ref<'borr, P, I>: StableAbi",
-        extra_checks ="<I as InterfaceBound>::EXTRA_CHECKS",
+        bound(I: InterfaceType),
+        bound(VTable_Ref<'borr, P, I>: StableAbi),
+        extra_checks = <I as MakeRequiredTraits>::MAKE,
     )]
     pub struct DynTrait<'borr, P, I, EV = ()>
     where
@@ -617,137 +448,7 @@ mod priv_ {
         _marker2: UnsafeIgnoredType<Rc<()>>,
     }
 
-    impl DynTrait<'static, RRef<'static, ()>, ()> {
-        /// Constructs the `DynTrait<_>` from a `T: ImplType`.
-        ///
-        /// Use this whenever possible instead of [`from_any_value`](#method.from_any_value),
-        /// because it produces better error messages when unerasing the `DynTrait<_>`
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::{
-        ///     erased_types::TypeInfo, std_types::RBox, DynTrait, ImplType, StableAbi,
-        /// };
-        ///
-        /// fn main() {
-        ///     let to: DynTrait<'static, RBox<()>, FooInterface> =
-        ///         DynTrait::from_value(Foo(10u32));
-        ///
-        ///     assert_eq!(format!("{:?}", to), "Foo(10)");
-        /// }
-        ///
-        /// #[repr(transparent)]
-        /// #[derive(Debug, StableAbi)]
-        /// struct Foo(u32);
-        ///
-        /// impl ImplType for Foo {
-        ///     type Interface = FooInterface;
-        ///
-        ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo);
-        /// }
-        ///
-        /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
-        /// #[repr(C)]
-        /// #[derive(StableAbi)]
-        /// #[sabi(impl_InterfaceType(Sync, Debug))]
-        /// pub struct FooInterface;
-        ///
-        ///
-        /// ```
-        pub fn from_value<T>(object: T) -> DynTrait<'static, RBox<()>, T::Interface>
-        where
-            T: ImplType,
-            T::Interface: InterfaceBound,
-            T: GetVtable<'static, T, RBox<()>, RBox<T>, <T as ImplType>::Interface>,
-        {
-            let object = RBox::new(object);
-            DynTrait::from_ptr(object)
-        }
-
-        /// Constructs the `DynTrait<_>` from a pointer to a `T: ImplType`.
-        ///
-        /// Use this whenever possible instead of [`from_any_ptr`](#method.from_any_ptr),
-        /// because it produces better error messages when unerasing the `DynTrait<_>`
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::{
-        ///     erased_types::TypeInfo,
-        ///     std_types::{RArc, RBox},
-        ///     DynTrait, ImplType, RMut, RRef, StableAbi,
-        /// };
-        ///
-        /// fn main() {
-        ///     // Constructing a DynTrait from a `&T`
-        ///     {
-        ///         // `DynTrait`s constructed from `&` are `DynTrait<'_, RRef<'_, ()>, _>`
-        ///         // since `&T` can't soundly be transmuted back and forth into `&()`
-        ///         let rref: DynTrait<'static, RRef<'_, ()>, FooInterface> =
-        ///             DynTrait::from_ptr(&Foo(10u32));
-        ///
-        ///         assert_eq!(format!("{:?}", rref), "Foo(10)");
-        ///     }
-        ///     // Constructing a DynTrait from a `&mut T`
-        ///     {
-        ///         let mmut = &mut Foo(20u32);
-        ///         // `DynTrait`s constructed from `&mut` are `DynTrait<'_, RMut<'_, ()>, _>`
-        ///         // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
-        ///         let rmut: DynTrait<'static, RMut<'_, ()>, FooInterface> =
-        ///             DynTrait::from_ptr(mmut);
-        ///
-        ///         assert_eq!(format!("{:?}", rmut), "Foo(20)");
-        ///     }
-        ///     // Constructing a DynTrait from a `RBox<T>`
-        ///     {
-        ///         let boxed: DynTrait<'static, RBox<()>, FooInterface> =
-        ///             DynTrait::from_ptr(RBox::new(Foo(30u32)));
-        ///
-        ///         assert_eq!(format!("{:?}", boxed), "Foo(30)");
-        ///     }
-        ///     // Constructing a DynTrait from an `RArc<T>`
-        ///     {
-        ///         let arc: DynTrait<'static, RArc<()>, FooInterface> =
-        ///             DynTrait::from_ptr(RArc::new(Foo(30u32)));
-        ///
-        ///         assert_eq!(format!("{:?}", arc), "Foo(30)");
-        ///     }
-        /// }
-        ///
-        /// #[repr(transparent)]
-        /// #[derive(Debug, StableAbi)]
-        /// struct Foo(u32);
-        ///
-        /// impl ImplType for Foo {
-        ///     type Interface = FooInterface;
-        ///
-        ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo);
-        /// }
-        ///
-        /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
-        /// #[repr(C)]
-        /// #[derive(StableAbi)]
-        /// #[sabi(impl_InterfaceType(Sync, Debug))]
-        /// pub struct FooInterface;
-        ///
-        /// ```
-        pub fn from_ptr<P, T>(object: P) -> DynTrait<'static, P::TransmutedPtr, T::Interface>
-        where
-            T: ImplType,
-            T::Interface: InterfaceBound,
-            T: GetVtable<'static, T, P::TransmutedPtr, P, <T as ImplType>::Interface>,
-            P: GetPointerKind<PtrTarget = T> + CanTransmuteElement<()>,
-        {
-            DynTrait {
-                object: unsafe { ManuallyDrop::new(object.transmute_element::<()>()) },
-                vtable: T::_GET_INNER_VTABLE,
-                extra_value: (),
-                _marker: NonOwningPhantom::NEW,
-                _marker2: UnsafeIgnoredType::DEFAULT,
-            }
-        }
-
+    impl<I> DynTrait<'static, RBox<()>, I> {
         /// Constructs the `DynTrait<_>` from a type that doesn't borrow anything.
         ///
         /// # Example
@@ -759,22 +460,26 @@ mod priv_ {
         ///
         /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, DebugDisplayInterface> =
-        ///     DynTrait::from_any_value(3u8, DebugDisplayInterface);
+        ///     DynTrait::from_value(3u8);
         ///
         /// assert_eq!(format!("{}", to), "3");
         /// assert_eq!(format!("{:?}", to), "3");
         ///
         /// ```
-        pub fn from_any_value<T, I>(object: T, interface: I) -> DynTrait<'static, RBox<()>, I>
+        pub fn from_value<T>(object: T) -> Self
         where
             T: 'static,
-            I: InterfaceBound,
-            InterfaceFor<T, I, TD_CanDowncast>: GetVtable<'static, T, RBox<()>, RBox<T>, I>,
+            VTable_Ref<'static, RBox<()>, I>: MakeVTable<'static, T, RBox<T>, TD_CanDowncast>,
         {
             let object = RBox::new(object);
-            DynTrait::from_any_ptr(object, interface)
+            DynTrait::from_ptr(object)
         }
+    }
 
+    impl<P, I> DynTrait<'static, P, I>
+    where
+        P: GetPointerKind,
+    {
         /// Constructs the `DynTrait<_>` from a pointer to a
         /// type that doesn't borrow anything.
         ///
@@ -792,7 +497,7 @@ mod priv_ {
         ///     // `DynTrait`s constructed from `&` are `DynTrait<'_, RRef<'_, ()>, _>`
         ///     // since `&T` can't soundly be transmuted back and forth into `&()`
         ///     let rref: DynTrait<'static, RRef<'_, ()>, DebugDisplayInterface> =
-        ///         DynTrait::from_any_ptr(&21i32, DebugDisplayInterface);
+        ///         DynTrait::from_ptr(&21i32);
         ///
         ///     assert_eq!(format!("{:?}", rref), "21");
         ///     assert_eq!(format!("{}", rref), "21");
@@ -803,7 +508,7 @@ mod priv_ {
         ///     // `DynTrait`s constructed from `&mut` are `DynTrait<'_, RMut<'_, ()>, _>`
         ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
         ///     let rmut: DynTrait<'static, RMut<'_, ()>, DebugDisplayInterface> =
-        ///         DynTrait::from_any_ptr(mmut, DebugDisplayInterface);
+        ///         DynTrait::from_ptr(mmut).interface(DebugDisplayInterface);
         ///
         ///     assert_eq!(format!("{:?}", rmut), r#""hello""#);
         ///     assert_eq!(format!("{}", rmut), "hello");
@@ -811,7 +516,7 @@ mod priv_ {
         /// // Constructing a DynTrait from a `RBox<T>`
         /// {
         ///     let boxed: DynTrait<'static, RBox<()>, DebugDisplayInterface> =
-        ///         DynTrait::from_any_ptr(RBox::new(false), DebugDisplayInterface);
+        ///         DynTrait::from_ptr(RBox::new(false));
         ///
         ///     assert_eq!(format!("{:?}", boxed), "false");
         ///     assert_eq!(format!("{}", boxed), "false");
@@ -819,31 +524,31 @@ mod priv_ {
         /// // Constructing a DynTrait from an `RArc<T>`
         /// {
         ///     let arc: DynTrait<'static, RArc<()>, DebugDisplayInterface> =
-        ///         DynTrait::from_any_ptr(RArc::new(30u32), DebugDisplayInterface);
+        ///         DynTrait::from_ptr(RArc::new(30u32)).interface(DebugDisplayInterface);
         ///
         ///     assert_eq!(format!("{:?}", arc), "30");
         /// }
         ///
         /// ```
-        pub fn from_any_ptr<P, T, I>(
-            object: P,
-            _interface: I,
-        ) -> DynTrait<'static, P::TransmutedPtr, I>
+        pub fn from_ptr<OrigPtr>(object: OrigPtr) -> Self
         where
-            I: InterfaceBound,
-            T: 'static,
-            InterfaceFor<T, I, TD_CanDowncast>: GetVtable<'static, T, P::TransmutedPtr, P, I>,
-            P: GetPointerKind<PtrTarget = T> + CanTransmuteElement<()>,
+            OrigPtr: GetPointerKind,
+            OrigPtr::PtrTarget: 'static,
+            OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
+            VTable_Ref<'static, P, I>:
+                MakeVTable<'static, OrigPtr::PtrTarget, OrigPtr, TD_CanDowncast>,
         {
             DynTrait {
                 object: unsafe { ManuallyDrop::new(object.transmute_element::<()>()) },
-                vtable: <InterfaceFor<T, I, TD_CanDowncast>>::_GET_INNER_VTABLE,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value: (),
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
             }
         }
+    }
 
+    impl<'borr, I> DynTrait<'borr, RBox<()>, I> {
         /// Constructs the `DynTrait<_>` from a value with a `'borr` borrow.
         ///
         /// Cannot downcast the DynTrait afterwards.
@@ -857,7 +562,7 @@ mod priv_ {
         ///
         /// // DebugDisplayInterface is `Debug + Display + Sync + Send`
         /// let to: DynTrait<'static, RBox<()>, DebugDisplayInterface> =
-        ///     DynTrait::from_borrowing_value(3u8, DebugDisplayInterface);
+        ///     DynTrait::from_borrowing_value(3u8);
         ///
         /// assert_eq!(format!("{}", to), "3");
         /// assert_eq!(format!("{:?}", to), "3");
@@ -867,19 +572,20 @@ mod priv_ {
         /// assert_eq!(to.downcast_as::<u8>().ok(), None);
         ///
         /// ```
-        pub fn from_borrowing_value<'borr, T, I>(
-            object: T,
-            interface: I,
-        ) -> DynTrait<'borr, RBox<()>, I>
+        pub fn from_borrowing_value<T>(object: T) -> Self
         where
             T: 'borr,
-            I: InterfaceBound,
-            InterfaceFor<T, I, TD_Opaque>: GetVtable<'borr, T, RBox<()>, RBox<T>, I>,
+            VTable_Ref<'borr, RBox<()>, I>: MakeVTable<'borr, T, RBox<T>, TD_Opaque>,
         {
             let object = RBox::new(object);
-            DynTrait::from_borrowing_ptr(object, interface)
+            DynTrait::from_borrowing_ptr(object)
         }
+    }
 
+    impl<'borr, P, I> DynTrait<'borr, P, I>
+    where
+        P: GetPointerKind,
+    {
         /// Constructs the `DynTrait<_>` from a pointer to the erased type
         /// with a `'borr` borrow.
         ///
@@ -899,7 +605,7 @@ mod priv_ {
         ///     // `DynTrait`s constructed from `&` are `DynTrait<'_, RRef<'_, ()>, _>`
         ///     // since `&T` can't soundly be transmuted back and forth into `&()`
         ///     let rref: DynTrait<'_, RRef<'_, ()>, DebugDisplayInterface> =
-        ///         DynTrait::from_borrowing_ptr(&34i32, DebugDisplayInterface);
+        ///         DynTrait::from_borrowing_ptr(&34i32);
         ///
         ///     assert_eq!(format!("{:?}", rref), "34");
         ///     assert_eq!(format!("{}", rref), "34");
@@ -910,7 +616,7 @@ mod priv_ {
         ///     // `DynTrait`s constructed from `&mut` are `DynTrait<'_, RMut<'_, ()>, _>`
         ///     // since `&mut T` can't soundly be transmuted back and forth into `&mut ()`
         ///     let rmut: DynTrait<'_, RMut<'_, ()>, DebugDisplayInterface> =
-        ///         DynTrait::from_borrowing_ptr(mmut, DebugDisplayInterface);
+        ///         DynTrait::from_borrowing_ptr(mmut).interface(DebugDisplayInterface);
         ///
         ///     assert_eq!(format!("{:?}", rmut), r#""world""#);
         ///     assert_eq!(format!("{}", rmut), "world");
@@ -918,34 +624,31 @@ mod priv_ {
         /// // Constructing a DynTrait from a `RBox<T>`
         /// {
         ///     let boxed: DynTrait<'_, RBox<()>, DebugDisplayInterface> =
-        ///         DynTrait::from_borrowing_ptr(RBox::new(true), DebugDisplayInterface);
+        ///         DynTrait::from_borrowing_ptr(RBox::new(true));
         ///
         ///     assert_eq!(format!("{:?}", boxed), "true");
         ///     assert_eq!(format!("{}", boxed), "true");
         /// }
         /// // Constructing a DynTrait from an `RArc<T>`
         /// {
-        ///     let arc: DynTrait<'_, RArc<()>, DebugDisplayInterface> =
-        ///         DynTrait::from_borrowing_ptr(RArc::new('a'), DebugDisplayInterface);
+        ///     let arc: DynTrait<'_, RArc<()>, _> =
+        ///         DynTrait::from_borrowing_ptr(RArc::new('a')).interface(DebugDisplayInterface);
         ///
         ///     assert_eq!(format!("{:?}", arc), "'a'");
         ///     assert_eq!(format!("{}", arc), "a");
         /// }
         ///
         /// ```
-        pub fn from_borrowing_ptr<'borr, P, T, I>(
-            object: P,
-            _interface: I,
-        ) -> DynTrait<'borr, P::TransmutedPtr, I>
+        pub fn from_borrowing_ptr<OrigPtr>(object: OrigPtr) -> Self
         where
-            T: 'borr,
-            I: InterfaceBound,
-            InterfaceFor<T, I, TD_Opaque>: GetVtable<'borr, T, P::TransmutedPtr, P, I>,
-            P: GetPointerKind<PtrTarget = T> + CanTransmuteElement<()>,
+            OrigPtr: GetPointerKind + 'borr,
+            OrigPtr::PtrTarget: 'borr,
+            OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
+            VTable_Ref<'borr, P, I>: MakeVTable<'borr, OrigPtr::PtrTarget, OrigPtr, TD_Opaque>,
         {
             DynTrait {
                 object: unsafe { ManuallyDrop::new(object.transmute_element::<()>()) },
-                vtable: <InterfaceFor<T, I, TD_Opaque>>::_GET_INNER_VTABLE,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value: (),
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
@@ -984,14 +687,12 @@ mod priv_ {
         where
             OrigPtr: GetPointerKind,
             OrigPtr::PtrTarget: 'borr,
-            I: InterfaceBound,
-            InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>:
-                GetVtable<'borr, OrigPtr::PtrTarget, P, OrigPtr, I>,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
+            VTable_Ref<'borr, P, I>: MakeVTable<'borr, OrigPtr::PtrTarget, OrigPtr, Downcasting>,
         {
             DynTrait {
                 object: unsafe { ManuallyDrop::new(ptr.transmute_element::<()>()) },
-                vtable: <InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>>::_GET_INNER_VTABLE,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value,
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
@@ -1006,10 +707,9 @@ mod priv_ {
         where
             OrigPtr: GetPointerKind,
             OrigPtr::PtrTarget: 'borr,
-            I: InterfaceBound,
-            InterfaceFor<OrigPtr::PtrTarget, I, Downcasting>:
-                GetVtable<'borr, OrigPtr::PtrTarget, P, OrigPtr, I>,
+            I: InterfaceType,
             OrigPtr: CanTransmuteElement<(), TransmutedPtr = P>,
+            VTable_Ref<'borr, P, I>: MakeVTable<'borr, OrigPtr::PtrTarget, OrigPtr, Downcasting>,
         {
             Self::with_extra_value(ptr, extra_vtable)
         }
@@ -1020,11 +720,7 @@ mod priv_ {
         ///
         /// # Parameters
         ///
-        /// `ptr`:
-        /// This is generally constructed with `RRef::new(&value)`
-        /// `RRef` is a reference-like type that can be erased inside a `const fn` on stable Rust
-        /// (once it becomes possible to unsafely cast `&T` to `&()` inside a `const fn`,
-        /// and the minimum Rust version is bumped, this type will be replaced with a reference)
+        /// `ptr`: a reference to the value.
         ///
         /// <br>
         ///
@@ -1038,16 +734,9 @@ mod priv_ {
         ///
         /// <br>
         ///
-        /// `vtable_for`:
-        /// This is constructible with `VTableDT::GET`.
-        /// `VTableDT` wraps the vtable for a `DynTrait`,
-        /// while keeping the original type and pointer type that it was constructed for,
-        /// allowing this function to be safe to call.
-        ///
-        /// <br>
-        ///
         /// `extra_value`:
-        /// This is used by `#[sabi_trait]` trait objects to store their vtable inside DynTrait.
+        /// This is used by [`#[sabi_trait]`](macro@crate::sabi_trait)
+        /// trait objects to store their vtable inside DynTrait.
         ///
         ///
         /// # Example
@@ -1055,7 +744,7 @@ mod priv_ {
         /// ```
         /// use abi_stable::{
         ///     erased_types::{
-        ///         interfaces::DebugDisplayInterface, DynTrait, TD_Opaque, VTableDT,
+        ///         interfaces::DebugDisplayInterface, DynTrait, TD_Opaque,
         ///     },
         ///     sabi_types::RRef,
         /// };
@@ -1063,7 +752,7 @@ mod priv_ {
         /// static STRING: &str = "What the heck";
         ///
         /// static DYN: DynTrait<'static, RRef<'static, ()>, DebugDisplayInterface, ()> =
-        ///     DynTrait::from_const(&STRING, TD_Opaque, VTableDT::GET, ());
+        ///     DynTrait::from_const(&STRING, TD_Opaque, ());
         ///
         /// fn main() {
         ///     assert_eq!(format!("{}", DYN), format!("{}", STRING));
@@ -1077,10 +766,10 @@ mod priv_ {
         pub const fn from_const<T, Downcasting>(
             ptr: &'a T,
             can_it_downcast: Downcasting,
-            vtable_for: VTableDT<'borr, T, RRef<'a, ()>, RRef<'a, T>, I, Downcasting>,
             extra_value: EV,
         ) -> Self
         where
+            VTable_Ref<'borr, RRef<'a, ()>, I>: MakeVTable<'borr, T, &'a T, Downcasting>,
             T: 'borr,
         {
             // Must wrap can_it_downcast in a ManuallyDrop because otherwise this
@@ -1091,11 +780,25 @@ mod priv_ {
                     let x = RRef::from_raw(ptr as *const T as *const ());
                     ManuallyDrop::new(x)
                 },
-                vtable: vtable_for.vtable,
+                vtable: VTable_Ref::VTABLE_REF,
                 extra_value,
                 _marker: NonOwningPhantom::NEW,
                 _marker2: UnsafeIgnoredType::DEFAULT,
             }
+        }
+    }
+
+    impl<'borr, P, I, EV> DynTrait<'borr, P, I, EV>
+    where
+        P: GetPointerKind,
+    {
+        /// For inferring the `I` type parameter.
+        pub const fn interface(self, _interface: I) -> Self
+        where
+            I: InterfaceType,
+        {
+            std::mem::forget(_interface);
+            self
         }
     }
 
@@ -1117,7 +820,7 @@ mod priv_ {
             other: &DynTrait<'static, Other, I2, EV2>,
         ) -> bool
         where
-            I2: InterfaceBound,
+            I2: InterfaceType,
             Other: GetPointerKind,
         {
             self.sabi_vtable_address() == other.sabi_vtable_address()
@@ -1134,7 +837,7 @@ mod priv_ {
     {
         /// A vtable used by `#[sabi_trait]` derived trait objects.
         #[inline]
-        pub fn sabi_et_vtable(&self) -> PrefixRef<EV> {
+        pub const fn sabi_et_vtable(&self) -> PrefixRef<EV> {
             self.extra_value
         }
     }
@@ -1158,12 +861,12 @@ mod priv_ {
         ///
         /// ```
         #[inline]
-        pub fn sabi_extra_value(&self) -> &EV {
+        pub const fn sabi_extra_value(&self) -> &EV {
             &self.extra_value
         }
 
         #[inline]
-        pub(super) fn sabi_vtable(&self) -> VTable_Ref<'borr, P, I> {
+        pub(super) const fn sabi_vtable(&self) -> VTable_Ref<'borr, P, I> {
             self.vtable
         }
 
@@ -1181,7 +884,7 @@ mod priv_ {
         ///
         /// let reff = &55u8;
         ///
-        /// let to: DynTrait<'static, RRef<()>, ()> = DynTrait::from_any_ptr(reff, ());
+        /// let to: DynTrait<'static, RRef<()>, ()> = DynTrait::from_ptr(reff);
         ///
         /// assert_eq!(to.sabi_object_address(), reff as *const _ as usize);
         ///
@@ -1198,7 +901,7 @@ mod priv_ {
         where
             P: AsPtr,
         {
-            &*(self.object.as_ptr() as *const P::PtrTarget as *const T)
+            unsafe { &*(self.object.as_ptr() as *const P::PtrTarget as *const T) }
         }
 
         // Safety: Only call this in unerasure functions
@@ -1206,7 +909,7 @@ mod priv_ {
         where
             P: AsMutPtr,
         {
-            &mut *(self.object.as_mut_ptr() as *mut P::PtrTarget as *mut T)
+            unsafe { &mut *(self.object.as_mut_ptr() as *mut P::PtrTarget as *mut T) }
         }
 
         /// Gets a reference pointing to the erased object.
@@ -1216,7 +919,7 @@ mod priv_ {
         /// ```rust
         /// use abi_stable::{std_types::RBox, DynTrait};
         ///
-        /// let to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_any_value(66u8, ());
+        /// let to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_value(66u8);
         ///
         /// unsafe {
         ///     assert_eq!(to.sabi_erased_ref().transmute_into_ref::<u8>(), &66);
@@ -1233,7 +936,7 @@ mod priv_ {
         where
             P: AsPtr,
         {
-            RRef::from_raw(self.object.as_ptr() as *const ErasedObject)
+            unsafe { RRef::from_raw(self.object.as_ptr() as *const ErasedObject) }
         }
 
         /// Gets a mutable reference pointing to the erased object.
@@ -1243,7 +946,7 @@ mod priv_ {
         /// ```rust
         /// use abi_stable::{std_types::RBox, DynTrait};
         ///
-        /// let mut to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_any_value("hello", ());
+        /// let mut to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_value("hello");
         ///
         /// unsafe {
         ///     assert_eq!(
@@ -1267,7 +970,7 @@ mod priv_ {
         /// ```rust
         /// use abi_stable::{std_types::RBox, DynTrait};
         ///
-        /// let to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_any_value(66u8, ());
+        /// let to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_value(66u8);
         ///
         /// unsafe {
         ///     assert_eq!(to.sabi_as_rref().transmute_into_ref::<u8>(), &66);
@@ -1287,7 +990,7 @@ mod priv_ {
         /// ```rust
         /// use abi_stable::{std_types::RBox, DynTrait};
         ///
-        /// let mut to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_any_value("hello", ());
+        /// let mut to: DynTrait<'static, RBox<()>, ()> = DynTrait::from_value("hello");
         ///
         /// unsafe {
         ///     assert_eq!(to.sabi_as_rmut().transmute_into_mut::<&str>(), &mut "hello");
@@ -1318,7 +1021,7 @@ mod priv_ {
         /// };
         ///
         /// let to: DynTrait<'static, RBox<()>, ()> =
-        ///     DynTrait::from_any_value(RVec::<u8>::from_slice(b"foobarbaz"), ());
+        ///     DynTrait::from_value(RVec::<u8>::from_slice(b"foobarbaz"));
         ///
         /// let string = to.sabi_with_value(|x| unsafe {
         ///     MovePtr::into_inner(MovePtr::transmute::<String>(x))
@@ -1342,12 +1045,11 @@ mod priv_ {
     {
         /// The uid in the vtable has to be the same as the one for T,
         /// otherwise it was not created from that T in the library that declared the opaque type.
-        pub(super) fn sabi_check_same_destructor<A, T>(&self) -> Result<(), UneraseError<()>>
+        pub(super) fn sabi_check_same_destructor<T>(&self) -> Result<(), UneraseError<()>>
         where
-            P: CanTransmuteElement<T>,
-            A: ImplType,
+            T: 'static,
         {
-            let t_info = A::INFO;
+            let t_info = &TypeInfoFor::<T, (), TD_CanDowncast>::INFO;
             if self.sabi_vtable().type_info().is_compatible(t_info) {
                 Ok(())
             } else {
@@ -1357,240 +1059,6 @@ mod priv_ {
                     found_type_info: self.sabi_vtable().type_info(),
                 })
             }
-        }
-
-        /// Unwraps the `DynTrait<_>` into a pointer of
-        /// the concrete type that it was constructed with.
-        ///
-        /// T is required to implement ImplType.
-        ///
-        /// # Errors
-        ///
-        /// This will return an error in any of these conditions:
-        ///
-        /// - It is called in a dynamic library/binary outside
-        /// the one from which this `DynTrait<_>` was constructed.
-        ///
-        /// - The DynTrait was constructed using a `from_borrowing_*` method
-        ///
-        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::{
-        ///     erased_types::TypeInfo,
-        ///     std_types::{RArc, RBox},
-        ///     DynTrait, ImplType, StableAbi,
-        /// };
-        ///
-        /// # fn main(){
-        /// {
-        ///     fn to() -> DynTrait<'static, RBox<()>, FooInterface> {
-        ///         DynTrait::from_value(Foo(b'A'))
-        ///     }
-        ///
-        ///     assert_eq!(
-        ///         to().downcast_into_impltype::<Foo<u8>>().ok(),
-        ///         Some(RBox::new(Foo(b'A'))),
-        ///     );
-        ///     assert_eq!(to().downcast_into_impltype::<Foo<u16>>().ok(), None,);
-        /// }
-        /// {
-        ///     fn to() -> DynTrait<'static, RArc<()>, FooInterface> {
-        ///         DynTrait::from_ptr(RArc::new(Foo(b'B')))
-        ///     }
-        ///
-        ///     assert_eq!(
-        ///         to().downcast_into_impltype::<Foo<u8>>().ok(),
-        ///         Some(RArc::new(Foo(b'B'))),
-        ///     );
-        ///     assert_eq!(to().downcast_into_impltype::<Foo<u16>>().ok(), None,);
-        /// }
-        /// # }
-        ///
-        /// #[repr(transparent)]
-        /// #[derive(Debug, StableAbi, PartialEq)]
-        /// struct Foo<T>(T);
-        ///
-        /// impl<T: 'static> ImplType for Foo<T> {
-        ///     type Interface = FooInterface;
-        ///
-        ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo<T>);
-        /// }
-        ///
-        /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
-        /// #[repr(C)]
-        /// #[derive(StableAbi)]
-        /// #[sabi(impl_InterfaceType(Sync, Debug))]
-        /// pub struct FooInterface;
-        ///
-        /// ```
-        pub fn downcast_into_impltype<T>(self) -> Result<P::TransmutedPtr, UneraseError<Self>>
-        where
-            P: CanTransmuteElement<T>,
-            T: ImplType,
-        {
-            check_unerased!(self, self.sabi_check_same_destructor::<T, T>());
-            unsafe {
-                let this = ManuallyDrop::new(self);
-                Ok(ptr::read(&*this.object).transmute_element::<T>())
-            }
-        }
-
-        /// Unwraps the `DynTrait<_>` into a reference of
-        /// the concrete type that it was constructed with.
-        ///
-        /// T is required to implement ImplType.
-        ///
-        /// # Errors
-        ///
-        /// This will return an error in any of these conditions:
-        ///
-        /// - It is called in a dynamic library/binary outside
-        /// the one from which this `DynTrait<_>` was constructed.
-        ///
-        /// - The DynTrait was constructed using a `from_borrowing_*` method
-        ///
-        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
-        ///
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::{
-        ///     erased_types::TypeInfo, std_types::RArc, DynTrait, ImplType, RMut, RRef,
-        ///     StableAbi,
-        /// };
-        ///
-        /// # fn main(){
-        /// {
-        ///     let to: DynTrait<'static, RRef<'_, ()>, FooInterface> =
-        ///         DynTrait::from_ptr(&Foo(9u8));
-        ///
-        ///     assert_eq!(to.downcast_as_impltype::<Foo<u8>>().ok(), Some(&Foo(9u8)));
-        ///     assert_eq!(to.downcast_as_impltype::<Foo<u16>>().ok(), None);
-        /// }
-        /// {
-        ///     let mut val = Foo(7u8);
-        ///
-        ///     let to: DynTrait<'static, RMut<'_, ()>, FooInterface> =
-        ///         DynTrait::from_ptr(&mut val);
-        ///
-        ///     assert_eq!(to.downcast_as_impltype::<Foo<u8>>().ok(), Some(&Foo(7)));
-        ///     assert_eq!(to.downcast_as_impltype::<Foo<u16>>().ok(), None);
-        /// }
-        /// {
-        ///     let to: DynTrait<'static, RArc<()>, FooInterface> =
-        ///         DynTrait::from_ptr(RArc::new(Foo(1u8)));
-        ///
-        ///     assert_eq!(to.downcast_as_impltype::<Foo<u8>>().ok(), Some(&Foo(1u8)));
-        ///     assert_eq!(to.downcast_as_impltype::<Foo<u16>>().ok(), None);
-        /// }
-        ///
-        /// # }
-        ///
-        /// #[repr(transparent)]
-        /// #[derive(Debug, StableAbi, PartialEq)]
-        /// struct Foo<T>(T);
-        ///
-        /// impl<T: 'static> ImplType for Foo<T> {
-        ///     type Interface = FooInterface;
-        ///
-        ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo<T>);
-        /// }
-        ///
-        /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
-        /// #[repr(C)]
-        /// #[derive(StableAbi)]
-        /// #[sabi(impl_InterfaceType(Sync, Debug))]
-        /// pub struct FooInterface;
-        ///
-        ///
-        /// ```
-        pub fn downcast_as_impltype<T>(&self) -> Result<&T, UneraseError<&Self>>
-        where
-            P: AsPtr + CanTransmuteElement<T>,
-            T: ImplType,
-        {
-            check_unerased!(self, self.sabi_check_same_destructor::<T, T>());
-            unsafe { Ok(self.sabi_object_as()) }
-        }
-
-        /// Unwraps the `DynTrait<_>` into a mutable reference of
-        /// the concrete type that it was constructed with.
-        ///
-        /// T is required to implement ImplType.
-        ///
-        /// # Errors
-        ///
-        /// This will return an error in any of these conditions:
-        ///
-        /// - It is called in a dynamic library/binary outside
-        /// the one from which this `DynTrait<_>` was constructed.
-        ///
-        /// - The DynTrait was constructed using a `from_borrowing_*` method
-        ///
-        /// - `T` is not the concrete type this `DynTrait<_>` was constructed with.
-        ///
-        /// # Example
-        ///
-        /// ```rust
-        /// use abi_stable::{
-        ///     erased_types::TypeInfo, std_types::RBox, DynTrait, ImplType, RMut, StableAbi,
-        /// };
-        ///
-        /// # fn main(){
-        /// {
-        ///     let mut val = Foo(7u8);
-        ///
-        ///     let mut to: DynTrait<'static, RMut<'_, ()>, FooInterface> =
-        ///         DynTrait::from_ptr(&mut val);
-        ///
-        ///     assert_eq!(
-        ///         to.downcast_as_mut_impltype::<Foo<u8>>().ok(),
-        ///         Some(&mut Foo(7))
-        ///     );
-        ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u16>>().ok(), None);
-        /// }
-        /// {
-        ///     let mut to: DynTrait<'static, RBox<()>, FooInterface> =
-        ///         DynTrait::from_ptr(RBox::new(Foo(1u8)));
-        ///
-        ///     assert_eq!(
-        ///         to.downcast_as_mut_impltype::<Foo<u8>>().ok(),
-        ///         Some(&mut Foo(1u8))
-        ///     );
-        ///     assert_eq!(to.downcast_as_mut_impltype::<Foo<u16>>().ok(), None);
-        /// }
-        ///
-        /// # }
-        ///
-        /// #[repr(transparent)]
-        /// #[derive(Debug, StableAbi, PartialEq)]
-        /// struct Foo<T>(T);
-        ///
-        /// impl<T: 'static> ImplType for Foo<T> {
-        ///     type Interface = FooInterface;
-        ///
-        ///     const INFO: &'static TypeInfo = abi_stable::impl_get_type_info!(Foo<T>);
-        /// }
-        ///
-        /// /// An `InterfaceType` describing which traits are implemented by FooInterfaceBox.
-        /// #[repr(C)]
-        /// #[derive(StableAbi)]
-        /// #[sabi(impl_InterfaceType(Sync, Debug))]
-        /// pub struct FooInterface;
-        ///
-        ///
-        /// ```
-        pub fn downcast_as_mut_impltype<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
-        where
-            P: AsMutPtr + CanTransmuteElement<T>,
-            T: ImplType,
-        {
-            check_unerased!(self, self.sabi_check_same_destructor::<T, T>());
-            unsafe { Ok(self.sabi_object_as_mut()) }
         }
 
         /// Unwraps the `DynTrait<_>` into a pointer of
@@ -1620,7 +1088,7 @@ mod priv_ {
         ///
         /// {
         ///     fn to() -> DynTrait<'static, RBox<()>, ()> {
-        ///         DynTrait::from_any_value(b'A', ())
+        ///         DynTrait::from_value(b'A')
         ///     }
         ///
         ///     assert_eq!(to().downcast_into::<u8>().ok(), Some(RBox::new(b'A')));
@@ -1628,7 +1096,7 @@ mod priv_ {
         /// }
         /// {
         ///     fn to() -> DynTrait<'static, RArc<()>, ()> {
-        ///         DynTrait::from_any_ptr(RArc::new(b'B'), ())
+        ///         DynTrait::from_ptr(RArc::new(b'B'))
         ///     }
         ///
         ///     assert_eq!(to().downcast_into::<u8>().ok(), Some(RArc::new(b'B')));
@@ -1640,13 +1108,8 @@ mod priv_ {
         where
             T: 'static,
             P: CanTransmuteElement<T>,
-            Self: DynTraitBound<'borr>,
-            InterfaceFor<T, I, TD_CanDowncast>: ImplType,
         {
-            check_unerased!(
-                self,
-                self.sabi_check_same_destructor::<InterfaceFor<T, I, TD_CanDowncast>, T>()
-            );
+            check_unerased!(self, self.sabi_check_same_destructor::<T>());
             unsafe {
                 let this = ManuallyDrop::new(self);
                 Ok(ptr::read(&*this.object).transmute_element::<T>())
@@ -1676,7 +1139,7 @@ mod priv_ {
         /// use abi_stable::{std_types::RArc, DynTrait, RMut, RRef};
         ///
         /// {
-        ///     let to: DynTrait<'static, RRef<'_, ()>, ()> = DynTrait::from_any_ptr(&9u8, ());
+        ///     let to: DynTrait<'static, RRef<'_, ()>, ()> = DynTrait::from_ptr(&9u8);
         ///
         ///     assert_eq!(to.downcast_as::<u8>().ok(), Some(&9u8));
         ///     assert_eq!(to.downcast_as::<u16>().ok(), None);
@@ -1685,14 +1148,14 @@ mod priv_ {
         ///     let mut val = 7u8;
         ///
         ///     let to: DynTrait<'static, RMut<'_, ()>, ()> =
-        ///         DynTrait::from_any_ptr(&mut val, ());
+        ///         DynTrait::from_ptr(&mut val);
         ///
         ///     assert_eq!(to.downcast_as::<u8>().ok(), Some(&7));
         ///     assert_eq!(to.downcast_as::<u16>().ok(), None);
         /// }
         /// {
         ///     let to: DynTrait<'static, RArc<()>, ()> =
-        ///         DynTrait::from_any_ptr(RArc::new(1u8), ());
+        ///         DynTrait::from_ptr(RArc::new(1u8));
         ///
         ///     assert_eq!(to.downcast_as::<u8>().ok(), Some(&1u8));
         ///     assert_eq!(to.downcast_as::<u16>().ok(), None);
@@ -1702,14 +1165,9 @@ mod priv_ {
         pub fn downcast_as<T>(&self) -> Result<&T, UneraseError<&Self>>
         where
             T: 'static,
-            P: AsPtr + CanTransmuteElement<T>,
-            Self: DynTraitBound<'borr>,
-            InterfaceFor<T, I, TD_CanDowncast>: ImplType,
+            P: AsPtr,
         {
-            check_unerased!(
-                self,
-                self.sabi_check_same_destructor::<InterfaceFor<T, I, TD_CanDowncast>, T>()
-            );
+            check_unerased!(self, self.sabi_check_same_destructor::<T>());
             unsafe { Ok(self.sabi_object_as()) }
         }
 
@@ -1738,14 +1196,14 @@ mod priv_ {
         ///     let mut val = 7u8;
         ///
         ///     let mut to: DynTrait<'static, RMut<'_, ()>, ()> =
-        ///         DynTrait::from_any_ptr(&mut val, ());
+        ///         DynTrait::from_ptr(&mut val);
         ///
         ///     assert_eq!(to.downcast_as_mut::<u8>().ok(), Some(&mut 7));
         ///     assert_eq!(to.downcast_as_mut::<u16>().ok(), None);
         /// }
         /// {
         ///     let mut to: DynTrait<'static, RBox<()>, ()> =
-        ///         DynTrait::from_any_ptr(RBox::new(1u8), ());
+        ///         DynTrait::from_ptr(RBox::new(1u8));
         ///
         ///     assert_eq!(to.downcast_as_mut::<u8>().ok(), Some(&mut 1u8));
         ///     assert_eq!(to.downcast_as_mut::<u16>().ok(), None);
@@ -1754,14 +1212,10 @@ mod priv_ {
         /// ```
         pub fn downcast_as_mut<T>(&mut self) -> Result<&mut T, UneraseError<&mut Self>>
         where
-            P: AsMutPtr + CanTransmuteElement<T>,
-            Self: DynTraitBound<'borr>,
-            InterfaceFor<T, I, TD_CanDowncast>: ImplType,
+            T: 'static,
+            P: AsMutPtr,
         {
-            check_unerased!(
-                self,
-                self.sabi_check_same_destructor::<InterfaceFor<T, I, TD_CanDowncast>, T>()
-            );
+            check_unerased!(self, self.sabi_check_same_destructor::<T>());
             unsafe { Ok(self.sabi_object_as_mut()) }
         }
 
@@ -1783,14 +1237,14 @@ mod priv_ {
         ///
         /// unsafe {
         ///     fn to() -> DynTrait<'static, RBox<()>, ()> {
-        ///         DynTrait::from_any_value(b'A', ())
+        ///         DynTrait::from_value(b'A')
         ///     }
         ///
         ///     assert_eq!(to().unchecked_downcast_into::<u8>(), RBox::new(b'A'));
         /// }
         /// unsafe {
         ///     fn to() -> DynTrait<'static, RArc<()>, ()> {
-        ///         DynTrait::from_any_ptr(RArc::new(b'B'), ())
+        ///         DynTrait::from_ptr(RArc::new(b'B'))
         ///     }
         ///
         ///     assert_eq!(to().unchecked_downcast_into::<u8>(), RArc::new(b'B'));
@@ -1803,7 +1257,7 @@ mod priv_ {
             P: AsPtr + CanTransmuteElement<T>,
         {
             let this = ManuallyDrop::new(self);
-            ptr::read(&*this.object).transmute_element::<T>()
+            unsafe { ptr::read(&*this.object).transmute_element::<T>() }
         }
 
         /// Unwraps the `DynTrait<_>` into a reference to T,
@@ -1820,7 +1274,7 @@ mod priv_ {
         /// use abi_stable::{std_types::RArc, DynTrait, RMut, RRef};
         ///
         /// unsafe {
-        ///     let to: DynTrait<'static, RRef<'_, ()>, ()> = DynTrait::from_any_ptr(&9u8, ());
+        ///     let to: DynTrait<'static, RRef<'_, ()>, ()> = DynTrait::from_ptr(&9u8);
         ///
         ///     assert_eq!(to.unchecked_downcast_as::<u8>(), &9u8);
         /// }
@@ -1828,13 +1282,13 @@ mod priv_ {
         ///     let mut val = 7u8;
         ///
         ///     let to: DynTrait<'static, RMut<'_, ()>, ()> =
-        ///         DynTrait::from_any_ptr(&mut val, ());
+        ///         DynTrait::from_ptr(&mut val);
         ///
         ///     assert_eq!(to.unchecked_downcast_as::<u8>(), &7);
         /// }
         /// unsafe {
         ///     let to: DynTrait<'static, RArc<()>, ()> =
-        ///         DynTrait::from_any_ptr(RArc::new(1u8), ());
+        ///         DynTrait::from_ptr(RArc::new(1u8));
         ///
         ///     assert_eq!(to.unchecked_downcast_as::<u8>(), &1u8);
         /// }
@@ -1845,7 +1299,7 @@ mod priv_ {
         where
             P: AsPtr,
         {
-            self.sabi_object_as()
+            unsafe { self.sabi_object_as() }
         }
 
         /// Unwraps the `DynTrait<_>` into a mutable reference to T,
@@ -1865,13 +1319,13 @@ mod priv_ {
         ///     let mut val = 7u8;
         ///
         ///     let mut to: DynTrait<'static, RMut<'_, ()>, ()> =
-        ///         DynTrait::from_any_ptr(&mut val, ());
+        ///         DynTrait::from_ptr(&mut val);
         ///
         ///     assert_eq!(to.unchecked_downcast_as_mut::<u8>(), &mut 7);
         /// }
         /// unsafe {
         ///     let mut to: DynTrait<'static, RBox<()>, ()> =
-        ///         DynTrait::from_any_ptr(RBox::new(1u8), ());
+        ///         DynTrait::from_ptr(RBox::new(1u8));
         ///
         ///     assert_eq!(to.unchecked_downcast_as_mut::<u8>(), &mut 1u8);
         /// }
@@ -1882,7 +1336,7 @@ mod priv_ {
         where
             P: AsMutPtr,
         {
-            self.sabi_object_as_mut()
+            unsafe { self.sabi_object_as_mut() }
         }
     }
 
@@ -1926,17 +1380,17 @@ mod priv_ {
         ///     erased_types::interfaces::DebugDisplayInterface,
         ///     std_types::RBox,
         ///     type_level::{impl_enum::Implemented, trait_marker},
-        ///     DynTrait, InterfaceBound, RRef,
+        ///     DynTrait, InterfaceType, RRef,
         /// };
         ///
         /// let to: DynTrait<'static, RBox<()>, DebugDisplayInterface> =
-        ///     DynTrait::from_any_value(1337_u16, DebugDisplayInterface);
+        ///     DynTrait::from_value(1337_u16);
         ///
         /// assert_eq!(debug_string(to.reborrow()), "1337");
         ///
         /// fn debug_string<I>(to: DynTrait<'_, RRef<'_, ()>, I>) -> String
         /// where
-        ///     I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
+        ///     I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
         /// {
         ///     format!("{:?}", to)
         /// }
@@ -1975,7 +1429,7 @@ mod priv_ {
         ///     erased_types::interfaces::DEIteratorInterface, std_types::RBox, DynTrait,
         /// };
         ///
-        /// let mut to = DynTrait::from_any_value(0_u8..=255, DEIteratorInterface::NEW);
+        /// let mut to = DynTrait::from_value(0_u8..=255).interface(DEIteratorInterface::NEW);
         ///
         /// assert_eq!(both_ends(to.reborrow_mut()), (Some(0), Some(255)));
         /// assert_eq!(both_ends(to.reborrow_mut()), (Some(1), Some(254)));
@@ -2017,7 +1471,8 @@ mod priv_ {
         /// `P` must come from a function in the vtable,
         /// or come from a copy of `P: Copy+GetPointerKind<Kind = PK_Reference>`,
         /// to ensure that it is compatible with the functions in it.
-        pub(super) fn from_new_ptr(&self, object: P, extra_value: EV) -> Self {
+        #[allow(clippy::wrong_self_convention)]
+        pub(super) const fn from_new_ptr(&self, object: P, extra_value: EV) -> Self {
             Self {
                 object: ManuallyDrop::new(object),
                 vtable: self.vtable,
@@ -2030,7 +1485,7 @@ mod priv_ {
 
     impl<'borr, P, I, EV> DynTrait<'borr, P, I, EV>
     where
-        I: InterfaceBound + 'borr,
+        I: InterfaceType + 'borr,
         EV: 'borr,
         P: AsPtr,
     {
@@ -2045,7 +1500,7 @@ mod priv_ {
         /// #     DynTrait,
         /// #     erased_types::interfaces::DefaultInterface,
         /// # };
-        /// let object = DynTrait::from_any_value((), DefaultInterface);
+        /// let object = DynTrait::from_value(()).interface(DefaultInterface);
         /// let borrow = object.reborrow();
         /// let _ = borrow.default();
         ///
@@ -2056,7 +1511,7 @@ mod priv_ {
         /// #     DynTrait,
         /// #     erased_types::interfaces::DefaultInterface,
         /// # };
-        /// let object = DynTrait::from_any_value((), DefaultInterface);
+        /// let object = DynTrait::from_value(()).interface(DefaultInterface);
         /// let borrow = object.reborrow_mut();
         /// let _ = borrow.default();
         ///
@@ -2068,19 +1523,19 @@ mod priv_ {
         /// use abi_stable::{erased_types::interfaces::DebugDefEqInterface, DynTrait};
         ///
         /// {
-        ///     let object = DynTrait::from_any_value(true, DebugDefEqInterface);
+        ///     let object = DynTrait::from_value(true).interface(DebugDefEqInterface);
         ///
         ///     assert_eq!(
         ///         object.default(),
-        ///         DynTrait::from_any_value(false, DebugDefEqInterface)
+        ///         DynTrait::from_value(false).interface(DebugDefEqInterface)
         ///     );
         /// }
         /// {
-        ///     let object = DynTrait::from_any_value(123u8, DebugDefEqInterface);
+        ///     let object = DynTrait::from_value(123u8).interface(DebugDefEqInterface);
         ///
         ///     assert_eq!(
         ///         object.default(),
-        ///         DynTrait::from_any_value(0u8, DebugDefEqInterface)
+        ///         DynTrait::from_value(0u8).interface(DebugDefEqInterface)
         ///     );
         /// }
         ///
@@ -2098,7 +1553,7 @@ mod priv_ {
         }
 
         /// It serializes a `DynTrait<_>` into a string by using
-        /// `<ConcreteType as SerializeImplType>::serialize_impl`.
+        /// `<ConcreteType as SerializeType>::serialize_impl`.
         // I'm using the lifetime in the where clause, clippy <_<
         #[allow(clippy::needless_lifetimes)]
         pub fn serialize_into_proxy<'a>(&'a self) -> Result<I::ProxyType, RBoxError>
@@ -2151,7 +1606,7 @@ use self::clone_impl::CloneImpl;
 impl<'borr, P, I, EV> CloneImpl<PK_SmartPointer> for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
-    I: InterfaceBound<Clone = Implemented<trait_marker::Clone>> + 'borr,
+    I: InterfaceType<Clone = Implemented<trait_marker::Clone>> + 'borr,
     EV: Copy + 'borr,
 {
     fn clone_impl(&self) -> Self {
@@ -2167,7 +1622,7 @@ where
 impl<'borr, P, I, EV> CloneImpl<PK_Reference> for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr + Copy,
-    I: InterfaceBound<Clone = Implemented<trait_marker::Clone>> + 'borr,
+    I: InterfaceType<Clone = Implemented<trait_marker::Clone>> + 'borr,
     EV: Copy + 'borr,
 {
     fn clone_impl(&self) -> Self {
@@ -2186,7 +1641,7 @@ where
 /// #     erased_types::interfaces::CloneInterface,
 /// # };
 ///
-/// let mut object = DynTrait::from_any_value((),());
+/// let mut object = DynTrait::from_value(()).interface(());
 /// let borrow = object.reborrow_mut();
 /// let _ = borrow.clone();
 ///
@@ -2195,7 +1650,7 @@ where
 impl<'borr, P, I, EV> Clone for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
-    I: InterfaceBound,
+    I: InterfaceType,
     Self: CloneImpl<<P as GetPointerKind>::Kind>,
 {
     fn clone(&self) -> Self {
@@ -2208,7 +1663,7 @@ where
 impl<'borr, P, I, EV> Display for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
-    I: InterfaceBound<Display = Implemented<trait_marker::Display>>,
+    I: InterfaceType<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
@@ -2220,7 +1675,7 @@ where
 impl<'borr, P, I, EV> Debug for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
-    I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
+    I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
@@ -2232,7 +1687,7 @@ where
 impl<'borr, P, I, EV> std::error::Error for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
-    I: InterfaceBound<
+    I: InterfaceType<
         Display = Implemented<trait_marker::Display>,
         Debug = Implemented<trait_marker::Debug>,
         Error = Implemented<trait_marker::Error>,
@@ -2240,14 +1695,13 @@ where
 {
 }
 
-/// First it serializes a `DynTrait<_>` into a string by using
-/// <ConcreteType as SerializeImplType>::serialize_impl,
-/// then it serializes the string.
+/// For an example of how to serialize DynTrait,
+/// [look here](crate::erased_types::SerializeType#example)
 ///
 impl<'borr, P, I, EV> Serialize for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
-    I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
+    I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
     I: GetSerializeProxyType<'borr>,
     I::ProxyType: Serialize,
 {
@@ -2264,13 +1718,14 @@ where
     }
 }
 
-/// First it Deserializes a string, then it deserializes into a
-/// `DynTrait<_>`, by using `<I as DeserializeOwnedInterface>::deserialize_impl`.
+/// For an example of how to deserialize DynTrait,
+/// [look here](crate::erased_types::DeserializeDyn#example)
+///
 impl<'de, 'borr: 'de, P, I, EV> Deserialize<'de> for DynTrait<'borr, P, I, EV>
 where
     EV: 'borr,
     P: AsPtr + 'borr,
-    I: InterfaceBound + 'borr,
+    I: InterfaceType + 'borr,
     I: DeserializeDyn<'de, Self>,
     <I as DeserializeDyn<'de, Self>>::Proxy: Deserialize<'de>,
 {
@@ -2287,7 +1742,7 @@ impl<P, I, EV> Eq for DynTrait<'static, P, I, EV>
 where
     Self: PartialEq,
     P: AsPtr,
-    I: InterfaceBound<Eq = Implemented<trait_marker::Eq>>,
+    I: InterfaceType<Eq = Implemented<trait_marker::Eq>>,
 {
 }
 
@@ -2295,7 +1750,7 @@ impl<P, P2, I, EV, EV2> PartialEq<DynTrait<'static, P2, I, EV2>> for DynTrait<'s
 where
     P: AsPtr,
     P2: AsPtr,
-    I: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
+    I: InterfaceType<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &DynTrait<'static, P2, I, EV2>) -> bool {
         // unsafe: must check that the vtable is the same, otherwise return a sensible value.
@@ -2310,7 +1765,7 @@ where
 impl<P, I, EV> Ord for DynTrait<'static, P, I, EV>
 where
     P: AsPtr,
-    I: InterfaceBound<Ord = Implemented<trait_marker::Ord>>,
+    I: InterfaceType<Ord = Implemented<trait_marker::Ord>>,
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -2327,7 +1782,7 @@ impl<P, P2, I, EV, EV2> PartialOrd<DynTrait<'static, P2, I, EV2>> for DynTrait<'
 where
     P: AsPtr,
     P2: AsPtr,
-    I: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
+    I: InterfaceType<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<DynTrait<'static, P2, I, EV2>>,
 {
     fn partial_cmp(&self, other: &DynTrait<'static, P2, I, EV2>) -> Option<Ordering> {
@@ -2347,7 +1802,7 @@ where
 impl<'borr, P, I, EV> Hash for DynTrait<'borr, P, I, EV>
 where
     P: AsPtr,
-    I: InterfaceBound<Hash = Implemented<trait_marker::Hash>>,
+    I: InterfaceType<Hash = Implemented<trait_marker::Hash>>,
 {
     fn hash<H>(&self, state: &mut H)
     where
@@ -2363,7 +1818,7 @@ impl<'borr, P, I, Item, EV> Iterator for DynTrait<'borr, P, I, EV>
 where
     P: AsMutPtr,
     I: IteratorItemOrDefault<'borr, Item = Item>,
-    I: InterfaceBound<Iterator = Implemented<trait_marker::Iterator>>,
+    I: InterfaceType<Iterator = Implemented<trait_marker::Iterator>>,
     Item: 'borr,
 {
     type Item = Item;
@@ -2409,7 +1864,7 @@ impl<'borr, P, I, Item, EV> DynTrait<'borr, P, I, EV>
 where
     P: AsMutPtr,
     I: IteratorItemOrDefault<'borr, Item = Item>,
-    I: InterfaceBound<Iterator = Implemented<trait_marker::Iterator>>,
+    I: InterfaceType<Iterator = Implemented<trait_marker::Iterator>>,
     Item: 'borr,
 {
     /// Eagerly skips n elements from the iterator.
@@ -2427,7 +1882,7 @@ where
     /// # };
     ///
     /// let mut iter = 0..20;
-    /// let mut wrapped = DynTrait::from_any_ptr(&mut iter, IteratorInterface::NEW);
+    /// let mut wrapped = DynTrait::from_ptr(&mut iter).interface(IteratorInterface::NEW);
     ///
     /// assert_eq!(wrapped.next(), Some(0));
     ///
@@ -2475,7 +1930,7 @@ where
     /// #     traits::IntoReprC,
     /// # };
     ///
-    /// let mut wrapped = DynTrait::from_any_value(0.., IteratorInterface::NEW);
+    /// let mut wrapped = DynTrait::from_value(0..).interface(IteratorInterface::NEW);
     ///
     /// let mut buffer = vec![101, 102, 103].into_c();
     /// wrapped.extending_rvec(&mut buffer, RSome(5));
@@ -2501,7 +1956,7 @@ where
     Self: Iterator<Item = Item>,
     P: AsMutPtr,
     I: IteratorItemOrDefault<'borr, Item = Item>,
-    I: InterfaceBound<DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>>,
+    I: InterfaceType<DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>>,
     Item: 'borr,
 {
     fn next_back(&mut self) -> Option<Item> {
@@ -2517,7 +1972,7 @@ where
     Self: Iterator<Item = Item>,
     P: AsMutPtr,
     I: IteratorItemOrDefault<'borr, Item = Item>,
-    I: InterfaceBound<DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>>,
+    I: InterfaceType<DoubleEndedIterator = Implemented<trait_marker::DoubleEndedIterator>>,
     Item: 'borr,
 {
     /// Gets teh `nth` element from the back of the iterator.
@@ -2527,7 +1982,7 @@ where
     /// ```rust
     /// use abi_stable::{erased_types::interfaces::DEIteratorCloneInterface, DynTrait};
     ///
-    /// let to = || DynTrait::from_any_value(7..=10, DEIteratorCloneInterface::NEW);
+    /// let to = || DynTrait::from_value(7..=10).interface(DEIteratorCloneInterface::NEW);
     ///
     /// assert_eq!(to().nth_back_(0), Some(10));
     /// assert_eq!(to().nth_back_(1), Some(9));
@@ -2563,7 +2018,7 @@ where
     /// #     traits::IntoReprC,
     /// # };
     ///
-    /// let mut wrapped = DynTrait::from_any_value(0..=3, DEIteratorInterface::NEW);
+    /// let mut wrapped = DynTrait::from_value(0..=3).interface(DEIteratorInterface::NEW);
     ///
     /// let mut buffer = vec![101, 102, 103].into_c();
     /// wrapped.extending_rvec_back(&mut buffer, RNone);
@@ -2584,7 +2039,7 @@ where
 impl<'borr, P, I, EV> fmtWrite for DynTrait<'borr, P, I, EV>
 where
     P: AsMutPtr,
-    I: InterfaceBound<FmtWrite = Implemented<trait_marker::FmtWrite>>,
+    I: InterfaceType<FmtWrite = Implemented<trait_marker::FmtWrite>>,
 {
     fn write_str(&mut self, s: &str) -> Result<(), fmt::Error> {
         let vtable = self.sabi_vtable();
@@ -2616,7 +2071,7 @@ where
 impl<'borr, P, I, EV> io::Write for DynTrait<'borr, P, I, EV>
 where
     P: AsMutPtr,
-    I: InterfaceBound<IoWrite = Implemented<trait_marker::IoWrite>>,
+    I: InterfaceType<IoWrite = Implemented<trait_marker::IoWrite>>,
 {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let vtable = self.sabi_vtable().io_write();
@@ -2640,7 +2095,7 @@ where
 impl<'borr, P, I, EV> io::Read for DynTrait<'borr, P, I, EV>
 where
     P: AsMutPtr,
-    I: InterfaceBound<IoRead = Implemented<trait_marker::IoRead>>,
+    I: InterfaceType<IoRead = Implemented<trait_marker::IoRead>>,
 {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         unsafe {
@@ -2664,7 +2119,7 @@ where
 impl<'borr, P, I, EV> io::BufRead for DynTrait<'borr, P, I, EV>
 where
     P: AsMutPtr,
-    I: InterfaceBound<
+    I: InterfaceType<
         IoRead = Implemented<trait_marker::IoRead>,
         IoBufRead = Implemented<trait_marker::IoBufRead>,
     >,
@@ -2691,7 +2146,7 @@ where
 impl<'borr, P, I, EV> io::Seek for DynTrait<'borr, P, I, EV>
 where
     P: AsMutPtr,
-    I: InterfaceBound<IoSeek = Implemented<trait_marker::IoSeek>>,
+    I: InterfaceType<IoSeek = Implemented<trait_marker::IoSeek>>,
 {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
         unsafe {
@@ -2707,46 +2162,24 @@ where
 unsafe impl<'borr, P, I, EV> Send for DynTrait<'borr, P, I, EV>
 where
     P: Send + GetPointerKind,
-    I: InterfaceBound<Send = Implemented<trait_marker::Send>>,
+    I: InterfaceType<Send = Implemented<trait_marker::Send>>,
 {
 }
 
 unsafe impl<'borr, P, I, EV> Sync for DynTrait<'borr, P, I, EV>
 where
     P: Sync + GetPointerKind,
-    I: InterfaceBound<Sync = Implemented<trait_marker::Sync>>,
+    I: InterfaceType<Sync = Implemented<trait_marker::Sync>>,
 {
 }
 
-//////////////////////////////////////////////////////////////////
-
-mod sealed {
-    use super::*;
-    pub trait Sealed {}
-    impl<'borr, P, I, EV> Sealed for DynTrait<'borr, P, I, EV>
-    where
-        P: GetPointerKind,
-        I: InterfaceBound,
-    {
-    }
-}
-use self::sealed::Sealed;
-
-/// For getting the `Interface` type parameter in `DynTrait<Pointer<()>, Interface>`.
-pub trait DynTraitBound<'borr>: Sealed {
-    type Interface: InterfaceType;
-}
-
-impl<'borr, P, I, EV> DynTraitBound<'borr> for DynTrait<'borr, P, I, EV>
+impl<'borr, P, I, EV> Unpin for DynTrait<'borr, P, I, EV>
 where
+    // `Unpin` is a property of the referent
     P: GetPointerKind,
-    I: InterfaceBound,
+    I: InterfaceType<Unpin = Implemented<trait_marker::Unpin>>,
 {
-    type Interface = I;
 }
-
-/// For getting the `Interface` type parameter in `DynTrait<Pointer<()>, Interface>`.
-pub type GetVWInterface<'borr, This> = <This as DynTraitBound<'borr>>::Interface;
 
 //////////////////////////////////////////////////////////////////
 
@@ -2759,6 +2192,7 @@ pub struct UneraseError<T> {
     found_type_info: &'static TypeInfo,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> UneraseError<T> {
     fn map<F, U>(self, f: F) -> UneraseError<U>
     where

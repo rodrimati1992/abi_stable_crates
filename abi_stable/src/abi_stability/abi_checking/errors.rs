@@ -24,6 +24,7 @@ pub enum AbiInstability {
     FieldCountMismatch(ExpectedFound<usize>),
     FieldLifetimeMismatch(ExpectedFound<TLField>),
     FnLifetimeMismatch(ExpectedFound<TLFunction>),
+    FnQualifierMismatch(ExpectedFound<TLFunction>),
     UnexpectedField(ExpectedFound<TLField>),
     TooManyVariants(ExpectedFound<usize>),
     MismatchedPrefixConditionality(ExpectedFound<FieldConditionality>),
@@ -56,7 +57,7 @@ impl AbiInstabilityErrors {
     }
 
     #[cfg(feature = "testing")]
-    pub fn flattened_errors<'a>(&'a self) -> impl Iterator<Item = AbiInstability> + 'a {
+    pub fn flattened_errors(&self) -> impl Iterator<Item = AbiInstability> + '_ {
         self.errors.iter().flat_map(|x| &x.errs).cloned()
     }
 }
@@ -147,6 +148,10 @@ impl fmt::Display for AbiInstabilityError {
                 AI::FieldCountMismatch(v) => ("too many fields", v.display_str()),
                 AI::FnLifetimeMismatch(v) => (
                     "function pointers reference different lifetimes",
+                    v.display_str(),
+                ),
+                AI::FnQualifierMismatch(v) => (
+                    "function pointers have different qualifiers (`unsafe`, etc.)",
                     v.display_str(),
                 ),
                 AI::FieldLifetimeMismatch(v) => {

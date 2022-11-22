@@ -11,40 +11,32 @@ use syn::spanned::Spanned;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+pub trait SynErrorExt: Sized {
+    fn into_syn_err(self) -> syn::Error;
+
+    fn prepend_msg<M>(self, msg: M) -> syn::Error
+    where
+        M: AsRef<str>,
+    {
+        let e = self.into_syn_err();
+        syn::Error::new(e.span(), format!("{}{}", msg.as_ref(), e))
+    }
+}
+
+impl SynErrorExt for syn::Error {
+    #[inline(always)]
+    fn into_syn_err(self) -> syn::Error {
+        self
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub struct NoTokens;
 
 impl ToTokens for NoTokens {
     fn to_tokens(&self, _: &mut TokenStream2) {}
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-pub trait SynPathExt {
-    fn equals_str(&self, s: &str) -> bool;
-    fn equals_ident(&self, s: &syn::Ident) -> bool;
-    fn into_ident(self) -> Result<syn::Ident, Self>
-    where
-        Self: Sized;
-}
-
-impl SynPathExt for syn::Path {
-    fn equals_str(&self, s: &str) -> bool {
-        match self.get_ident() {
-            Some(ident) => ident == s,
-            None => false,
-        }
-    }
-    fn equals_ident(&self, s: &syn::Ident) -> bool {
-        self.get_ident() == Some(s)
-    }
-    fn into_ident(mut self) -> Result<syn::Ident, Self> {
-        if self.segments.len() == 1 {
-            Ok(self.segments.pop().expect("TEST BUG").into_value().ident)
-        } else {
-            Err(self)
-        }
-    }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
