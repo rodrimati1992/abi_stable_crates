@@ -111,8 +111,6 @@ pub use many_types::ManyTypes;
 pub struct RootMod {
     pub abi_stable_version: VersionStrings,
     pub _marker: NonOwningPhantom<many_types::ManyTypes>,
-    #[cfg(feature = "new_abi_stable")]
-    pub _marker2: NonOwningPhantom<many_types::ManyTypes2>,
 }
 
 impl RootModule for RootMod_Ref {
