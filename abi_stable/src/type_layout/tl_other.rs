@@ -9,8 +9,8 @@ use crate::{abi_stability::ConstGeneric, sabi_types::Constructor};
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum ReprAttr {
-    /// This is an Option<NonZeroType>.
-    /// In which the size and alignment of the Option<_> is exactly that of its contents.
+    /// This is an `Option<NonZeroType>`.
+    /// In which the size and alignment of the `Option<_>` is exactly that of its contents.
     ///
     /// When translated to C,it is equivalent to the type parameter.
     OptionNonZero,

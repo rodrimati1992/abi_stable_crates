@@ -113,7 +113,7 @@ pub struct AbiConsts {
     pub type_id: Constructor<UTypeId>,
 
     /// Whether the type uses non-zero value optimization,
-    /// if true then an Option<Self> implements StableAbi.
+    /// if true then an `Option<Self>` implements StableAbi.
     pub is_nonzero: bool,
 }
 
@@ -865,7 +865,7 @@ where
 {
     type StaticEquivalent = Option<T::StaticEquivalent>;
 }
-/// Implementing abi stability for Option<T> is fine if
+/// Implementing abi stability for `Option<T>` is fine if
 /// T is a NonZero primitive type.
 unsafe impl<T> StableAbi for Option<T>
 where

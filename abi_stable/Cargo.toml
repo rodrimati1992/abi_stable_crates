@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable"
-version = "0.11.0"
+version = "0.11.1"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 edition="2021"
 rust-version = "1.61.0"
@@ -90,4 +90,4 @@ trybuild = "1.0"
 rustc_version = "0.4.0"
 
 [package.metadata.docs.rs]
-features = ["docsrs", "const_params"]
+features = ["docsrs", "rust_latest_stable"]

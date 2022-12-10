@@ -94,7 +94,7 @@ In this example:
 
 - `#[sabi(missing_field(panic))]`
     makes the field accessors panic when attempting to
-    access nonexistent fields instead of the default of returning an Option<FieldType>.
+    access nonexistent fields instead of the default of returning an `Option<FieldType>`.
 
 - `#[sabi(last_prefix_field)]`means that it is the last field in the struct
     that was defined in the first compatible version of the library

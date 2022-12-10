@@ -49,7 +49,7 @@ Specifies the alignment of Enum_Storage.
 With a specific alignemnt.<br>
 Syntax:`align = integer_literal`<br>
 Example:`align = 8`<br>
-A non-literal constant expression can also be used:<be>
+A non-literal constant expression can also be used:<br>
 Syntax:`align = { (<statement>;)* <expression> }`<br>
 Example:`align = { foo() }` <br>
 
@@ -64,7 +64,7 @@ Specifies the size of Enum_Storage.
 The size of Enum_TE in bytes.<br>
 Syntax:`size=integer_literal`<br>
 Example:`size = 8` <br>
-A non-literal constant expression can also be used:<be>
+A non-literal constant expression can also be used:<br>
 Syntax:`size = { (<statement>;)* <expression> }`<br>
 Example:`size = { foo() }` <br>
 

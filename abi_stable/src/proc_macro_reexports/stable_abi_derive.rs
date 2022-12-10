@@ -132,7 +132,7 @@ that can be extended in semver compatible versions.<br>
 Uses `<Identifier>` as the name of the prefix struct.<br>
 For more details on prefix-types [look here](./docs/prefix_types/index.html)
 
-- `prefix_fields = <Identifier>)` (optional: defaults to `<DerivingType>_Prefix`):<be>
+- `prefix_fields = <Identifier>)` (optional: defaults to `<DerivingType>_Prefix`):<br>
 Declares a struct with all the fields in the deriving type up to (and including)
 the field with the [`#[sabi(last_prefix_field)]`](#sabilast_prefix_field) attribute,
 named `<Identifier>`.

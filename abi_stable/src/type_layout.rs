@@ -91,7 +91,7 @@ pub struct TypeLayout {
     mono: &'static MonoTypeLayout,
 
     /// Whether the type uses non-zero value optimization,
-    /// if true then an Option<Self> implements StableAbi.
+    /// if true then an `Option<Self>` implements StableAbi.
     is_nonzero: bool,
 
     /// The alignment of the type represented as (1 << self.alignment_power_of_two).
