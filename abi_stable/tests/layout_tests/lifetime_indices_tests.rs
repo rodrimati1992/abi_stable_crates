@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 #[allow(unused_imports)]
 use core_extensions::{matches, SelfOps};
 
@@ -96,7 +98,7 @@ mod lifetimes_four_params {
     use super::*;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    #[sabi(bound = "'lt1:'lt0")]
+    #[sabi(bound('lt1: 'lt0))]
     pub struct Struct<'lt0, 'lt1> {
         reference_a: &'static (),
         reference_b: &'lt0 (),
@@ -186,7 +188,7 @@ mod nested_fn_pointer {
     use super::*;
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
-    #[sabi(bound = "'lt1:'lt0")]
+    #[sabi(bound('lt1: 'lt0))]
     // #[sabi(debug_print)]
     pub struct Struct<'lt0, 'lt1> {
         funcs: Tuple2<

@@ -5,23 +5,23 @@ use abi_stable::{
     RTuple, StableAbi,
 };
 
-/// Tests that `#[sabi(bound="")]` on a field works.
+/// Tests that `#[sabi(bound(...)))]` on a field works.
 #[cfg(not(feature = "no_fn_promotion"))]
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(tag = "tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
+#[sabi(tag = tag![ <T as abi_stable::const_utils::AssocStr>::STR ])]
 #[allow(dead_code)]
 pub struct FieldBound<T> {
-    #[sabi(bound = "abi_stable::const_utils::AssocStr")]
+    #[sabi(bound = abi_stable::const_utils::AssocStr)]
     pub value: T,
 }
 
-/// Tests that `#[sabi(bound="")]` on a type definition works.
+/// Tests that `#[sabi(bound(...))]` on a type definition works.
 #[cfg(not(feature = "no_fn_promotion"))]
 #[repr(C)]
 #[derive(abi_stable::StableAbi)]
-#[sabi(bound = "T:abi_stable::const_utils::AssocStr")]
-#[sabi(tag = "tag![ <T as abi_stable::const_utils::AssocStr>::STR ]")]
+#[sabi(bound(T: abi_stable::const_utils::AssocStr))]
+#[sabi(tag = tag![ <T as abi_stable::const_utils::AssocStr>::STR ])]
 #[allow(dead_code)]
 pub struct TypeBound<T> {
     pub value: T,

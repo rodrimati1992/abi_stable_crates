@@ -50,6 +50,7 @@ where
 }
 
 #[doc(hidden)]
+#[allow(clippy::missing_const_for_fn)]
 pub extern "C" fn no_utypeid() -> MaybeCmp<UTypeId> {
     MaybeCmp::Nothing
 }

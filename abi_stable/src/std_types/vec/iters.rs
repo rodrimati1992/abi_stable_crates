@@ -24,7 +24,7 @@ impl<T> RawValIter<T> {
             } else if len == 0 {
                 start
             } else {
-                start.add(len)
+                unsafe { start.add(len) }
             },
         }
     }

@@ -47,12 +47,15 @@ These are the required and optional parameters for the
 Specifies the alignment of Enum_Storage.
 
 With a specific alignemnt.<br>
-Syntax:`align=integer_literal`<br>
-Example:`align=8`<br>
+Syntax:`align = integer_literal`<br>
+Example:`align = 8`<br>
+A non-literal constant expression can also be used:<br>
+Syntax:`align = { (<statement>;)* <expression> }`<br>
+Example:`align = { foo() }` <br>
 
 With the same alignment is that of another type.<br>
-Syntax:`align="type"`<br>
-Example:`align="usize"`<br>
+Syntax:`align = type`<br>
+Example:`align = usize`<br>
 
 ### size (required parameter)
 
@@ -60,13 +63,16 @@ Specifies the size of Enum_Storage.
 
 The size of Enum_TE in bytes.<br>
 Syntax:`size=integer_literal`<br>
-Example:`size=8`<br>
+Example:`size = 8` <br>
+A non-literal constant expression can also be used:<br>
+Syntax:`size = { (<statement>;)* <expression> }`<br>
+Example:`size = { foo() }` <br>
 
 The size of Enum_TE is that of of another type<br>
-Syntax:`size="type"`<br>
-Example:`size="[usize;8]"`<br>
+Syntax:`size = type`<br>
+Example:`size = [usize;8]`<br>
 Recommendation:
-Use a type that has a constant layout,generally a concrete type.
+Use a type that has a stable layout,generally a concrete type.
 It is a bad idea to use `Enum` since its size is allowed to change.<br>
 
 ### Traits (optional parameter)
@@ -77,42 +83,42 @@ usable after constructing it.
 If neither this parameter nor interface are specified,
 no traits will be required in `NonExhaustive<>` and none will be usable.
 
-Syntax:`traits( trait0,trait1=false,trait2=true,trait3 )`
+Syntax:`traits(trait0, trait1 = false, trait2 = true, trait3)`
 
 Example0:`traits(Debug,Display)`<br>
-Example1:`traits(Sync=false,Debug,Display)`<br>
-Example2:`traits(Sync=false,Send=false,Debug,Display)`<br>
-Example3:`traits(Clone,Debug,Display,Error)`<br>
+Example1:`traits(Sync = false, Debug,Display)`<br>
+Example2:`traits(Sync = false, Send = false, Debug, Display)`<br>
+Example3:`traits(Clone, Debug, Display, Error)`<br>
 
 All the traits are optional.
 
 These are the valid traits:
 
-- Send: Required by default, must be unrequired with `Send = false`
+- `Send`: Required by default, must be unrequired with `Send = false`
 
-- Sync: Required by default, must be unrequired with `Sync = false`
+- `Sync`: Required by default, must be unrequired with `Sync = false`
 
-- Clone
+- `Clone`
 
-- Debug
+- `Debug`
 
-- Display
+- `Display`
 
-- Serialize: serde::Serialize.Look below for clarifications on how to use serde.
+- `Serialize`: `serde::Serialize`.Look below for clarifications on how to use serde.
 
-- Deserialize: serde::Deserialize.Look below for clarifications on how to use serde.
+- `Deserialize`: `serde::Deserialize`.Look below for clarifications on how to use serde.
 
-- Eq
+- `Eq`
 
-- PartialEq
+- `PartialEq`
 
-- Ord
+- `Ord`
 
-- PartialOrd
+- `PartialOrd`
 
-- Hash
+- `Hash`
 
-- Error: std::error::Error
+- `Error`: `std::error::Error`
 
 ### Interface (optional parameter)
 
@@ -121,18 +127,18 @@ required when constructing `NonExhaustive<>` from this enum and are then usable 
 
 The type describes which traits are required using the [`InterfaceType`] trait.
 
-Syntax:`interface="type"`
+Syntax:`interface=type`
 
-Example0:`interface="()"`.
+Example0:`interface = ()`.
 This means that no trait is usable/required.<br>
 
-Example1:`interface="CloneInterface"`.
+Example1:`interface = CloneInterface`.
 This means that only Clone is usable/required.<br>
 
-Example2:`interface="PartialEqInterface"`.
+Example2:`interface = PartialEqInterface`.
 This means that only Debug/PartialEq are usable/required.<br>
 
-Example3:`interface="CloneEqInterface"`.
+Example3:`interface = CloneEqInterface`.
 This means that only Debug/Clone/Eq/PartialEq are usable/required.<br>
 
 The `*Interface` types from the examples come from the
@@ -141,27 +147,29 @@ The `*Interface` types from the examples come from the
 
 ### NonExhaustive assertions
 
-This generates a test that checks that the listed types can be stored within `NonExhaustive`.
+This generates a static assertion that the listed types can be stored within `NonExhaustive`.
 
-You must run those tests with `cargo test`,they are not static assertions.
+Note that this attribute is implicitly added for non-generic enums,
+it is only required for generic enums.
 
-Once static assertions can be done in a non-hacky way,
-this library will provide another attribute which generates static assertions.
+Syntax:`assert_nonexhaustive = type`<br>
+Example:`assert_nonexhaustive = Foo<u8>`<br>
+Example:`assert_nonexhaustive = Foo<RArc<u8>>`<br>
+Example:`assert_nonexhaustive = Foo<RBox<u8>>`<br>
 
-Syntax:`assert_nonexhaustive="type" )`<br>
-Example:`assert_nonexhaustive="Foo<u8>")`<br>
-Example:`assert_nonexhaustive="Foo<RArc<u8>>")`<br>
-Example:`assert_nonexhaustive="Foo<RBox<u8>>")`<br>
+Syntax:`assert_nonexhaustive(type0, type1)`<br>
+Example:`assert_nonexhaustive(Foo<RArc<u8>>)`<br>
+Example:`assert_nonexhaustive(Foo<u8>, Foo<RVec<()>>)`<br>
 
-Syntax:`assert_nonexhaustive("type0","type1")`<br>
-Example:`assert_nonexhaustive("Foo<RArc<u8>>")`<br>
-Example:`assert_nonexhaustive("Foo<u8>","Foo<RVec<()>>")`<br>
+[full example below](#using_assert_nonexhaustive_example)
 
 # `serde` support
 
-`NonExhaustive<Enum,Storage,Interface>` only implements serde::{Serialize,Deserialize}
-if Interface allows them in its [`InterfaceType`] implementation,
+`NonExhaustive<Enum, Storage, Interface>` only implements `serde::{Serialize,Deserialize}`
+if `Interface` allows them in its [`InterfaceType`] implementation,
 and also implements the [`SerializeEnum`] and [`DeserializeEnum`] traits.
+
+# Examples
 
 ### Defining a (de)serializable nonexhaustive enum.
 
@@ -171,14 +179,12 @@ For a more realistic example you can look at the
 "examples/2_nonexhaustive/interface" crate in the repository for this crate.
 
 ```
-
 use abi_stable::{
     external_types::{RawValueBox, RawValueRef},
     nonexhaustive_enum::{DeserializeEnum, NonExhaustive, SerializeEnum},
-    prefix_type::{PrefixTypeTrait, WithMetadata},
-    rtry, sabi_extern_fn,
+    prefix_type::WithMetadata,
+    sabi_extern_fn,
     std_types::{RBoxError, RErr, ROk, RResult, RStr, RString},
-    traits::IntoReprC,
     StableAbi,
 };
 
@@ -187,18 +193,17 @@ use serde::{Deserialize, Serialize};
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq, Deserialize, Serialize)]
 #[sabi(kind(WithNonExhaustive(
-// Determines the maximum size of this enum in semver compatible versions.
-size="[usize;10]",
-// Determines the traits that are required when wrapping this enum in NonExhaustive,
-// and are then available with it.
-traits(Debug,Clone,PartialEq,Serialize,Deserialize),
+    // Determines the maximum size of this enum in semver compatible versions.
+    size = [usize;10],
+    // Determines the traits that are required when wrapping this enum in NonExhaustive,
+    // and are then available with it.
+    traits(Debug,Clone,PartialEq,Serialize,Deserialize),
 )))]
 // The `#[sabi(with_constructor)]` helper attribute here generates constructor functions
 // that look take the fields of the variant as parameters and return a `ValidTag_NE`.
 #[sabi(with_constructor)]
+#[non_exhaustive]
 pub enum ValidTag {
-    #[doc(hidden)]
-    __NonExhaustive,
     Foo,
     Bar,
     Tag {
@@ -218,13 +223,16 @@ pub type ValidTag_NE=
 */
 
 /// This describes how the enum is serialized.
-impl SerializeEnum<ValidTag_NE> for ValidTag_Interface {
-    /// A type that `ValidTag_NE` is converted into(inside `SerializeEnum::serialize_enum`),
+impl SerializeEnum<ValidTag> for ValidTag_Interface {
+    /// A type that `ValidTag` is converted into(inside `SerializeEnum::serialize_enum`),
     /// and then serialized.
     type Proxy = RawValueBox;
 
-    fn serialize_enum(this: &ValidTag_NE) -> Result<RawValueBox, RBoxError> {
-        Module::VALUE.serialize_tag()(this).into_result()
+    fn serialize_enum(this: &ValidTag) -> Result<RawValueBox, RBoxError> {
+        match serde_json::value::to_raw_value(this) {
+            Ok(v) => Ok(v.into()),
+            Err(e) => Err(RBoxError::new(e)),
+        }
     }
 }
 
@@ -295,9 +303,6 @@ assert_eq!(
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 pub struct Module {
-    pub serialize_tag:
-        extern "C" fn(&ValidTag_NE) -> RResult<RawValueBox, RBoxError>,
-
     /// `#[sabi(last_prefix_field)]`means that it is the last field in the struct
     /// that was defined in the first compatible version of the library
     /// (0.1.0, 0.2.0, 0.3.0, 1.0.0, 2.0.0 ,etc),
@@ -316,9 +321,7 @@ impl Module {
     //
     // StaticRef not necessary in this case, it's more useful with generic types..
     abi_stable::staticref!(const TMP0: WithMetadata<Self> = WithMetadata::new(
-        PrefixTypeTrait::METADATA,
         Self{
-            serialize_tag,
             deserialize_tag,
         },
     ));
@@ -331,18 +334,6 @@ impl Module {
 /////////////////////////////////////////////////////////////////////////////////////////
 
 #[sabi_extern_fn]
-pub fn serialize_tag(enum_: &ValidTag_NE) -> RResult<RawValueBox, RBoxError> {
-    let enum_ = rtry!(enum_.as_enum().into_c());
-
-    match serde_json::to_string(&enum_) {
-        Ok(v) => RawValueBox::try_from_string(v)
-            .map_err(RBoxError::new)
-            .into_c(),
-        Err(e) => RErr(RBoxError::new(e)),
-    }
-}
-
-#[sabi_extern_fn]
 pub fn deserialize_tag(s: RStr<'_>) -> RResult<ValidTag_NE, RBoxError> {
     match serde_json::from_str::<ValidTag>(s.into()) {
         Ok(x) => ROk(NonExhaustive::new(x)),
@@ -352,8 +343,7 @@ pub fn deserialize_tag(s: RStr<'_>) -> RResult<ValidTag_NE, RBoxError> {
 
 ```
 
-
-# Example,boxing variants of unknown size
+### Boxing variants of unknown size
 
 This example demonstrates how one can use boxing to store types larger than `[usize;2]`
 (the size of `RBox<_>`),
@@ -377,12 +367,11 @@ use std::{
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq)]
 #[sabi(kind(WithNonExhaustive(
-    size = "[usize;3]",
+    size = [usize;3],
     traits(Debug, Display, Clone, PartialEq),
 )))]
+#[non_exhaustive]
 pub enum Message<T> {
-    #[doc(hidden)]
-    __NonExhaustive,
     SaysHello,
     SaysGoodbye,
 
@@ -402,11 +391,11 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Message::__NonExhaustive => unreachable!(),
             Message::SaysHello => write!(f, "Hello!"),
             Message::SaysGoodbye => write!(f, "Goodbye!"),
             Message::Custom(custom) => Display::fmt(&**custom, f),
             Message::SaysThankYou(x) => writeln!(f, "Thank you,{}!", x.to),
+            _ => unreachable!(),
         }
     }
 }
@@ -455,7 +444,7 @@ pub struct SaysThankYou {
 
 
 
-# Example
+### Generic enum with `RSmallBox`
 
 This example shows how one can use RSmallBox to define a generic nonexhausitve enum.
 
@@ -471,19 +460,18 @@ use abi_stable::{
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq)]
 #[sabi(kind(WithNonExhaustive(
-// Determines the maximum size of this enum in semver compatible versions.
-// This is 11 usize large because:
-//    - The enum discriminant occupies 1 usize(because the enum is usize aligned).
-//    - RSmallBox<T,[usize;8]>: is 10 usize large
-size="[usize;11]",
-// Determines the traits that are required when wrapping this enum in NonExhaustive,
-// and are then available with it.
-traits(Debug,Clone,PartialEq),
+    // Determines the maximum size of this enum in semver compatible versions.
+    // This is 11 usize large because:
+    //    - The enum discriminant occupies 1 usize(because the enum is usize aligned).
+    //    - RSmallBox<T,[usize;8]>: is 10 usize large
+    size = [usize;11],
+    // Determines the traits that are required when wrapping this enum in NonExhaustive,
+    // and are then available with it.
+    traits(Debug,Clone,PartialEq),
 )))]
 #[sabi(with_constructor)]
+#[non_exhaustive]
 pub enum SomeEnum<T> {
-    #[doc(hidden)]
-    __NonExhaustive,
     Foo,
     Bar,
     Crash {
@@ -498,11 +486,11 @@ pub enum SomeEnum<T> {
 impl<T> SomeEnum<T> {
     pub fn is_inline(&self) -> bool {
         match self {
-            SomeEnum::__NonExhaustive => true,
             SomeEnum::Foo => true,
             SomeEnum::Bar => true,
             SomeEnum::Crash { .. } => true,
             SomeEnum::Other(rsbox) => RSmallBox::is_inline(rsbox),
+            _ => true,
         }
     }
 
@@ -559,7 +547,7 @@ assert!(other_nestedlist.as_enum().unwrap().is_heap_allocated());
 
 ```
 
-# Example
+### Add variant to "private" enum across versions
 
 Say that we want to define a "private" enum
 (it's exposed to the ABI but it's not public API),
@@ -592,13 +580,12 @@ pub struct GroupId(pub usize);
 #[repr(u8)]
 #[derive(StableAbi, Debug, Clone, PartialEq)]
 #[sabi(kind(WithNonExhaustive(
-    size = "[usize;8]",
+    size = [usize;8],
     traits(Debug, Clone, PartialEq),
 )))]
 #[sabi(with_constructor)]
+#[non_exhaustive]
 pub enum Event {
-    #[doc(hidden)]
-    __NonExhaustive,
     CreatedInstance {
         object_id: ObjectId,
     },
@@ -757,9 +744,133 @@ let groupid_1 = GroupId(0);
 ```
 
 
+<span id = "using_assert_nonexhaustive_example"></span>
+### Using `assert_nonexhaustive`
 
-[`InterfaceType`]: ../../trait.InterfaceType.html
-[`SerializeEnum`]: ../../nonexhaustive_enum/trait.SerializeEnum.html
-[`DeserializeEnum`]: ../../nonexhaustive_enum/trait.DeserializeEnum.html
+This example demonstrates the `assert_nonexhaustive` helper attribute,
+and the errors produced when the enum is too large or is misaligned for its default storage.
+
+```compile_fail
+use abi_stable::StableAbi;
+
+#[repr(u8)]
+#[derive(StableAbi)]
+#[sabi(kind(WithNonExhaustive(
+    // Determines the maximum size of this enum in semver compatible versions.
+    // maximum size is `size_of::<[u16; 3]>()`
+    size = [u16; 3],
+    // Determines the maximum alignment of this enum in semver compatible versions.
+    // aligned at most `align_of::<u16>()`
+    align = u16,
+    // The below attribute is implied for non-generic enums,
+    // it generates a static assertion checking that `Concrete`
+    // fits within its default storage.
+    // assert_nonexhaustive(Concrete)
+)))]
+#[non_exhaustive]
+pub enum Concrete {
+    Foo,
+    Bar,
+    Tag([u16; 3]),
+}
+
+
+#[repr(u8)]
+#[derive(StableAbi)]
+#[sabi(kind(WithNonExhaustive(
+    // Determines the maximum size of this enum in semver compatible versions.
+    size = 8,
+    // Determines the maximum alignment of this enum in semver compatible versions.
+    // non-literal constants have to be wrapped in braces
+    align = {alignment()},
+    // generic enums don't implicitly assert that the enum is compatible with the
+    // default storage, you must specify the tested concrete types
+    assert_nonexhaustive(Generic<[u16; 4]>, Generic<u32>, Generic<u64>)
+)))]
+#[non_exhaustive]
+pub enum Generic<T> {
+    Foo,
+    Bar,
+    Qux(T),
+}
+
+const fn alignment() -> usize {
+    2
+}
+```
+
+This is the compile-time error for the above code:
+```text
+error[E0080]: evaluation of constant value failed
+ --> src/docs/sabi_nonexhaustive.rs:767:10
+  |
+7 | #[derive(StableAbi)]
+  |          ^^^^^^^^^ the evaluated program panicked at '
+The size of the storage is smaller than the contained type:
+    enum_: "Concrete"
+    enum_size: 8
+    enum_alignment: 2
+    storage_: "Concrete_Storage"
+    storage_size: 6
+    storage_alignment: 2
+', src/docs/sabi_nonexhaustive.rs:7:10
+  |
+  = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation of constant value failed
+  --> src/docs/sabi_nonexhaustive.rs:789:10
+   |
+29 | #[derive(StableAbi)]
+   |          ^^^^^^^^^ the evaluated program panicked at '
+The size of the storage is smaller than the contained type:
+    enum_: "Generic < [u16 ; 4] >"
+    enum_size: 10
+    enum_alignment: 2
+    storage_: "Generic_Storage"
+    storage_size: 8
+    storage_alignment: 2
+', src/docs/sabi_nonexhaustive.rs:29:10
+   |
+   = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation of constant value failed
+  --> src/docs/sabi_nonexhaustive.rs:789:10
+   |
+29 | #[derive(StableAbi)]
+   |          ^^^^^^^^^ the evaluated program panicked at '
+The alignment of the storage is lower than the contained type:
+    enum_: "Generic < u32 >"
+    enum_size: 8
+    enum_alignment: 4
+    storage_: "Generic_Storage"
+    storage_size: 8
+    storage_alignment: 2
+', src/docs/sabi_nonexhaustive.rs:29:10
+   |
+   = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation of constant value failed
+  --> src/docs/sabi_nonexhaustive.rs:789:10
+   |
+29 | #[derive(StableAbi)]
+   |          ^^^^^^^^^ the evaluated program panicked at '
+The alignment and size of the storage is smaller than the contained type:
+    enum_: "Generic < u64 >"
+    enum_size: 16
+    enum_alignment: 8
+    storage_: "Generic_Storage"
+    storage_size: 8
+    storage_alignment: 2
+', src/docs/sabi_nonexhaustive.rs:29:10
+   |
+   = note: this error originates in the derive macro `StableAbi` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 4 previous errors
+```
+
+
+[`InterfaceType`]: crate::InterfaceType
+[`SerializeEnum`]: crate::nonexhaustive_enum::SerializeEnum
+[`DeserializeEnum`]: crate::nonexhaustive_enum::DeserializeEnum
 
 */

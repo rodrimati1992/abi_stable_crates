@@ -46,6 +46,7 @@ use crate::std_types::RStr;
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(transparent)]
 pub struct VersionStrings {
+    /// The `major.minor.patch` version string
     pub version: RStr<'static>,
 }
 
@@ -95,8 +96,11 @@ pub struct VersionStrings {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 #[repr(C)]
 pub struct VersionNumber {
+    ///
     pub major: u32,
+    ///
     pub minor: u32,
+    ///
     pub patch: u32,
 }
 
@@ -249,7 +253,7 @@ impl VersionNumber {
     /// assert!(!v0_1_8.is_compatible(v0_2_0), "'{}' '{}'", v0_1_8, v0_2_0);
     ///
     /// ```
-    pub fn is_compatible(self, library_implementor: VersionNumber) -> bool {
+    pub const fn is_compatible(self, library_implementor: VersionNumber) -> bool {
         if self.major == 0 && library_implementor.major == 0 {
             self.minor == library_implementor.minor && self.patch <= library_implementor.patch
         } else {
@@ -329,7 +333,7 @@ impl VersionNumber {
     /// is_compat_assert(v2_0_0, v1_5_0, false);
     ///
     /// ```
-    pub fn is_loosely_compatible(self, library_implementor: VersionNumber) -> bool {
+    pub const fn is_loosely_compatible(self, library_implementor: VersionNumber) -> bool {
         if self.major == 0 && library_implementor.major == 0 {
             self.minor == library_implementor.minor
         } else {
@@ -368,7 +372,7 @@ macro_rules! package_version_strings {
 ////////////////////////////////////////////////////////////////////////////////
 
 /// When the `VersionStrings` could not be converted into a `VersionNumber`.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ParseVersionError {
     version_strings: VersionStrings,
     which_field: &'static str,
@@ -376,7 +380,7 @@ pub struct ParseVersionError {
 }
 
 impl ParseVersionError {
-    fn new(
+    const fn new(
         version_strings: VersionStrings,
         which_field: &'static str,
         parse_error: ParseIntError,
@@ -389,7 +393,7 @@ impl ParseVersionError {
     }
 
     /// Gets back the `VersionStrings` that could not be parsed into a `VersionNumber`.
-    pub fn version_strings(&self) -> VersionStrings {
+    pub const fn version_strings(&self) -> VersionStrings {
         self.version_strings
     }
 }

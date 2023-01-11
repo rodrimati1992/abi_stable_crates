@@ -174,7 +174,6 @@ impl<'lt, 'sub, …> Trait_TO<'lt, RRef<'sub, ()>, …> {
     pub const fn from_const<T, Downcasting>(
         pointer: &'sub T,
         can_it_downcast: Downcasting,
-        vtable_for: …,
     ) -> Self
 ```
 
@@ -185,21 +184,18 @@ The `can_it_downcast` parameter describes whether the trait object can be
 converted back into the original type or not.<br>
 Its possible values are [`TD_CanDowncast`] and [`TD_Opaque`].
 
-You can construct the `vtable_for` parameter with `<trait>_MV:VTABLE`
-
 [Method docs for `Action_TO::from_const`
 ](../../sabi_trait/doc_examples/struct.Action_TO.html#method.from_const)
 
 **Example:**
 ```rust
 use abi_stable::{
-    sabi_trait::doc_examples::Action_trait::{Action_CTO, Action_MV, Action_TO},
+    sabi_trait::doc_examples::Action_trait::{Action_CTO, Action_TO},
     std_types::RBox,
     type_level::downcasting::TD_CanDowncast,
 };
 
-const TO: Action_CTO<'_, '_> =
-    Action_TO::from_const(&200, TD_CanDowncast, Action_MV::VTABLE);
+const TO: Action_CTO<'_, '_> = Action_TO::from_const(&200, TD_CanDowncast);
 
 assert_eq!(TO.get(), 200);
 
@@ -229,7 +225,7 @@ For [`Action_TO`] specifically, [`RObject`] is the backend.
 use abi_stable::{
     pointer_trait::{CanTransmuteElement, OwnedPointer},
     sabi_trait::{
-        doc_examples::Action_trait::{Action_Interface, Action_MV, Action_TO},
+        doc_examples::Action_trait::{Action_Interface, Action_TO},
         RObject,
     },
     std_types::RBox,

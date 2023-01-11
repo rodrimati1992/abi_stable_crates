@@ -13,12 +13,7 @@ use parking_lot::RawMutex;
 
 use super::{UnsafeOveralignedField, RAW_LOCK_SIZE};
 
-use crate::{
-    marker_type::UnsyncUnsend,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
-    std_types::*,
-    StableAbi,
-};
+use crate::{marker_type::UnsyncUnsend, prefix_type::WithMetadata, std_types::*, StableAbi};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -30,11 +25,8 @@ const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<RawMutex>();
 const OPAQUE_MUTEX: OpaqueMutex =
     OpaqueMutex::new(<RawMutex as RawMutexTrait>::INIT, [0u8; OM_PADDING]);
 
-#[allow(dead_code)]
-fn assert_mutex_size() {
-    let _assert_size: [(); RAW_LOCK_SIZE - mem::size_of::<OpaqueMutex>()];
-    let _assert_size: [(); mem::size_of::<OpaqueMutex>() - RAW_LOCK_SIZE];
-}
+// assert_mutex_size
+const _: () = assert!(RAW_LOCK_SIZE == mem::size_of::<OpaqueMutex>());
 
 /// A mutual exclusion lock that allows dynamic mutable borrows of shared data.
 ///
@@ -80,7 +72,7 @@ pub struct RMutex<T> {
 ///
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 #[must_use]
 pub struct RMutexGuard<'a, T> {
     rmutex: &'a RMutex<T>,
@@ -111,7 +103,7 @@ impl<T> RMutex<T> {
     }
 
     #[inline]
-    fn vtable(&self) -> VTable_Ref {
+    const fn vtable(&self) -> VTable_Ref {
         self.vtable
     }
 
@@ -257,6 +249,14 @@ unsafe impl<T: Send> Sync for RMutex<T> where RawMutex: Sync {}
 
 ///////////////////////////////////////////////////////////////////////////////
 
+impl<T: Default> Default for RMutex<T> {
+    fn default() -> Self {
+        Self::new(T::default())
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 impl<'a, T> Display for RMutexGuard<'a, T>
 where
     T: Display,
@@ -311,15 +311,12 @@ struct VTable {
 }
 
 impl VTable {
-    const _TMP0: WithMetadata<VTable> = WithMetadata::new(
-        PrefixTypeTrait::METADATA,
-        VTable {
-            lock,
-            try_lock,
-            unlock,
-            try_lock_for,
-        },
-    );
+    const _TMP0: WithMetadata<VTable> = WithMetadata::new(VTable {
+        lock,
+        try_lock,
+        unlock,
+        try_lock_for,
+    });
 
     // The VTABLE for this type in this executable/library
     const VTABLE: VTable_Ref = { VTable_Ref(Self::_TMP0.static_as_prefix()) };

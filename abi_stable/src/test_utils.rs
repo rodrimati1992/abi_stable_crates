@@ -6,10 +6,7 @@ use std::{
 };
 
 #[allow(unused_imports)]
-pub use abi_stable_shared::test_utils::{must_panic, FileSpan, ShouldHavePanickedAt, ThreadError};
-
-#[allow(unused_imports)]
-pub use abi_stable_shared::file_span;
+pub use abi_stable_shared::test_utils::{must_panic, ShouldHavePanickedAt, ThreadError};
 
 //////////////////////////////////////////////////////////////////
 
@@ -56,6 +53,53 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         Display::fmt(&self.0, f)
     }
+}
+
+//////////////////////////////////////////////////////////////////
+
+macro_rules! if_impls_impls {
+    ($($const:ident, $trait:path);* $(;)*) => {
+        pub trait GetImplsHelper {
+            $(const $const: bool = false;)*
+        }
+
+        impl<T> GetImplsHelper for T {}
+
+        pub struct GetImpls<S>(S);
+
+        $(
+            impl<S> GetImpls<S>
+            where
+                S: $trait
+            {
+                pub const $const: bool = true;
+            }
+        )*
+    };
+}
+
+if_impls_impls! {
+    IMPLS_SEND, Send;
+    IMPLS_SYNC, Sync;
+    IMPLS_UNPIN, Unpin;
+    IMPLS_CLONE, Clone;
+    IMPLS_DISPLAY, std::fmt::Display;
+    IMPLS_DEBUG, std::fmt::Debug;
+    IMPLS_SERIALIZE, serde::Serialize;
+    IMPLS_EQ, std::cmp::Eq;
+    IMPLS_PARTIAL_EQ, std::cmp::PartialEq;
+    IMPLS_ORD, std::cmp::Ord;
+    IMPLS_PARTIAL_ORD, std::cmp::PartialOrd;
+    IMPLS_HASH, std::hash::Hash;
+    IMPLS_DESERIALIZE, serde::Deserialize<'static>;
+    IMPLS_ITERATOR, Iterator;
+    IMPLS_DOUBLE_ENDED_ITERATOR, DoubleEndedIterator;
+    IMPLS_FMT_WRITE, std::fmt::Write;
+    IMPLS_IO_WRITE, std::io::Write;
+    IMPLS_IO_SEEK, std::io::Seek;
+    IMPLS_IO_READ, std::io::Read;
+    IMPLS_IO_BUF_READ, std::io::BufRead;
+    IMPLS_ERROR, std::error::Error;
 }
 
 //////////////////////////////////////////////////////////////////

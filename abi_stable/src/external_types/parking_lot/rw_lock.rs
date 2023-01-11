@@ -13,12 +13,7 @@ use parking_lot::RawRwLock;
 
 use super::{UnsafeOveralignedField, RAW_LOCK_SIZE};
 
-use crate::{
-    marker_type::UnsyncUnsend,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
-    std_types::*,
-    StableAbi,
-};
+use crate::{marker_type::UnsyncUnsend, prefix_type::WithMetadata, std_types::*, StableAbi};
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -30,11 +25,8 @@ const OM_PADDING: usize = RAW_LOCK_SIZE - mem::size_of::<RawRwLock>();
 const OPAQUE_LOCK: OpaqueRwLock =
     OpaqueRwLock::new(<RawRwLock as RawRwLockTrait>::INIT, [0u8; OM_PADDING]);
 
-#[allow(dead_code)]
-fn assert_lock_size() {
-    let _assert_size: [(); RAW_LOCK_SIZE - mem::size_of::<OpaqueRwLock>()];
-    let _assert_size: [(); mem::size_of::<OpaqueRwLock>() - RAW_LOCK_SIZE];
-}
+// assert rwlock size
+const _: () = assert!(RAW_LOCK_SIZE == mem::size_of::<OpaqueRwLock>());
 
 /// A read-write lock that allows dynamic mutable/shared borrows of shared data.
 ///
@@ -84,7 +76,7 @@ pub struct RRwLock<T> {
 /// When dropped this will unlock the rwlock.
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 #[must_use]
 pub struct RReadGuard<'a, T> {
     rlock: &'a RRwLock<T>,
@@ -98,7 +90,7 @@ pub struct RReadGuard<'a, T> {
 /// When dropped this will unlock the rwlock.
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 #[must_use]
 pub struct RWriteGuard<'a, T> {
     rlock: &'a RRwLock<T>,
@@ -127,7 +119,10 @@ impl<T> RRwLock<T> {
             vtable: VTable::VTABLE,
         }
     }
+}
 
+#[allow(clippy::missing_const_for_fn)]
+impl<T> RRwLock<T> {
     #[inline]
     fn vtable(&self) -> VTable_Ref {
         self.vtable
@@ -379,6 +374,14 @@ unsafe impl<T: Send + Sync> Sync for RRwLock<T> where RawRwLock: Sync {}
 
 ///////////////////////////////////////////////////////////////////////////////
 
+impl<T: Default> Default for RRwLock<T> {
+    fn default() -> Self {
+        Self::new(T::default())
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 macro_rules! impl_lock_guard {
     ($guard:ident) => {
         impl<'a, T> Display for $guard<'a, T>
@@ -467,7 +470,7 @@ impl VTable {
             try_lock_exclusive_for,
             unlock_exclusive,
         };
-        WithMetadata::new(PrefixTypeTrait::METADATA, vtable)
+        WithMetadata::new(vtable)
     };
 
     // The VTABLE for this type in this executable/library
@@ -600,11 +603,9 @@ mod tests {
                                     *guard += 1;
                                     break;
                                 }
-                            } else {
-                                if let RSome(guard) = LOCK.try_read() {
-                                    assert!(*guard <= EXPECTED, "{} <= {}", *guard, EXPECTED);
-                                    break;
-                                }
+                            } else if let RSome(guard) = LOCK.try_read() {
+                                assert!(*guard <= EXPECTED, "{} <= {}", *guard, EXPECTED);
+                                break;
                             }
                         }
                     }
@@ -651,11 +652,9 @@ mod tests {
                                     *guard += 1;
                                     break;
                                 }
-                            } else {
-                                if let RSome(guard) = LOCK.try_read_for(wait_for) {
-                                    assert!(*guard <= EXPECTED, "{} <= {}", *guard, EXPECTED);
-                                    break;
-                                }
+                            } else if let RSome(guard) = LOCK.try_read_for(wait_for) {
+                                assert!(*guard <= EXPECTED, "{} <= {}", *guard, EXPECTED);
+                                break;
                             }
                         }
                     }

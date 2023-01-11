@@ -21,7 +21,9 @@ use std::cmp::{Eq, Ordering, PartialEq, PartialOrd};
 #[repr(u8)]
 #[derive(StableAbi)]
 pub enum MaybeCmp<T> {
+    ///
     Just(T),
+    ///
     Nothing,
 }
 

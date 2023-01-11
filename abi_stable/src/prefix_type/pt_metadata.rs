@@ -104,8 +104,9 @@ impl __PrefixTypeMetadata {
 
         for (field_i, (t_acc, o_acc)) in self
             .accessible_fields
-            .iter_count(min_field_count)
-            .zip(other.accessible_fields.iter_count(min_field_count))
+            .iter()
+            .take(min_field_count)
+            .zip(other.accessible_fields.iter().take(min_field_count))
             .enumerate()
         {
             let o_field = o_fields.next().unwrap();
@@ -123,9 +124,7 @@ impl __PrefixTypeMetadata {
                 let field_i = i + min_field_count;
 
                 t_fields.push(o_field.into_owned());
-                self.accessible_fields = self
-                    .accessible_fields
-                    .set_accessibility(field_i, IsAccessible::Yes);
+                self.accessible_fields = self.accessible_fields.set(field_i, IsAccessible::Yes);
             }
         }
     }

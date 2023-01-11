@@ -121,3 +121,41 @@ macro_rules! zst_assert {
 }
 
 ///////////////////////////////////////////////////////////////////////////////7
+
+macro_rules! conditionally_const_docs {
+    ($feature:literal) => {
+        concat!(
+            "# Conditional `const fn`\n",
+            "\n",
+            "This function requires the `",
+            $feature,
+            "` feature to be `const`-callable",
+        )
+    };
+}
+
+macro_rules! conditionally_const {
+    (
+        feature = $feature:literal
+        $( #[$meta:meta] )*
+        ;
+        $( #[$bottom_meta:meta] )*
+        $vis:vis
+        $(unsafe $(@$safety:tt)?)?
+        fn $fn_name:ident $([$($gen_args:tt)*])? ($($params:tt)*) -> $($rem:tt)*
+    ) => (
+        $(#[$meta])*
+        #[doc = conditionally_const_docs!($feature)]
+        $(#[$bottom_meta])*
+        #[cfg(feature = $feature)]
+        $vis const $(unsafe $($safety)?)?
+        fn $fn_name $(<$($gen_args)*>)? ($($params)*) -> $($rem)*
+
+        $(#[$meta])*
+        #[doc = conditionally_const_docs!($feature)]
+        $(#[$bottom_meta])*
+        #[cfg(not(feature = $feature))]
+        $vis $(unsafe $($safety)?)?
+        fn $fn_name $(<$($gen_args)*>)? ($($params)*) -> $($rem)*
+    )
+}

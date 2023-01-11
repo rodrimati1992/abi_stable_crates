@@ -9,7 +9,9 @@ use std::cmp::{Eq, PartialEq};
 #[repr(C)]
 #[derive(Debug, Copy, Clone, StableAbi)]
 pub struct ArrayLen<A> {
+    /// the length of initialized elements in `array`
     pub len: u16,
+    ///
     pub array: A,
 }
 
@@ -18,6 +20,7 @@ impl<A> ArrayLen<A> {
     pub const fn len(&self) -> usize {
         self.len as usize
     }
+    /// Whether the array is empty
     pub const fn is_empty(&self) -> bool {
         self.len == 0
     }

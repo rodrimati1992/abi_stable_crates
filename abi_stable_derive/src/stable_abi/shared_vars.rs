@@ -357,34 +357,18 @@ impl<'a> SharedVars<'a> {
                 .iter()
                 .map(|&(layout_ctor, ty)| make_get_type_layout_tokenizer(ty, layout_ctor, ct));
 
-            let consts_i = 0..self.constants.len();
-            let constants = self.constants.iter().copied();
+            let constants = self.constants.iter();
 
             quote!(
-                const __SABI_CONST_PARAMS_A: &'static [
-                    &'static __sabi_re::ConstGenericErasureHack<dyn ::std::marker::Send>
-                ] = &[#(
-                    &__sabi_re::ConstGenericErasureHack::new(
-                        __ConstGenericVTableFor::NEW,
-                        #constants,
-                    ),
-                )*];
-
-                const __SABI_CONST_PARAMS_B: &'static [__ConstGeneric] = &[
-                    #(unsafe{
-                        let cp = Self::__SABI_CONST_PARAMS_A[#consts_i];
-                        __ConstGeneric::from_erased(
-                            &cp.value as *const _ as *const (),
-                            cp.vtable,
-                        )
-                    },)*
+                const __SABI_CONST_PARAMS: &'static [__ConstGeneric] = &[
+                    #(__ConstGeneric::new(&#constants),)*
                 ];
 
                 const __SABI_SHARED_VARS: &'static __sabi_re::SharedVars =
                     &abi_stable::type_layout::SharedVars::new (
                         #mono_type_layout.shared_vars_static(),
                         abi_stable::_sabi_type_layouts!( #(#type_layouts,)* ),
-                        __sabi_re::RSlice::from_slice(Self::__SABI_CONST_PARAMS_B),
+                        __sabi_re::RSlice::from_slice(Self::__SABI_CONST_PARAMS),
                     );
             )
             .to_tokens(ts);

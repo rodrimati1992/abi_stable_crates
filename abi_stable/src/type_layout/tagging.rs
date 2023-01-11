@@ -32,7 +32,7 @@
 //!
 //! #[repr(C)]
 //! #[derive(StableAbi)]
-//! #[sabi( tag = r##" tag!("WAT") "## )]
+//! #[sabi( tag = tag!("WAT"))]
 //! struct UnitType;
 //!
 //!
@@ -69,8 +69,8 @@
 //! #[repr(C)]
 //! #[derive(StableAbi)]
 //! #[sabi(
-//!     bound="S:Name",
-//!     tag = r##" tag!( S::NAME ) "## ,
+//!     bound(S:Name),
+//!     tag = tag!( S::NAME ),
 //! )]
 //! struct StringParameterized<S>{
 //!     _marker:UnsafeIgnoredType<S>
@@ -216,7 +216,7 @@ use crate::{
     abi_stability::extra_checks::{
         ExtraChecks, ExtraChecksError, ForExtraChecksImplementor, TypeCheckerMut,
     },
-    std_types::{RBox, RCow, RNone, ROption, RResult, RSlice, RSome, RStr, RVec},
+    std_types::{RBox, RCowSlice, RNone, ROption, RResult, RSlice, RSome, RStr, RVec},
     traits::IntoReprC,
     type_layout::TypeLayout,
     utils::FmtPadding,
@@ -239,10 +239,15 @@ pub struct Tag {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum TagVariant {
+    ///
     Primitive(Primitive),
+    /// A Tag that's considered compatible with any other
     Ignored(&'static Tag),
+    ///
     Array(RSlice<'static, Tag>),
+    ///
     Set(RSlice<'static, Tag>),
+    ///
     Map(RSlice<'static, KeyValue<Tag>>),
 }
 
@@ -251,10 +256,15 @@ pub enum TagVariant {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum Primitive {
+    ///
     Null,
+    ///
     Bool(bool),
+    ///
     Int(i64),
+    ///
     UInt(u64),
+    ///
     String_(RStr<'static>),
 }
 
@@ -271,10 +281,15 @@ pub struct CheckableTag {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub enum CTVariant {
+    ///
     Primitive(Primitive),
+    /// A Tag that's considered compatible with any other
     Ignored(RBox<CheckableTag>),
+    ///
     Array(RVec<CheckableTag>),
+    ///
     Set(RVec<KeyValue<CheckableTag>>),
+    ///
     Map(RVec<KeyValue<CheckableTag>>),
 }
 
@@ -282,7 +297,9 @@ pub enum CTVariant {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, StableAbi)]
 pub struct KeyValue<T> {
+    ///
     pub key: T,
+    ///
     pub value: T,
 }
 
@@ -338,6 +355,7 @@ impl Tag {
         Self { variant }
     }
 
+    /// Constructs the Null variant.
     pub const NULL: &'static Tag = &Tag::null();
 
     /// Constructs the Null variant.
@@ -579,6 +597,7 @@ impl CheckableTag {
 
 /////////////////////////////////////////////////////////////////
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> KeyValue<T> {
     /// Constructs a KeyValue with `key`,`value`
     pub const fn new(key: T, value: T) -> Self {
@@ -602,7 +621,7 @@ impl<T> KeyValue<T> {
     }
 
     /// Casts a &KeyValue into a `(key, value)` pair of references.
-    pub fn as_pair(&self) -> (&T, &T) {
+    pub const fn as_pair(&self) -> (&T, &T) {
         (&self.key, &self.value)
     }
 
@@ -748,7 +767,7 @@ impl Display for CheckableTag {
             }
             CTVariant::Array(arr) => {
                 writeln!(f, "[")?;
-                display_iter(&*arr, f, 4)?;
+                display_iter(arr, f, 4)?;
                 write!(f, "]")?;
             }
             CTVariant::Set(map) | CTVariant::Map(map) => {
@@ -825,8 +844,8 @@ unsafe impl ExtraChecks for Tag {
         })
     }
 
-    fn nested_type_layouts(&self) -> RCow<'_, [&'static TypeLayout]> {
-        RCow::from_slice(&[])
+    fn nested_type_layouts(&self) -> RCowSlice<'_, &'static TypeLayout> {
+        RCowSlice::from_slice(&[])
     }
 }
 

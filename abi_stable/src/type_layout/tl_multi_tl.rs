@@ -1,6 +1,6 @@
 use crate::{
-    abi_stability::stable_abi_trait::TypeLayoutCtor, std_types::RSlice,
-    type_layout::data_structures::ArrayLen,
+    std_types::RSlice,
+    type_layout::{data_structures::ArrayLen, TypeLayout},
 };
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -22,7 +22,7 @@ abi_stable_shared::declare_multi_tl_types! {
 }
 
 impl TypeLayoutRange {
-    pub(crate) fn to_array(self) -> [u16; Self::STORED_INLINE] {
+    pub(crate) const fn to_array(self) -> [u16; Self::STORED_INLINE] {
         [
             ((self.bits0 >> Self::INDEX_0_OFFSET) & Self::INDEX_MASK) as u16,
             ((self.bits0 >> Self::INDEX_1_OFFSET) & Self::INDEX_MASK) as u16,
@@ -33,7 +33,10 @@ impl TypeLayoutRange {
     }
 
     /// Expands this `TypeLayoutRange` into a `MultipleTypeLayouts<'a>`.
-    pub fn expand<'a>(&self, type_layouts: &'a [TypeLayoutCtor]) -> MultipleTypeLayouts<'a> {
+    pub fn expand<'a>(
+        &self,
+        type_layouts: &'a [extern "C" fn() -> &'static TypeLayout],
+    ) -> MultipleTypeLayouts<'a> {
         let indices = self.to_array();
         let len = self.len();
 
@@ -66,23 +69,23 @@ impl TypeLayoutRange {
 #[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, StableAbi)]
 pub struct MultipleTypeLayouts<'a> {
-    first: ArrayLen<[TypeLayoutCtor; TypeLayoutRange::STORED_INLINE]>,
-    remaining: RSlice<'a, TypeLayoutCtor>,
+    first: ArrayLen<[extern "C" fn() -> &'static TypeLayout; TypeLayoutRange::STORED_INLINE]>,
+    remaining: RSlice<'a, extern "C" fn() -> &'static TypeLayout>,
 }
 
 impl<'a> MultipleTypeLayouts<'a> {
-    /// The amount of `TypeLayoutCtor` this contains.
-    pub fn len(&self) -> usize {
+    /// The amount of type layouts that this contains.
+    pub const fn len(&self) -> usize {
         self.first.len as usize + self.remaining.len()
     }
 
     /// Whether this is empty.
-    pub fn is_empty(&self) -> bool {
+    pub const fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
-    /// Gets an iterator over the `TypeLayoutCtor` this contains.
-    pub fn iter(&self) -> MTLIterator<'a> {
+    /// Gets an iterator over the type layouts that this contains.
+    pub const fn iter(&self) -> MTLIterator<'a> {
         MTLIterator {
             this: *self,
             index: 0,
@@ -90,7 +93,7 @@ impl<'a> MultipleTypeLayouts<'a> {
     }
 }
 
-/// An iterator over a list of `TypeLayoutCtor`.
+/// An iterator over a list of type layouts.
 #[derive(Clone, Debug)]
 pub struct MTLIterator<'a> {
     this: MultipleTypeLayouts<'a>,
@@ -98,9 +101,9 @@ pub struct MTLIterator<'a> {
 }
 
 impl<'a> Iterator for MTLIterator<'a> {
-    type Item = TypeLayoutCtor;
+    type Item = extern "C" fn() -> &'static TypeLayout;
 
-    fn next(&mut self) -> Option<TypeLayoutCtor> {
+    fn next(&mut self) -> Option<extern "C" fn() -> &'static TypeLayout> {
         if self.index < self.this.len() {
             let ret = if self.index < TypeLayoutRange::STORED_INLINE {
                 self.this.first.array[self.index]

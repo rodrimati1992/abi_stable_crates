@@ -27,8 +27,8 @@ use syn::{
     token::Unsafe,
     token::{Colon, Comma, Semi},
     visit_mut::VisitMut,
-    Abi, Block, FnArg, Ident, ItemTrait, Lifetime, LifetimeDef, Meta, TraitItem, TypeParamBound,
-    WherePredicate,
+    Abi, Attribute, Block, FnArg, Ident, ItemTrait, Lifetime, LifetimeDef, TraitItem,
+    TypeParamBound, WherePredicate,
 };
 
 use proc_macro2::Span;
@@ -53,9 +53,9 @@ pub(crate) struct TraitDefinition<'a> {
     /// if it doesn't have one this is empty.
     pub(crate) where_preds: Punctuated<WherePredicate, Comma>,
     /// Attributes applied to the vtable.
-    pub(crate) derive_attrs: &'a [Meta],
+    pub(crate) derive_attrs: &'a [Attribute],
     /// Attributes applied to the trait.
-    pub(crate) other_attrs: &'a [Meta],
+    pub(crate) other_attrs: &'a [Attribute],
     pub(crate) generics: &'a syn::Generics,
     /// The `Iterator::Item` type for this trait,
     /// None if it doesn't have Iterator as a supertrait.
@@ -400,9 +400,9 @@ pub(crate) struct TraitMethod<'a> {
     pub(crate) unsafety: Option<&'a Unsafe>,
     pub(crate) abi: Option<&'a Abi>,
     /// Attributes applied to the method in the vtable.
-    pub(crate) derive_attrs: &'a [Meta],
+    pub(crate) derive_attrs: &'a [Attribute],
     /// Attributes applied to the method in the trait definition.
-    pub(crate) other_attrs: &'a [Meta],
+    pub(crate) other_attrs: &'a [Attribute],
     /// The name of the method.
     pub(crate) name: &'a Ident,
     pub(crate) self_param: SelfParam<'a>,
@@ -621,9 +621,6 @@ impl<'a> GenericsTokenizer<'a> {
     pub fn skip_consts(&mut self) {
         self.gen_params_in.skip_consts();
     }
-    pub fn skip_unbounded(&mut self) {
-        self.gen_params_in.skip_unbounded();
-    }
 }
 
 impl<'a> ToTokens for GenericsTokenizer<'a> {
@@ -756,13 +753,13 @@ where
                             WhichObject::DynTrait if !usable_by.dyn_trait() => {
                                 errors.push_err(spanned_err!(
                                     trait_bound.path,
-                                    "Cannot use this trait with DynTrait",
+                                    "cannot use this trait with DynTrait",
                                 ));
                             }
                             WhichObject::RObject if !usable_by.robject() => {
                                 errors.push_err(spanned_err!(
                                     trait_bound.path,
-                                    "Cannot use this trait with RObject.
+                                    "cannot use this trait with RObject.
                                      To make that trait usable you must use the \
                                      #[sabi(use_dyntrait)] attribute,\
                                      which changes the trait object implementation \

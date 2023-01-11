@@ -8,7 +8,7 @@ use std::{
 use arrayvec::ArrayVec;
 
 use abi_stable::{
-    std_types::{cow::BorrowingRCowStr, RCow, RString, RVec},
+    std_types::{cow::BorrowingRCowStr, RCowStr, RString, RVec},
     StableAbi,
 };
 
@@ -21,9 +21,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[derive(Debug, Clone, PartialEq, Eq, StableAbi)]
 pub enum WhichPlugin {
     Id(PluginId),
-    First { named: RCow<'static, str> },
-    Last { named: RCow<'static, str> },
-    Every { named: RCow<'static, str> },
+    First { named: RCowStr<'static> },
+    Last { named: RCowStr<'static> },
+    Every { named: RCowStr<'static> },
     Many(RVec<WhichPlugin>),
 }
 
@@ -82,13 +82,13 @@ impl WhichPlugin {
         let splitted = s
             .splitn(2, ':')
             .map(|s| s.trim())
-            .collect::<ArrayVec<[&str; 2]>>();
+            .collect::<ArrayVec<&str, 2>>();
         let named = splitted
             .get(0)
             .filter(|s| !s.is_empty())
             .ok_or_else(|| WhichPluginError(full_str.into()))?
             .to_string()
-            .into_::<RCow<'static, str>>();
+            .into_::<RCowStr<'static>>();
         let selector = splitted.get(1).map_or("", |x| *x);
 
         match selector {

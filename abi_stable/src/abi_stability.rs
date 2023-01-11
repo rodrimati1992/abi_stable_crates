@@ -2,16 +2,16 @@
 
 #[doc(hidden)]
 pub mod abi_checking;
-pub mod const_generics;
+mod const_generics;
 pub mod extra_checks;
 pub mod get_static_equivalent;
 pub mod stable_abi_trait;
 
 pub use self::{
     abi_checking::exported_check_layout_compatibility as check_layout_compatibility,
-    const_generics::{ConstGeneric, ConstGenericVTableFor},
+    const_generics::ConstGeneric,
     get_static_equivalent::{GetStaticEquivalent, GetStaticEquivalent_},
-    stable_abi_trait::{AbiConsts, GetTypeLayoutCtor, PrefixStableAbi, StableAbi, TypeLayoutCtor},
+    stable_abi_trait::{AbiConsts, PrefixStableAbi, StableAbi},
 };
 
 #[doc(no_inline)]

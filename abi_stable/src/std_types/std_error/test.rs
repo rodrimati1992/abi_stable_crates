@@ -32,7 +32,7 @@ fn identity_conversion() {
         assert_eq!(addr, e1.heap_address());
     }
     {
-        let e0 = Box::new(err.clone());
+        let e0 = Box::new(err);
 
         let addr = e0.piped_ref(deref_address);
 

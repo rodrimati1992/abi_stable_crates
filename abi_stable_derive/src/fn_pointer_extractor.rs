@@ -413,7 +413,7 @@ impl<'a, 'b> FnVisitor<'a, 'b> {
         let mut ret: Option<&'a Ident> = None;
         if lt == Some(&ctokens.static_) {
             LifetimeIndex::STATIC
-        } else if lt == None || lt == Some(&ctokens.underscore) {
+        } else if lt.is_none() || lt == Some(&ctokens.underscore) {
             match self.param_ret.param_or_ret {
                 ParamOrReturn::Param => self.new_bound_lifetime(span),
                 ParamOrReturn::Return => match self.current.bound_lts_count {
@@ -561,7 +561,7 @@ impl<'a> Function<'a> {
                 } else {
                     if current_lt == LifetimeIndex::MAX_LIFETIME_PARAM + 1 {
                         errors.push_err(syn_err!(
-                            self.bound_lt_spans[i].unwrap_or_else(|| *self.func_span),
+                            self.bound_lt_spans[i].unwrap_or(*self.func_span),
                             "Cannot have more than {} non-static lifetimes \
                              (except for lifetimes only used once inside \
                              function pointer types)",

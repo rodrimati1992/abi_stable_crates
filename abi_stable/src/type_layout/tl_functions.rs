@@ -1,13 +1,19 @@
 use super::*;
 
 use crate::{
-    abi_stability::stable_abi_trait::GetTypeLayoutCtor, std_types::RVec, traits::IntoReprC,
+    abi_stability::stable_abi_trait::get_type_layout, sabi_types::Constructor, std_types::RVec,
+    traits::IntoReprC,
 };
 
 use std::{
     cmp::{Eq, PartialEq},
     ops::Range,
 };
+
+///////////////////////////////////////////////////////////////////////////////
+
+#[cfg(test)]
+mod tests;
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -70,12 +76,12 @@ impl TLFunctions {
 
     /// Gets the amount of `TLFunction` in this `TLFunctions`.
     #[inline]
-    pub fn len(&'static self) -> usize {
+    pub const fn len(&'static self) -> usize {
         self.functions_len as usize
     }
 
     /// Whether this is empty.
-    pub fn is_empty(&'static self) -> bool {
+    pub const fn is_empty(&'static self) -> bool {
         self.functions_len == 0
     }
 }
@@ -149,12 +155,12 @@ impl TLFunctionSlice {
 
     /// Gets the length of this slice.
     #[inline]
-    pub fn len(self) -> usize {
+    pub const fn len(self) -> usize {
         self.fn_range.len_usize()
     }
     /// Gets whether this slice is empty.
     #[inline]
-    pub fn is_empty(self) -> bool {
+    pub const fn is_empty(self) -> bool {
         self.fn_range.len() == 0
     }
 }
@@ -185,10 +191,39 @@ impl PartialEq for TLFunctionSlice {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+/// Stores all the supported function qualifiers.
+///
+/// Currently only these are supported:
+/// - `unsafe`
+///
+/// More may be added in an ABI compatible version
+#[repr(transparent)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, StableAbi)]
+pub struct TLFunctionQualifiers(u16);
+
+impl TLFunctionQualifiers {
+    /// Constructs a `TLFunctionQualifiers` with no qualifiers enabled.
+    pub const NEW: Self = Self(0);
+
+    const UNSAFE_BIT: u16 = 1;
+
+    /// Whether the function is `unsafe`
+    pub const fn is_unsafe(&self) -> bool {
+        (self.0 & Self::UNSAFE_BIT) != 0
+    }
+    /// Marks the function as `unsafe`
+    pub const fn set_unsafe(mut self) -> Self {
+        self.0 |= Self::UNSAFE_BIT;
+        self
+    }
+}
+
+///////////////////////////////////////////////////////////////////////////////
+
 /// A compressed version of `TLFunction`,
 /// which can be expanded into a `TLFunction` by calling the `expand` method.
 #[repr(C)]
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Ord, PartialOrd, StableAbi)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, StableAbi)]
 #[sabi(unsafe_sabi_opaque_fields)]
 pub struct CompTLFunction {
     name: StartLen,
@@ -199,10 +234,12 @@ pub struct CompTLFunction {
     return_type_layout: u16,
     paramret_lifetime_range: LifetimeRange,
     param_type_layouts: TypeLayoutRange,
+    fn_qualifs: TLFunctionQualifiers,
 }
 
 impl CompTLFunction {
     /// Constructs a CompTLFunction.
+    #[allow(clippy::too_many_arguments)]
     pub const fn new(
         name: StartLenRepr,
         contiguous_strings_offset: u16,
@@ -211,6 +248,7 @@ impl CompTLFunction {
         return_type_layout: u16,
         paramret_lifetime_range: u32,
         param_type_layouts: u64,
+        fn_qualifs: TLFunctionQualifiers,
     ) -> Self {
         Self {
             name: StartLen::from_u32(name),
@@ -220,6 +258,7 @@ impl CompTLFunction {
             return_type_layout,
             paramret_lifetime_range: LifetimeRange::from_u21(paramret_lifetime_range),
             param_type_layouts: TypeLayoutRange::from_u64(param_type_layouts),
+            fn_qualifs,
         }
     }
 
@@ -242,7 +281,10 @@ impl CompTLFunction {
             param_names: strings.slice(param_names),
             param_type_layouts: self.param_type_layouts.expand(type_layouts),
             paramret_lifetime_indices: self.paramret_lifetime_range.slicing(lifetime_indices),
-            return_type_layout: type_layouts.get(self.return_type_layout as usize).cloned(),
+            return_type_layout: type_layouts
+                .get(self.return_type_layout as usize)
+                .map(|fnp| Constructor(*fnp)),
+            fn_qualifs: self.fn_qualifs,
         }
     }
 }
@@ -272,7 +314,10 @@ pub struct TLFunction {
     pub paramret_lifetime_indices: LifetimeArrayOrSlice<'static>,
 
     /// The return type of the function.
-    pub return_type_layout: Option<TypeLayoutCtor>,
+    return_type_layout: Option<Constructor<&'static TypeLayout>>,
+
+    /// The function qualifiers
+    pub fn_qualifs: TLFunctionQualifiers,
 }
 
 impl PartialEq for TLFunction {
@@ -283,6 +328,7 @@ impl PartialEq for TLFunction {
             && self.get_params_ret_iter().eq(other.get_params_ret_iter())
             && self.paramret_lifetime_indices == other.paramret_lifetime_indices
             && self.return_type_layout.map(|x| x.get()) == other.return_type_layout.map(|x| x.get())
+            && self.fn_qualifs == other.fn_qualifs
     }
 }
 
@@ -304,12 +350,24 @@ impl TLFunction {
     }
 
     pub(crate) fn get_return(&self) -> TLField {
-        const UNIT_GET_ABI_INFO: TypeLayoutCtor = GetTypeLayoutCtor::<()>::STABLE_ABI;
+        const UNIT_GET_ABI_INFO: extern "C" fn() -> &'static TypeLayout = get_type_layout::<()>;
+
         TLField::new(
             rstr!("__returns"),
-            self.return_type_layout.unwrap_or(UNIT_GET_ABI_INFO),
-            *self.shared_vars,
+            match self.return_type_layout {
+                Some(Constructor(x)) => x,
+                None => UNIT_GET_ABI_INFO,
+            },
+            &self.shared_vars,
         )
+    }
+
+    /// Gets the type layout of the return type
+    pub const fn return_type_layout(&self) -> Option<extern "C" fn() -> &'static TypeLayout> {
+        match self.return_type_layout {
+            Some(x) => Some(x.0),
+            None => None,
+        }
     }
 
     /// Gets the parameters and return types
@@ -324,11 +382,18 @@ impl TLFunction {
     pub(crate) fn get_params_ret_vec(&self) -> RVec<TLField> {
         self.get_params_ret_iter().collect()
     }
+
+    pub(crate) const fn qualifiers(&self) -> TLFunctionQualifiers {
+        self.fn_qualifs
+    }
 }
 
 impl Display for TLFunction {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "fn(")?;
+        if self.fn_qualifs.is_unsafe() {
+            f.write_str("unsafe ")?;
+        }
+        f.write_str("fn(")?;
         let params = self.get_params();
         let param_count = params.len();
         for (param_i, param) in params.enumerate() {
@@ -363,6 +428,7 @@ pub struct TLFunctionIter {
     shared_vars: &'static SharedVars,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl TLFunctionIter {
     fn new(
         start_len: StartLen,

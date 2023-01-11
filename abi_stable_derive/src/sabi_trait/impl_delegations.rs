@@ -296,6 +296,7 @@ pub(super) fn delegated_impls(
         let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.eq=>
+            #[allow(clippy::extra_unused_lifetimes)]
             impl<#gen_params_header> std::cmp::Eq
             for #trait_to<#gen_params_use_to_static>
             where
@@ -309,6 +310,7 @@ pub(super) fn delegated_impls(
         let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.partial_eq=>
+            #[allow(clippy::extra_unused_lifetimes)]
             impl<#gen_params_header_and2> std::cmp::PartialEq<#trait_to<#gen_params_use_2>>
             for #trait_to<#gen_params_use_to_static>
             where
@@ -330,6 +332,7 @@ pub(super) fn delegated_impls(
         let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.ord=>
+            #[allow(clippy::extra_unused_lifetimes)]
             impl<#gen_params_header> std::cmp::Ord
             for #trait_to<#gen_params_use_to_static>
             where
@@ -350,6 +353,7 @@ pub(super) fn delegated_impls(
         let where_preds = where_preds.into_iter();
 
         quote_spanned!(spans.partial_ord=>
+            #[allow(clippy::extra_unused_lifetimes)]
             impl<#gen_params_header_and2> std::cmp::PartialOrd<#trait_to<#gen_params_use_2>>
             for #trait_to<#gen_params_use_to_static>
             where

@@ -1,23 +1,19 @@
 use super::{TraitDefinition, *};
 
-use std::{iter, mem};
+use as_derive_utils::parse_utils::ParseBufferExt;
 
-use syn::{Attribute, ItemTrait, Meta, MetaList, NestedMeta, TraitItem, TraitItemMethod};
+use syn::{parse::ParseBuffer, Attribute, ItemTrait, TraitItem, TraitItemMethod};
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
 
-use crate::{
-    arenas::Arenas,
-    attribute_parsing::with_nested_meta,
-    parse_utils::parse_str_as_path,
-    utils::{LinearResult, SynPathExt, SynResultExt},
-};
+use crate::{arenas::Arenas, attribute_parsing::contains_doc_hidden, utils::LinearResult};
 
 /// Configuration parsed from the helper attributes of `#[sabi_trait]`
 pub(crate) struct SabiTraitOptions<'a> {
     /// Whether the output of the proc-macro is printed with println.
     pub(crate) debug_print_trait: bool,
+    pub(crate) debug_output_tokens: bool,
     pub(crate) doc_hidden_attr: Option<&'a TokenStream2>,
     pub(crate) trait_definition: TraitDefinition<'a>,
 }
@@ -37,10 +33,20 @@ impl<'a> SabiTraitOptions<'a> {
 
         Ok(Self {
             debug_print_trait: this.debug_print_trait,
+            debug_output_tokens: this.debug_output_tokens,
             doc_hidden_attr,
             trait_definition: TraitDefinition::new(trait_, this, arenas, ctokens)?,
         })
     }
+}
+
+mod kw {
+    syn::custom_keyword! {no_default_fallback}
+    syn::custom_keyword! {debug_print_trait}
+    syn::custom_keyword! {debug_output_tokens}
+    syn::custom_keyword! {use_dyntrait}
+    syn::custom_keyword! {use_dyn_trait}
+    syn::custom_keyword! {no_trait_impl}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -49,9 +55,9 @@ impl<'a> SabiTraitOptions<'a> {
 #[derive(Debug, Clone, Default)]
 pub(crate) struct OwnedDeriveAndOtherAttrs {
     /// The attributes used in the vtable.
-    pub(crate) derive_attrs: Vec<Meta>,
+    pub(crate) derive_attrs: Vec<Attribute>,
     /// The attributes used in the trait.
-    pub(crate) other_attrs: Vec<Meta>,
+    pub(crate) other_attrs: Vec<Attribute>,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -98,6 +104,7 @@ pub(super) struct SabiTraitAttrs<'a> {
     pub(super) disable_inherent_default: Vec<bool>,
 
     pub(super) is_hidden: bool,
+    pub(super) debug_output_tokens: bool,
 
     pub(super) errors: LinearResult<()>,
 }
@@ -141,16 +148,6 @@ pub(crate) fn parse_attrs_for_sabi_trait<'a>(
             ParseContext::Method { index },
             arenas,
         )?;
-
-        let last_fn = this.methods_with_attrs.last_mut().expect("BUG");
-
-        if !last_fn.attrs.derive_attrs.is_empty() {
-            wrap_attrs_in_sabi_list(&mut last_fn.attrs.derive_attrs)
-        }
-    }
-
-    if !this.attrs.derive_attrs.is_empty() {
-        wrap_attrs_in_sabi_list(&mut this.attrs.derive_attrs)
     }
 
     this.errors.take()?;
@@ -169,58 +166,25 @@ where
     I: IntoIterator<Item = &'a Attribute>,
 {
     for attr in attrs {
-        match attr.parse_meta() {
-            Ok(Meta::List(list)) => {
-                parse_attr_list(this, pctx, list, arenas)?;
-            }
-            Ok(other_attr) => match pctx {
-                ParseContext::TraitAttr => {
-                    this.attrs.other_attrs.push(other_attr);
-                }
-                ParseContext::Method { .. } => {
-                    this.methods_with_attrs
-                        .last_mut()
-                        .unwrap()
-                        .attrs
-                        .other_attrs
-                        .push(other_attr);
-                }
-            },
-            Err(e) => {
-                this.errors.push_err(e);
-            }
+        if attr.path.is_ident("sabi") {
+            attr.parse_args_with(|input: &ParseBuffer<'_>| {
+                parse_sabi_trait_attr(this, pctx, input, attr, arenas)
+            })?;
+        } else if attr.path.is_ident("doc")
+            && matches!(pctx, ParseContext::TraitAttr)
+            && syn::parse::Parser::parse2(contains_doc_hidden, attr.tokens.clone())?
+        {
+            this.is_hidden = true;
+        } else if let ParseContext::TraitAttr = pctx {
+            this.attrs.other_attrs.push(attr.clone());
+        } else if let ParseContext::Method { .. } = pctx {
+            this.methods_with_attrs
+                .last_mut()
+                .unwrap()
+                .attrs
+                .other_attrs
+                .push(attr.clone());
         }
-    }
-    Ok(())
-}
-
-/// Parses the list attributes on an item.
-fn parse_attr_list<'a>(
-    this: &mut SabiTraitAttrs<'a>,
-    pctx: ParseContext,
-    list: MetaList,
-    arenas: &'a Arenas,
-) -> Result<(), syn::Error> {
-    if list.path.equals_str("sabi") {
-        with_nested_meta("sabi", list.nested, |attr| {
-            parse_sabi_trait_attr(this, pctx, attr, arenas)
-        })?;
-    } else if let ParseContext::Method { .. } = pctx {
-        this.methods_with_attrs
-            .last_mut()
-            .unwrap()
-            .attrs
-            .other_attrs
-            .push(Meta::List(list));
-    } else if list.path.equals_str("doc") {
-        with_nested_meta("doc", list.nested, |attr| {
-            if let Meta::Path(ref path) = attr {
-                if path.equals_str("hidden") {
-                    this.is_hidden = true;
-                }
-            }
-            Ok(())
-        })?;
     }
     Ok(())
 }
@@ -229,10 +193,17 @@ fn parse_attr_list<'a>(
 fn parse_sabi_trait_attr<'a>(
     this: &mut SabiTraitAttrs<'a>,
     pctx: ParseContext,
-    attr: Meta,
+    input: &ParseBuffer<'_>,
+    attr: &Attribute,
     _arenas: &'a Arenas,
 ) -> Result<(), syn::Error> {
-    fn push_attr(this: &mut SabiTraitAttrs<'_>, pctx: ParseContext, attr: Meta) {
+    fn push_attr(
+        this: &mut SabiTraitAttrs<'_>,
+        pctx: ParseContext,
+        input: &ParseBuffer<'_>,
+        attr: Attribute,
+    ) {
+        input.ignore_rest();
         match pctx {
             ParseContext::Method { .. } => {
                 this.methods_with_attrs
@@ -248,60 +219,31 @@ fn parse_sabi_trait_attr<'a>(
         }
     }
 
-    match (pctx, attr) {
-        (_, Meta::Path(path)) => {
-            let ident = match path.into_ident() {
-                Ok(x) => x,
-                Err(path) => {
-                    push_attr(this, pctx, Meta::Path(path));
-                    return Ok(());
+    if input.check_parse(kw::no_default_fallback)? {
+        match pctx {
+            ParseContext::TraitAttr => {
+                for is_disabled in &mut this.disable_inherent_default {
+                    *is_disabled = true;
                 }
-            };
-
-            if ident == "no_default_fallback" {
-                match pctx {
-                    ParseContext::TraitAttr => {
-                        for is_disabled in &mut this.disable_inherent_default {
-                            *is_disabled = true;
-                        }
-                    }
-                    ParseContext::Method { index } => {
-                        this.disable_inherent_default[index] = true;
-                    }
-                }
-            } else if ident == "debug_print_trait" {
-                this.debug_print_trait = true;
-            } else if let ParseContext::TraitAttr = pctx {
-                if ident == "use_dyntrait" || ident == "use_dyn_trait" {
-                    this.which_object = WhichObject::DynTrait;
-                } else if ident == "no_trait_impl" {
-                    this.disable_trait_impl = true;
-                } else {
-                    push_attr(this, pctx, Meta::Path(ident.into()));
-                }
-            } else {
-                push_attr(this, pctx, Meta::Path(ident.into()))
+            }
+            ParseContext::Method { index } => {
+                this.disable_inherent_default[index] = true;
             }
         }
-        (pctx, attr) => {
-            push_attr(this, pctx, attr);
+    } else if input.check_parse(kw::debug_print_trait)? {
+        this.debug_print_trait = true;
+    } else if input.check_parse(kw::debug_output_tokens)? {
+        this.debug_output_tokens = true;
+    } else if let ParseContext::TraitAttr = pctx {
+        if input.check_parse(kw::use_dyntrait)? || input.check_parse(kw::use_dyn_trait)? {
+            this.which_object = WhichObject::DynTrait;
+        } else if input.check_parse(kw::no_trait_impl)? {
+            this.disable_trait_impl = true;
+        } else {
+            push_attr(this, pctx, input, attr.clone());
         }
+    } else {
+        push_attr(this, pctx, input, attr.clone())
     }
     Ok(())
-}
-
-/// Wraps a list of Meta with `#[sabi(  )]`
-fn wrap_attrs_in_sabi_list<A>(attrs: &mut A)
-where
-    A: Default + Extend<Meta> + IntoIterator<Item = Meta>,
-{
-    let older_attrs = mem::take(attrs);
-
-    let list = Meta::List(MetaList {
-        path: parse_str_as_path("sabi").expect("BUG"),
-        paren_token: Default::default(),
-        nested: older_attrs.into_iter().map(NestedMeta::Meta).collect(),
-    });
-
-    attrs.extend(iter::once(list));
 }

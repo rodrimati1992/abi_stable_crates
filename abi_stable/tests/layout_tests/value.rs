@@ -2,9 +2,6 @@
 
 use std::{marker::PhantomData, mem, num, ptr, sync::atomic};
 
-#[allow(unused_imports)]
-use core_extensions::matches;
-
 use abi_stable::{
     abi_stability::abi_checking::{check_layout_compatibility, AbiInstability},
     external_types::{
@@ -105,7 +102,7 @@ pub(super) mod changed_field_name {
     pub struct Rectangle {
         x: u32,
         y: u32,
-        #[sabi(rename = "w2")]
+        #[sabi(rename = w2)]
         w: u16,
         h: u32,
     }
@@ -318,8 +315,11 @@ fn same_different_abi_stability() {
         <Option<extern "C" fn()>>::LAYOUT,
         <ROption<()>>::LAYOUT,
         <ROption<u32>>::LAYOUT,
-        <RCow<'_, str>>::LAYOUT,
-        <RCow<'_, [u32]>>::LAYOUT,
+        <RCowVal<'_, u8>>::LAYOUT,
+        <RCowVal<'_, u16>>::LAYOUT,
+        <RCowStr<'_>>::LAYOUT,
+        <RCowSlice<'_, u32>>::LAYOUT,
+        <RCowSlice<'_, u64>>::LAYOUT,
         <RArc<()>>::LAYOUT,
         <RArc<u32>>::LAYOUT,
         <RBox<()>>::LAYOUT,
@@ -369,6 +369,8 @@ fn same_different_abi_stability() {
         <gen_more_lts_b::Generics<'_>>::LAYOUT,
         <gen_more_lts_c::Generics<'_>>::LAYOUT,
         <gen_more_lts_d::Generics<'_>>::LAYOUT,
+        <fn_safe::Fn>::LAYOUT,
+        <fn_unsafe::Fn>::LAYOUT,
     ];
 
     #[cfg(not(feature = "no_fn_promotion"))]
@@ -383,7 +385,7 @@ fn same_different_abi_stability() {
             <Tagged<tagging_items::TAG_DEFAULT_6>>::LAYOUT,
         ]);
     }
-    #[cfg(feature = "const_params")]
+
     {
         list.extend(vec![
             <[u8; 0]>::LAYOUT,
@@ -406,7 +408,7 @@ fn same_different_abi_stability() {
             }
         }
 
-        for this in vec![
+        for this in [
             <UnsafeIgnoredType<()>>::LAYOUT,
             <UnsafeIgnoredType<RString>>::LAYOUT,
         ] {
@@ -475,7 +477,7 @@ fn compare_references() {
             }
         }
 
-        for this in vec![
+        for this in [
             <UnsafeIgnoredType<()>>::LAYOUT,
             <UnsafeIgnoredType<RString>>::LAYOUT,
         ] {
@@ -486,7 +488,7 @@ fn compare_references() {
 
 #[cfg(test)]
 fn different_zeroness() {
-    const ZEROABLE_ABI: &'static TypeLayout = &{ <&()>::LAYOUT._set_is_nonzero(false) };
+    const ZEROABLE_ABI: &TypeLayout = &{ <&()>::LAYOUT._set_is_nonzero(false) };
 
     let non_zero = <&()>::LAYOUT;
 
@@ -541,7 +543,7 @@ fn swapped_fields() {
     let first = swapped_fields_first::Rectangle::LAYOUT;
     let last = swapped_fields_first::Rectangle::LAYOUT;
 
-    for other in vec![first, last] {
+    for other in [first, last] {
         let errs = check_layout_compatibility(regular, other)
             .unwrap_err()
             .flatten_errors();
@@ -554,7 +556,7 @@ fn swapped_fields() {
 #[test]
 fn removed_fields() {
     let regular = regular::Rectangle::LAYOUT;
-    let list = vec![
+    let list = [
         removed_field_first::Rectangle::LAYOUT,
         removed_field_last::Rectangle::LAYOUT,
         removed_all_fields::Rectangle::LAYOUT,
@@ -590,15 +592,10 @@ fn different_alignment() {
         .unwrap_err()
         .flatten_errors();
 
-    let mut found_alignment_mismatch = false;
-    for err in errs {
-        match err {
-            AbiInstability::Alignment { .. } => {
-                found_alignment_mismatch = true;
-            }
-            _ => {}
-        }
-    }
+    let found_alignment_mismatch = errs
+        .iter()
+        .any(|err| matches!(err, AbiInstability::Alignment { .. }));
+
     assert!(found_alignment_mismatch);
 }
 
@@ -678,6 +675,21 @@ fn different_generics() {
                 .any(|err| matches!(err, AbiInstability::FieldLifetimeMismatch { .. })));
         }
     }
+}
+
+//////////////////////////////////////////////////////////
+////    Function pointers
+//////////////////////////////////////////////////////////
+
+pub(super) mod fn_safe {
+    #[repr(C)]
+    #[derive(abi_stable::StableAbi)]
+    pub struct Fn(extern "C" fn(u8));
+}
+pub(super) mod fn_unsafe {
+    #[repr(C)]
+    #[derive(abi_stable::StableAbi)]
+    pub struct Fn(unsafe extern "C" fn(u8));
 }
 
 //////////////////////////////////////////////////////////
@@ -817,14 +829,13 @@ pub(super) mod mod_6b {
 #[cfg(not(feature = "no_fn_promotion"))]
 mod tagging_items {
     use super::*;
-    use core_extensions::matches;
 
     #[repr(C)]
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         not_stableabi(M),
-        bound = "M:ToTagConst",
-        tag = "<M as ToTagConst>::TAG"
+        bound(M: ToTagConst),
+        tag = <M as ToTagConst>::TAG,
     )]
     pub struct Tagged<M>(UnsafeIgnoredType<M>);
 

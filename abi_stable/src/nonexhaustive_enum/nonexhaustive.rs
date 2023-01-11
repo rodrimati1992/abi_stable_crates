@@ -11,12 +11,12 @@ use std::{
 
 use crate::{
     abi_stability::StableAbi,
-    erased_types::{c_functions, trait_objects::HasherObject, InterfaceBound},
+    erased_types::{c_functions, trait_objects::HasherObject, InterfaceType, MakeRequiredTraits},
     inline_storage::ScratchSpace,
     marker_type::ErasedObject,
     nonexhaustive_enum::{
-        vtable::NonExhaustiveVtable_Ref, DeserializeEnum, EnumInfo, GetEnumInfo, GetNonExhaustive,
-        GetVTable, SerializeEnum, ValidDiscriminant,
+        assert_correct_storage, vtable::NonExhaustiveVtable_Ref, AssertCsArgs, DeserializeEnum,
+        EnumInfo, GetEnumInfo, GetVTable, NonExhaustiveMarker, SerializeEnum, ValidDiscriminant,
     },
     pointer_trait::{CanTransmuteElement, TransmuteElement},
     sabi_types::{RMut, RRef},
@@ -24,8 +24,6 @@ use crate::{
     traits::IntoReprRust,
     type_level::{impl_enum::Implemented, trait_marker},
 };
-
-use core_extensions::utils::transmute_ignore_size;
 
 use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 
@@ -58,11 +56,13 @@ mod tests;
 ///
 /// ###  `I`
 ///
-/// The interface of the enum(it implements `InterfaceType`),
+/// The interface of the enum(it implements [`InterfaceType`](crate::InterfaceType)),
 /// determining which traits are required when constructing `NonExhaustive<>`
 /// and which are available afterwards.
 ///
-/// ### Example
+/// # Examples
+///
+/// ### Error type
 ///
 /// Say that we define an error type for a library.
 ///
@@ -79,12 +79,11 @@ mod tests;
 /// #[repr(u8)]
 /// #[derive(StableAbi, Debug, Clone, PartialEq)]
 /// #[sabi(kind(WithNonExhaustive(
-///     size = "[usize;8]",
+///     size = [usize;8],
 ///     traits(Debug, Clone, PartialEq),
 /// )))]
+/// #[non_exhaustive]
 /// pub enum Error {
-///     #[doc(hidden)]
-///     __NonExhaustive,
 ///     CouldNotFindItem {
 ///         name: RString,
 ///     },
@@ -119,12 +118,11 @@ mod tests;
 /// #[repr(u8)]
 /// #[derive(StableAbi, Debug, Clone, PartialEq)]
 /// #[sabi(kind(WithNonExhaustive(
-///     size = "[usize;8]",
+///     size = [usize;8],
 ///     traits(Debug, Clone, PartialEq),
 /// )))]
+/// #[non_exhaustive]
 /// pub enum Error {
-///     #[doc(hidden)]
-///     __NonExhaustive,
 ///     CouldNotFindItem {
 ///         name: RString,
 ///     },
@@ -147,27 +145,65 @@ mod tests;
 /// (using NonExhaustive::as_enum/as_enum_mut/into_enum)
 /// with the 1.0 version of `Error` they would get an `Err(..)` back.
 ///
+///
+/// ### Static enums
+///
+/// This example demonstrates putting a nonexhaustive enum in a static.
+///
+/// ```rust
+/// use abi_stable::{
+///     nonexhaustive_enum::{NonExhaustive, NonExhaustiveFor},
+///     std_types::RString,
+///     rstr, StableAbi,
+/// };
+///
+/// static AA: NonExhaustiveFor<Foo> = NonExhaustive::new(Foo::A);
+///
+/// static BB: NonExhaustiveFor<Foo> = NonExhaustive::new(Foo::B(2));
+///
+/// let cc = NonExhaustive::new(Foo::C {name: "hello".into()});
+///
+/// assert_eq!(AA, Foo::A);
+/// assert_eq!(BB, Foo::B(2));
+/// assert_eq!(cc, Foo::C {name: RString::from("hello")});
+///
+///
+/// #[repr(u8)]
+/// #[derive(StableAbi, Debug, PartialEq, Eq)]
+/// #[sabi(kind(WithNonExhaustive(
+///     size = 64,
+///     traits(Debug, PartialEq, Eq)
+/// )))]
+/// pub enum Foo {
+///     A,
+///     B(i8),
+///     C { name: RString },
+/// }
+///
+/// ```
+///
+///
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
     //debug_print,
     not_stableabi(E,S,I),
-    bound="NonExhaustiveVtable_Ref<E,S,I>:StableAbi",
-    bound="E: GetNonExhaustive<S>",
-    bound="I: InterfaceBound",
-    extra_checks="<I as InterfaceBound>::EXTRA_CHECKS",
-    phantom_type_param="<E as GetNonExhaustive<S>>::NonExhaustive",
+    bound(NonExhaustiveVtable_Ref<E,S,I>:StableAbi),
+    bound(E: NonExhaustiveMarker<S>),
+    bound(I: InterfaceType),
+    extra_checks = <I as MakeRequiredTraits>::MAKE,
+    phantom_type_param = <E as NonExhaustiveMarker<S>>::Marker,
 )]
 pub struct NonExhaustive<E, S, I> {
     // This is an opaque field since we only care about its size and alignment
     #[sabi(unsafe_opaque_field)]
-    fill: ScratchSpace<S>,
+    fill: ScratchSpace<E, S>,
     vtable: NonExhaustiveVtable_Ref<E, S, I>,
     _marker: PhantomData<()>,
 }
 
-/// The type of a `NonExhaustive<>` wrapping the enum E,
-/// using the `E`'s  default storage and interface.
+/// The type of a `NonExhaustive` wrapping the enum `E`,
+/// using `E`'s  default storage and interface.
 pub type NonExhaustiveFor<E> =
     NonExhaustive<E, <E as GetEnumInfo>::DefaultStorage, <E as GetEnumInfo>::DefaultInterface>;
 
@@ -186,9 +222,9 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
-    pub fn new(value: E) -> Self
+    pub const fn new(value: E) -> Self
     where
-        E: GetVTable<S, I, DefaultStorage = S, DefaultInterface = I>,
+        E: GetVTable<S, I> + GetEnumInfo<DefaultStorage = S, DefaultInterface = I>,
     {
         NonExhaustive::with_storage_and_interface(value)
     }
@@ -200,9 +236,9 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
-    pub fn with_interface(value: E) -> Self
+    pub const fn with_interface(value: E) -> Self
     where
-        E: GetVTable<S, I, DefaultStorage = S>,
+        E: GetVTable<S, I> + GetEnumInfo<DefaultStorage = S>,
     {
         NonExhaustive::with_storage_and_interface(value)
     }
@@ -214,9 +250,9 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `E`.
     #[inline]
-    pub fn with_storage(value: E) -> Self
+    pub const fn with_storage(value: E) -> Self
     where
-        E: GetVTable<S, I, DefaultInterface = I>,
+        E: GetVTable<S, I> + GetEnumInfo<DefaultInterface = I>,
     {
         NonExhaustive::with_storage_and_interface(value)
     }
@@ -226,62 +262,26 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// # Panic
     ///
     /// This panics if the storage has an alignment or size smaller than that of `E`.
-    pub fn with_storage_and_interface(value: E) -> Self
+    #[inline]
+    pub const fn with_storage_and_interface(value: E) -> Self
     where
         E: GetVTable<S, I>,
     {
-        unsafe { NonExhaustive::with_vtable(value, E::VTABLE_REF) }
+        unsafe { NonExhaustive::with_vtable(value, E::VTABLE) }
     }
-    pub(super) unsafe fn with_vtable(value: E, vtable: NonExhaustiveVtable_Ref<E, S, I>) -> Self {
-        Self::assert_fits_within_storage();
 
-        let mut this = Self {
-            fill: {
-                // The fact that the vtable was constructed ensures that
-                // `Inline` implements `InlineStorage`
-                ScratchSpace::uninit_unbounded()
-            },
+    #[track_caller]
+    pub(super) const unsafe fn with_vtable(
+        value: E,
+        vtable: NonExhaustiveVtable_Ref<E, S, I>,
+    ) -> Self {
+        // `ScratchSpace::new` is what asserts that the enum is
+        // the correct size and alignment
+        Self {
+            fill: ScratchSpace::<E, S>::new(value),
             vtable,
             _marker: PhantomData,
-        };
-
-        (&mut this.fill as *mut ScratchSpace<S> as *mut E).write(value);
-
-        this
-    }
-
-    /// Checks that the alignment of `E` is correct,returning `true` if it is.
-    pub fn check_alignment() -> bool {
-        let align_enum = std::mem::align_of::<E>();
-        let align_storage = std::mem::align_of::<S>();
-        align_enum <= align_storage
-    }
-
-    /// Checks that the size of `E` is correct,returning `true` if it is.
-    pub fn check_size() -> bool {
-        let size_enum = std::mem::size_of::<E>();
-        let size_storage = std::mem::size_of::<S>();
-        size_enum <= size_storage
-    }
-
-    /// Asserts that `E` fits within `S`,with the correct alignment and size.
-    pub fn assert_fits_within_storage() {
-        let align_enum = std::mem::align_of::<E>();
-        let align_storage = std::mem::align_of::<S>();
-        assert!(
-            Self::check_alignment(),
-            "The alignment of the storage is lower than the enum:\n\t{} < {}",
-            align_storage,
-            align_enum,
-        );
-        let size_enum = std::mem::size_of::<E>();
-        let size_storage = std::mem::size_of::<S>();
-        assert!(
-            Self::check_size(),
-            "The size of the storage is smaller than the enum:\n\t{} < {}",
-            size_storage,
-            size_enum,
-        );
+        }
     }
 }
 
@@ -317,7 +317,7 @@ where
     pub fn as_enum(&self) -> Result<&E, UnwrapEnumError<&Self>> {
         let discriminant = self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
-            unsafe { Ok(&*(&self.fill as *const ScratchSpace<S> as *const E)) }
+            unsafe { Ok(&*(&self.fill as *const ScratchSpace<E, S> as *const E)) }
         } else {
             Err(UnwrapEnumError::new(self))
         }
@@ -357,8 +357,8 @@ where
             // because if the enum is replaced with a variant with a discriminant
             // outside the valid range for the functions in the vtable,
             // it would be undefined behavior to call those functions.
-            self.vtable = E::VTABLE_REF;
-            unsafe { Ok(&mut *(&mut self.fill as *mut ScratchSpace<S> as *mut E)) }
+            self.vtable = E::VTABLE;
+            unsafe { Ok(&mut *(&mut self.fill as *mut ScratchSpace<E, S> as *mut E)) }
         } else {
             Err(UnwrapEnumError::new(self))
         }
@@ -391,7 +391,7 @@ where
         let discriminant = self.get_discriminant();
         if E::is_valid_discriminant(discriminant) {
             let this = ManuallyDrop::new(self);
-            unsafe { Ok((&this.fill as *const ScratchSpace<S> as *const E).read()) }
+            unsafe { Ok((&this.fill as *const ScratchSpace<E, S> as *const E).read()) }
         } else {
             Err(UnwrapEnumError::new(self))
         }
@@ -408,8 +408,8 @@ where
 
     /// Gets the value of the discriminant of the enum.
     #[inline]
-    pub fn get_discriminant(&self) -> E::Discriminant {
-        unsafe { *(&self.fill as *const ScratchSpace<S> as *const E::Discriminant) }
+    pub const fn get_discriminant(&self) -> E::Discriminant {
+        unsafe { *(&self.fill as *const ScratchSpace<E, S> as *const E::Discriminant) }
     }
 }
 
@@ -426,9 +426,9 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// This panics if the storage has an alignment or size smaller than that of `F`.
     ///
     ///
-    pub unsafe fn transmute_enum<F>(self) -> NonExhaustive<F, S, I> {
-        NonExhaustive::<F, S, I>::assert_fits_within_storage();
-        transmute_ignore_size(self)
+    pub const unsafe fn transmute_enum<F>(self) -> NonExhaustive<F, S, I> {
+        assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
+        unsafe { const_transmute!(NonExhaustive<E, S, I>, NonExhaustive<F, S, I>, self) }
     }
 
     /// Transmute this `&NonExhaustive<E,S,I>` into `&NonExhaustive<F,S,I>`,
@@ -441,9 +441,9 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// # Panics
     ///
     /// This panics if the storage has an alignment or size smaller than that of `F`.
-    pub unsafe fn transmute_enum_ref<F>(&self) -> &NonExhaustive<F, S, I> {
-        NonExhaustive::<F, S, I>::assert_fits_within_storage();
-        &*(self as *const Self as *const _)
+    pub const unsafe fn transmute_enum_ref<F>(&self) -> &NonExhaustive<F, S, I> {
+        assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
+        unsafe { &*(self as *const Self as *const _) }
     }
 
     /// Transmute this `&mut NonExhaustive<E,S,I>` into `&mut NonExhaustive<F,S,I>`,
@@ -457,8 +457,8 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     ///
     /// This panics if the storage has an alignment or size smaller than that of `F`.
     pub unsafe fn transmute_enum_mut<F>(&mut self) -> &mut NonExhaustive<F, S, I> {
-        NonExhaustive::<F, S, I>::assert_fits_within_storage();
-        &mut *(self as *mut Self as *mut _)
+        assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
+        unsafe { &mut *(self as *mut Self as *mut _) }
     }
 
     /// Transmute this pointer to a `NonExhaustive<E,S,I>` into
@@ -479,31 +479,31 @@ impl<E, S, I> NonExhaustive<E, S, I> {
         P: Deref<Target = Self>,
         P: CanTransmuteElement<NonExhaustive<F, S, I>>,
     {
-        NonExhaustive::<F, S, I>::assert_fits_within_storage();
-        this.transmute_element::<NonExhaustive<F, S, I>>()
+        assert_correct_storage::<F, S>(AssertCsArgs::UNKNOWN);
+        unsafe { this.transmute_element::<NonExhaustive<F, S, I>>() }
     }
 
     /// Gets a reference to the vtable of this `NonExhaustive<>`.
-    pub(crate) fn vtable(&self) -> NonExhaustiveVtable_Ref<E, S, I> {
+    pub(crate) const fn vtable(&self) -> NonExhaustiveVtable_Ref<E, S, I> {
         self.vtable
     }
 
-    fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject> {
-        unsafe { RRef::from_raw(&self.fill as *const ScratchSpace<S> as *const ErasedObject) }
+    const fn sabi_erased_ref(&self) -> RRef<'_, ErasedObject> {
+        unsafe { RRef::from_raw(&self.fill as *const ScratchSpace<E, S> as *const ErasedObject) }
     }
 
-    fn as_erased_ref(&self) -> RRef<'_, ErasedObject> {
+    const fn as_erased_ref(&self) -> RRef<'_, ErasedObject> {
         unsafe { RRef::from_raw(self as *const Self as *const ErasedObject) }
     }
 
     fn sabi_erased_mut(&mut self) -> RMut<'_, ErasedObject> {
-        unsafe { RMut::from_raw(&mut self.fill as *mut ScratchSpace<S> as *mut ErasedObject) }
+        unsafe { RMut::from_raw(&mut self.fill as *mut ScratchSpace<E, S> as *mut ErasedObject) }
     }
 }
 
 impl<E, S, I> Clone for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Clone = Implemented<trait_marker::Clone>>,
+    I: InterfaceType<Clone = Implemented<trait_marker::Clone>>,
 {
     fn clone(&self) -> Self {
         unsafe { self.vtable().clone_()(self.sabi_erased_ref(), self.vtable) }
@@ -512,7 +512,7 @@ where
 
 impl<E, S, I> Display for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Display = Implemented<trait_marker::Display>>,
+    I: InterfaceType<Display = Implemented<trait_marker::Display>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
@@ -527,7 +527,7 @@ where
 
 impl<E, S, I> Debug for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Debug = Implemented<trait_marker::Debug>>,
+    I: InterfaceType<Debug = Implemented<trait_marker::Debug>>,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         unsafe {
@@ -543,13 +543,13 @@ where
 impl<E, S, I> Eq for NonExhaustive<E, S, I>
 where
     Self: PartialEq,
-    I: InterfaceBound<Eq = Implemented<trait_marker::Eq>>,
+    I: InterfaceType<Eq = Implemented<trait_marker::Eq>>,
 {
 }
 
 impl<E, S, I1, I2> PartialEq<NonExhaustive<E, S, I2>> for NonExhaustive<E, S, I1>
 where
-    I1: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
+    I1: InterfaceType<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &NonExhaustive<E, S, I2>) -> bool {
         unsafe { self.vtable().partial_eq()(self.sabi_erased_ref(), other.as_erased_ref()) }
@@ -558,7 +558,7 @@ where
 
 impl<E, S, I> Ord for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Ord = Implemented<trait_marker::Ord>>,
+    I: InterfaceType<Ord = Implemented<trait_marker::Ord>>,
     Self: PartialOrd + Eq,
 {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -568,7 +568,7 @@ where
 
 impl<E, S, I1, I2> PartialOrd<NonExhaustive<E, S, I2>> for NonExhaustive<E, S, I1>
 where
-    I1: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
+    I1: InterfaceType<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<NonExhaustive<E, S, I2>>,
 {
     fn partial_cmp(&self, other: &NonExhaustive<E, S, I2>) -> Option<Ordering> {
@@ -585,7 +585,7 @@ where
 impl<E, S, I> PartialOrd<E> for NonExhaustive<E, S, I>
 where
     E: GetEnumInfo + PartialOrd,
-    I: InterfaceBound<PartialOrd = Implemented<trait_marker::PartialOrd>>,
+    I: InterfaceType<PartialOrd = Implemented<trait_marker::PartialOrd>>,
     Self: PartialEq<E>,
 {
     fn partial_cmp(&self, other: &E) -> Option<Ordering> {
@@ -599,7 +599,7 @@ where
 impl<E, S, I> PartialEq<E> for NonExhaustive<E, S, I>
 where
     E: GetEnumInfo + PartialEq,
-    I: InterfaceBound<PartialEq = Implemented<trait_marker::PartialEq>>,
+    I: InterfaceType<PartialEq = Implemented<trait_marker::PartialEq>>,
 {
     fn eq(&self, other: &E) -> bool {
         match self.as_enum() {
@@ -611,12 +611,15 @@ where
 
 /////////////////////
 
-impl<E, S, I> NonExhaustive<E, S, I> {
+impl<E, S, I> NonExhaustive<E, S, I>
+where
+    E: GetEnumInfo,
+{
     /// It serializes a `NonExhaustive<_>` into a proxy.
     pub fn serialize_into_proxy(&self) -> Result<I::Proxy, RBoxError>
     where
-        I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
-        I: SerializeEnum<NonExhaustive<E, S, I>>,
+        I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
+        I: SerializeEnum<E>,
     {
         unsafe { self.vtable().serialize()(self.as_erased_ref()).into_result() }
     }
@@ -624,10 +627,9 @@ impl<E, S, I> NonExhaustive<E, S, I> {
     /// Deserializes a `NonExhaustive<_>` from a proxy.
     pub fn deserialize_from_proxy<'borr>(proxy: I::Proxy) -> Result<Self, RBoxError>
     where
-        I: InterfaceBound<Deserialize = Implemented<trait_marker::Deserialize>>,
-        I: DeserializeEnum<'borr, NonExhaustive<E, S, I>>,
+        I: InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>>,
+        I: DeserializeEnum<'borr, Self>,
         I::Proxy: 'borr,
-        E: GetEnumInfo,
     {
         I::deserialize_enum(proxy)
     }
@@ -636,8 +638,8 @@ impl<E, S, I> NonExhaustive<E, S, I> {
 /// First it serializes a `NonExhaustive<_>` into a proxy,then it serializes that proxy.
 impl<E, S, I> Serialize for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Serialize = Implemented<trait_marker::Serialize>>,
-    I: SerializeEnum<NonExhaustive<E, S, I>>,
+    I: InterfaceType<Serialize = Implemented<trait_marker::Serialize>>,
+    I: SerializeEnum<E>,
     I::Proxy: Serialize,
 {
     fn serialize<Z>(&self, serializer: Z) -> Result<Z::Ok, Z::Error>
@@ -659,18 +661,16 @@ impl<'de, E, S, I> Deserialize<'de> for NonExhaustive<E, S, I>
 where
     E: 'de + GetVTable<S, I>,
     S: 'de,
-    I: 'de + InterfaceBound<Deserialize = Implemented<trait_marker::Deserialize>>,
-    I: DeserializeEnum<'de, NonExhaustive<E, S, I>>,
-    <I as DeserializeEnum<'de, NonExhaustive<E, S, I>>>::Proxy: Deserialize<'de>,
+    I: 'de + InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>>,
+    I: DeserializeEnum<'de, Self>,
+    <I as DeserializeEnum<'de, Self>>::Proxy: Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let s = <
-            <I as DeserializeEnum<'de,NonExhaustive<E,S,I>>>::Proxy as
-            Deserialize
-        >::deserialize(deserializer)?;
+        let s =
+            <<I as DeserializeEnum<'de, Self>>::Proxy as Deserialize>::deserialize(deserializer)?;
 
         I::deserialize_enum(s).map_err(de::Error::custom)
     }
@@ -680,7 +680,7 @@ where
 
 impl<E, S, I> Hash for NonExhaustive<E, S, I>
 where
-    I: InterfaceBound<Hash = Implemented<trait_marker::Hash>>,
+    I: InterfaceType<Hash = Implemented<trait_marker::Hash>>,
 {
     fn hash<H>(&self, state: &mut H)
     where
@@ -691,7 +691,7 @@ where
 }
 
 impl<E, S, I> std::error::Error for NonExhaustive<E, S, I> where
-    I: InterfaceBound<
+    I: InterfaceType<
         Debug = Implemented<trait_marker::Debug>,
         Display = Implemented<trait_marker::Display>,
         Error = Implemented<trait_marker::Error>,
@@ -713,7 +713,7 @@ impl<E, S, I> Drop for NonExhaustive<E, S, I> {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Used to abstract over the reference-ness of `NonExhaustive<>` inside UnwrapEnumError.
+/// Used to abstract over the reference-ness of [`NonExhaustive`] inside [`UnwrapEnumError`].
 pub trait NonExhaustiveSharedOps {
     /// The type of the discriminant of the wrapped enum.
     type Discriminant: ValidDiscriminant;
@@ -726,27 +726,9 @@ pub trait NonExhaustiveSharedOps {
 }
 
 /// A struct storing the discriminant and `EnumInfo` of some enum.
-pub struct DiscrAndEnumInfo<E> {
+struct DiscrAndEnumInfo<E> {
     discr: E,
     enum_info: &'static EnumInfo,
-}
-
-impl<E> DiscrAndEnumInfo<E> {
-    /// Constructs this `DiscrAndEnumInfo`.
-    pub fn new(discr: E, enum_info: &'static EnumInfo) -> Self {
-        Self { discr, enum_info }
-    }
-    /// The value of the enum discriminant,
-    pub fn discr(&self) -> E
-    where
-        E: ValidDiscriminant,
-    {
-        self.discr
-    }
-    /// The `EnumInfo` of an enum.
-    pub fn enum_info(&self) -> &'static EnumInfo {
-        self.enum_info
-    }
 }
 
 impl<E> NonExhaustiveSharedOps for DiscrAndEnumInfo<E>
@@ -813,6 +795,7 @@ pub struct UnwrapEnumError<N> {
     pub non_exhaustive: N,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl<N> UnwrapEnumError<N> {
     /// Gets the `non_exhaustive` field.
     #[must_use]

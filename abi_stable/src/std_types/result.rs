@@ -2,8 +2,6 @@
 
 use std::fmt::Debug;
 
-use core_extensions::matches;
-
 use crate::std_types::{RNone, ROption, RSome};
 
 /// Ffi-safe equivalent of `Result<T, E>`.
@@ -11,14 +9,17 @@ use crate::std_types::{RNone, ROption, RSome};
 #[repr(u8)]
 #[derive(StableAbi)]
 pub enum RResult<T, E> {
+    ///
     #[serde(rename = "Ok")]
     ROk(T),
+    ///
     #[serde(rename = "Err")]
     RErr(E),
 }
 
 pub use self::RResult::*;
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T, E> RResult<T, E> {
     /// Converts from `RResult<T, E>` to `RResult<&T, &E>`.
     ///
@@ -32,7 +33,7 @@ impl<T, E> RResult<T, E> {
     ///
     /// ```
     #[inline]
-    pub fn as_ref(&self) -> RResult<&T, &E> {
+    pub const fn as_ref(&self) -> RResult<&T, &E> {
         match self {
             ROk(v) => ROk(v),
             RErr(v) => RErr(v),
@@ -70,7 +71,7 @@ impl<T, E> RResult<T, E> {
     ///
     /// ```
     #[inline]
-    pub fn is_rok(&self) -> bool {
+    pub const fn is_rok(&self) -> bool {
         matches! {self, ROk{..}}
     }
 
@@ -86,7 +87,7 @@ impl<T, E> RResult<T, E> {
     ///
     /// ```
     #[inline]
-    pub fn is_ok(&self) -> bool {
+    pub const fn is_ok(&self) -> bool {
         matches! {self, ROk{..}}
     }
 
@@ -102,7 +103,7 @@ impl<T, E> RResult<T, E> {
     ///
     /// ```
     #[inline]
-    pub fn is_rerr(&self) -> bool {
+    pub const fn is_rerr(&self) -> bool {
         matches! {self, RErr{..}}
     }
 
@@ -118,7 +119,7 @@ impl<T, E> RResult<T, E> {
     ///
     /// ```
     #[inline]
-    pub fn is_err(&self) -> bool {
+    pub const fn is_err(&self) -> bool {
         matches! {self, RErr{..}}
     }
 

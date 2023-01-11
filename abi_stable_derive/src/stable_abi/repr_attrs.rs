@@ -2,8 +2,11 @@
 use core_extensions::{matches, SelfOps};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
+use syn::parse::ParseBuffer;
 
-use as_derive_utils::{return_syn_err, syn_err, to_token_fn::ToTokenFnMut};
+use as_derive_utils::{
+    parse_utils::ParseBufferExt, return_syn_err, syn_err, to_token_fn::ToTokenFnMut,
+};
 
 use crate::{ignored_wrapper::Ignored, literals_constructors::rslice_tokenizer};
 
@@ -133,30 +136,40 @@ impl UncheckedReprAttr {
     }
 }
 
+mod kw {
+    syn::custom_keyword! {u8}
+    syn::custom_keyword! {i8}
+    syn::custom_keyword! {u16}
+    syn::custom_keyword! {i16}
+    syn::custom_keyword! {u32}
+    syn::custom_keyword! {i32}
+    syn::custom_keyword! {u64}
+    syn::custom_keyword! {i64}
+    syn::custom_keyword! {usize}
+    syn::custom_keyword! {isize}
+}
+
 impl DiscriminantRepr {
-    /// Gets a `DiscriminantRepr` from the identifier of an integer type.
-    ///
-    /// Returns None if the identifier is not a supported integer type.
-    pub fn from_ident(ident: &syn::Ident) -> Option<Self> {
-        if ident == "u8" {
+    pub fn from_parser(input: &'_ ParseBuffer<'_>) -> Option<Self> {
+        if input.peek_parse(kw::u8).ok()?.is_some() {
             Some(DiscriminantRepr::U8)
-        } else if ident == "i8" {
+        } else if input.peek_parse(kw::i8).ok()?.is_some() {
             Some(DiscriminantRepr::I8)
-        } else if ident == "u16" {
+        } else if input.peek_parse(kw::u16).ok()?.is_some() {
             Some(DiscriminantRepr::U16)
-        } else if ident == "i16" {
+        } else if input.peek_parse(kw::i16).ok()?.is_some() {
             Some(DiscriminantRepr::I16)
-        } else if ident == "u32" {
+        } else if input.peek_parse(kw::u32).ok()?.is_some() {
             Some(DiscriminantRepr::U32)
-        } else if ident == "i32" {
+        } else if input.peek_parse(kw::i32).ok()?.is_some() {
             Some(DiscriminantRepr::I32)
-        } else if ident == "u64" {
+        } else if input.peek_parse(kw::u64).ok()?.is_some() {
             Some(DiscriminantRepr::U64)
-        } else if ident == "i64" {
+        } else if input.peek_parse(kw::i64).ok()?.is_some() {
             Some(DiscriminantRepr::I64)
-        } else if ident == "usize" {
+        } else if input.peek_parse(kw::usize).ok()?.is_some() {
             Some(DiscriminantRepr::Usize)
-        } else if ident == "isize" {
+        } else if input.peek_parse(kw::isize).ok()?.is_some() {
             Some(DiscriminantRepr::Isize)
         } else {
             None

@@ -8,7 +8,7 @@ use std::{
 
 use crate::{
     marker_type::UnsafeIgnoredType,
-    prefix_type::{PrefixTypeTrait, WithMetadata},
+    prefix_type::WithMetadata,
     sabi_types::{RMut, RRef},
 };
 
@@ -21,9 +21,11 @@ pub(super) enum BoxedREntry<'a, K, V> {
 /// A handle into an entry in a map, which is either vacant or occupied.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K: 'a", bound = "V: 'a")]
+#[sabi(bound(K: 'a), bound(V: 'a))]
 pub enum REntry<'a, K, V> {
+    /// An occupied entry
     Occupied(ROccupiedEntry<'a, K, V>),
+    /// A vacnt entry
     Vacant(RVacantEntry<'a, K, V>),
 }
 
@@ -269,7 +271,7 @@ where
 /// A handle into an occupied entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K: 'a", bound = "V: 'a")]
+#[sabi(bound(K: 'a), bound(V: 'a))]
 pub struct ROccupiedEntry<'a, K, V> {
     entry: RMut<'a, ErasedOccupiedEntry<K, V>>,
     vtable: OccupiedVTable_Ref<K, V>,
@@ -279,7 +281,7 @@ pub struct ROccupiedEntry<'a, K, V> {
 /// A handle into a vacant entry in a map.
 #[derive(StableAbi)]
 #[repr(C)]
-#[sabi(bound = "K: 'a", bound = "V: 'a")]
+#[sabi(bound(K: 'a), bound(V: 'a))]
 pub struct RVacantEntry<'a, K, V> {
     entry: RMut<'a, ErasedVacantEntry<K, V>>,
     vtable: VacantVTable_Ref<K, V>,
@@ -289,7 +291,7 @@ pub struct RVacantEntry<'a, K, V> {
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a, K, V> ROccupiedEntry<'a, K, V> {
-    fn vtable(&self) -> OccupiedVTable_Ref<K, V> {
+    const fn vtable(&self) -> OccupiedVTable_Ref<K, V> {
         self.vtable
     }
 }
@@ -501,7 +503,7 @@ impl<'a, K, V> Drop for ROccupiedEntry<'a, K, V> {
 /////////////////////////////////////////////////////////////////////////////////////////////
 
 impl<'a, K, V> RVacantEntry<'a, K, V> {
-    fn vtable(&self) -> VacantVTable_Ref<K, V> {
+    const fn vtable(&self) -> VacantVTable_Ref<K, V> {
         self.vtable
     }
 }
@@ -645,8 +647,7 @@ impl<K, V> OccupiedVTable<K, V> {
     const VTABLE_REF: OccupiedVTable_Ref<K, V> = OccupiedVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<OccupiedVTable<K, V>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
+        const WM_VTABLE: WithMetadata<OccupiedVTable<K, V>> = WithMetadata::new(Self::VTABLE)
     }
 
     const VTABLE: OccupiedVTable<K, V> = OccupiedVTable {
@@ -662,15 +663,17 @@ impl<K, V> OccupiedVTable<K, V> {
 
 impl<K, V> ErasedOccupiedEntry<K, V> {
     unsafe extern "C" fn drop_entry(this: RMut<'_, Self>) {
-        extern_fn_panic_handling! {
-            Self::run_downcast_as_mut(this, |this|{
-                ManuallyDrop::drop(this);
-            })
+        unsafe {
+            extern_fn_panic_handling! {no_early_return;
+                Self::run_downcast_as_mut(this, |this| {
+                    ManuallyDrop::drop(this);
+                })
+            }
         }
     }
     extern "C" fn key(this: RRef<'_, Self>) -> &K {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as(
                     this,
                     |this| this.key().as_ref()
@@ -680,7 +683,7 @@ impl<K, V> ErasedOccupiedEntry<K, V> {
     }
     extern "C" fn get_elem(this: RRef<'_, Self>) -> &V {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as(
                     this,
                     |this| this.get()
@@ -690,7 +693,7 @@ impl<K, V> ErasedOccupiedEntry<K, V> {
     }
     extern "C" fn get_mut_elem(this: RMut<'_, Self>) -> &mut V {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as_mut(
                     this,
                     |this| this.get_mut()
@@ -700,7 +703,7 @@ impl<K, V> ErasedOccupiedEntry<K, V> {
     }
     extern "C" fn fn_into_mut_elem(this: ROccupiedEntry<'_, K, V>) -> &'_ mut V {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as_mut(
                     this.into_inner(),
                     |this| take_manuallydrop(this).into_mut()
@@ -710,7 +713,7 @@ impl<K, V> ErasedOccupiedEntry<K, V> {
     }
     extern "C" fn insert_elem(this: RMut<'_, Self>, elem: V) -> V {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as_mut(
                     this,
                     |this| this.insert(elem)
@@ -720,7 +723,7 @@ impl<K, V> ErasedOccupiedEntry<K, V> {
     }
     extern "C" fn remove(this: ROccupiedEntry<'_, K, V>) -> V {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as_mut(
                     this.into_inner(),
                     |this| take_manuallydrop(this).remove()
@@ -746,8 +749,7 @@ impl<K, V> VacantVTable<K, V> {
     const VTABLE_REF: VacantVTable_Ref<K, V> = VacantVTable_Ref(Self::WM_VTABLE.as_prefix());
 
     staticref! {
-        const WM_VTABLE: WithMetadata<VacantVTable<K, V>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::VTABLE)
+        const WM_VTABLE: WithMetadata<VacantVTable<K, V>> = WithMetadata::new(Self::VTABLE)
     }
 
     const VTABLE: VacantVTable<K, V> = VacantVTable {
@@ -760,15 +762,17 @@ impl<K, V> VacantVTable<K, V> {
 
 impl<K, V> ErasedVacantEntry<K, V> {
     unsafe extern "C" fn drop_entry(this: RMut<'_, Self>) {
-        extern_fn_panic_handling! {
-            Self::run_downcast_as_mut(this, |this|{
-                ManuallyDrop::drop(this);
-            })
+        unsafe {
+            extern_fn_panic_handling! {no_early_return;
+                Self::run_downcast_as_mut(this, |this|{
+                    ManuallyDrop::drop(this);
+                })
+            }
         }
     }
     extern "C" fn key(this: RRef<'_, Self>) -> &K {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as(
                     this,
                     |this| this.key().as_ref()
@@ -778,7 +782,7 @@ impl<K, V> ErasedVacantEntry<K, V> {
     }
     extern "C" fn fn_into_key(this: RVacantEntry<'_, K, V>) -> K {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as_mut(
                     this.into_inner(),
                     |this| take_manuallydrop(this).into_key().into_inner()
@@ -788,7 +792,7 @@ impl<K, V> ErasedVacantEntry<K, V> {
     }
     extern "C" fn insert_elem(this: RVacantEntry<'_, K, V>, elem: V) -> &'_ mut V {
         unsafe {
-            extern_fn_panic_handling! {
+            extern_fn_panic_handling! {no_early_return;
                 Self::run_downcast_as_mut(
                     this.into_inner(),
                     |this| take_manuallydrop(this).insert(elem)
@@ -802,5 +806,5 @@ impl<K, V> ErasedVacantEntry<K, V> {
 
 /// Copy paste of the unstable `ManuallyDrop::take`
 unsafe fn take_manuallydrop<T>(slot: &mut ManuallyDrop<T>) -> T {
-    ManuallyDrop::into_inner(ptr::read(slot))
+    unsafe { ManuallyDrop::into_inner(ptr::read(slot)) }
 }

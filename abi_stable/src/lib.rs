@@ -55,12 +55,9 @@ then run the `*_user` crate (all `*_user` crates should have a help message and 
 
 # Minimum Rust version
 
-This crate support Rust back to 1.46.0
+This crate support Rust back to 1.61.0
 
-You can manually enable support for Rust past 1.46.0 with the `rust_*_*` cargo features.
-
-Had to bump the MSRV from 1.41.0 to 1.46.0 because fixing Rust nightly
-compatibility caused Internal Compiler Errors in older Rust versions.
+You can manually enable support for Rust past 1.61.0 with the `rust_*_*` cargo features.
 
 # Crate Features
 
@@ -90,26 +87,23 @@ enabling the features you need in the `features` array.
 
 These are crate features to manually enable support for newer language features:
 
-- "rust_1_51_0":
-Enables impls which require using const generics,
-including implementing StableAbi for arrays of all lengths,
-requires Rust Rust 1.51.0 or higher.
+- "rust_1_64": Turns many functions for converting types to slices into const fns.
 
 - "rust_latest_stable":
 Enables the "rust_1_*" features for all the stable releases.
 
 # Glossary
 
-`interface crate`:the crate that declares the public functions, types, and traits that
-are necessary to load the library at runtime.
+`interface crate`: the crate that declares the public functions, types, and traits that
+are necessary to load a library at runtime.
 
-`ìmplementation crate`:A crate that implements all the functions in the interface crate.
+`ìmplementation crate`: A crate that implements all the functions in a interface crate.
 
-`user crate`:A crate that depends on an `interface crate` and
+`user crate`: A crate that depends on an `interface crate` and
 loads 1 or more `ìmplementation crate`s for it.
 
-`module`:refers to a struct of function pointers and other static values.
-The root module implement the [`RootModule`] trait.
+`module`: refers to a struct of function pointers and other static values.
+The root module of a library implements the [`RootModule`] trait.
 These are declared in the `interface crate`,exported in the `implementation crate`,
 and loaded in the `user crate`.
 
@@ -169,7 +163,7 @@ These are the kinds of types passed through FFI:
     Details for how to declare nonexhaustive enums.
 
 - [Prefix types] \(using the StableAbi derive macro):<br>
-    The method by which *vtables* and *modules* are implemented,
+    The way that *vtables* and *modules* are implemented,
     allowing extending them in minor versions of a library.
 
 [`std_types`]: ./std_types/index.html
@@ -204,16 +198,16 @@ https://github.com/rodrimati1992/abi_stable_crates/blob/master/readme.md#readme_
 #![deny(unused_must_use)]
 #![warn(rust_2018_idioms)]
 #![allow(clippy::needless_doctest_main)]
+#![allow(clippy::bool_assert_comparison)]
 #![allow(clippy::zero_prefixed_literal)]
 #![allow(clippy::type_complexity)]
-#![allow(clippy::empty_loop)]
 #![allow(clippy::ptr_offset_with_cast)]
+#![allow(clippy::assertions_on_constants)]
+#![deny(missing_docs)]
 #![deny(clippy::missing_safety_doc)]
+// #![deny(clippy::missing_const_for_fn)]
+#![deny(unsafe_op_in_unsafe_fn)]
 #![cfg_attr(feature = "docsrs", feature(doc_cfg))]
-
-#[allow(unused_imports)]
-#[cfg(test)]
-use abi_stable_shared::file_span;
 
 #[macro_use]
 extern crate serde_derive;
@@ -250,6 +244,7 @@ mod macros;
 #[macro_use]
 mod test_macros;
 
+#[allow(missing_docs)]
 #[cfg(feature = "testing")]
 #[macro_use]
 pub mod test_utils;
@@ -331,11 +326,8 @@ static EXECUTABLE_IDENTITY: AtomicUsize = AtomicUsize::new(1);
 #[doc(inline)]
 pub use crate::{
     abi_stability::StableAbi,
-    erased_types::{dyn_trait::DynTrait, ImplType, InterfaceType},
+    erased_types::{dyn_trait::DynTrait, InterfaceType},
 };
-
-#[doc(no_inline)]
-pub use crate::erased_types::InterfaceBound;
 
 #[doc(hidden)]
 pub mod globals {
@@ -388,3 +380,7 @@ extern "Rust" {
     /// `ptr` has to point to the beginning of an allocated block.
     fn miri_static_root(ptr: *const u8);
 }
+
+#[cfg(doctest)]
+#[doc = include_str!("../../readme.md")]
+pub struct ReadmeTest;

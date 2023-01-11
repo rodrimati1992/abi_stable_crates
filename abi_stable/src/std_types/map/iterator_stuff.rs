@@ -79,7 +79,11 @@ impl<K, V> IntoIter<K, V> {
         V: 'a,
     {
         IntoIter {
-            iter: mem::transmute::<IntoIterInner<'a, K, V>, IntoIterInner<'static, u32, u32>>(iter),
+            iter: unsafe {
+                // SAFETY: the `'a` lifetime is erased because it's the lifetime of `K` and `V`,
+                // so it's implied by their usage.
+                mem::transmute::<IntoIterInner<'a, K, V>, IntoIterInner<'static, u32, u32>>(iter)
+            },
             _marker: PhantomData,
         }
     }

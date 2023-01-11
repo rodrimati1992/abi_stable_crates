@@ -1,11 +1,9 @@
 use super::*;
 
 use crate::{
-    erased_types::{FormattingMode, InterfaceBound, VTableDT},
+    erased_types::{FormattingMode, InterfaceType, MakeRequiredTraits},
     marker_type::NonOwningPhantom,
-    prefix_type::PrefixRef,
-    sabi_types::Constructor,
-    std_types::{RResult, RString, Tuple3, UTypeId},
+    std_types::{RResult, RString, UTypeId},
     type_level::{
         downcasting::GetUTID,
         impl_enum::{Implemented, Unimplemented},
@@ -31,7 +29,8 @@ pub struct Private<A: ?Sized, B: ?Sized, C: ?Sized, D: ?Sized, E: ?Sized>(
 /// Gets an `RObjectVtable_Ref<_Self,ErasedPtr,TO>`(the vtable for RObject itself),
 /// which is stored as the first field of all generated trait object vtables.
 ///
-/// This trait cannot be implemented outside of `abi_stable`, it can only be used.
+/// This trait cannot be implemented outside of `abi_stable`,
+/// it can only be used.
 pub trait GetRObjectVTable<IA, _Self, ErasedPtr, OrigPtr>: Sized + InterfaceType {
     // Using privacy to make it impossible to implement this trait outside this module.
     #[doc(hidden)]
@@ -49,113 +48,6 @@ where
 
     const ROBJECT_VTABLE: RObjectVtable_Ref<_Self, ErasedPtr, Self> =
         { GetRObjectVTableHelper::<IA, _Self, ErasedPtr, OrigPtr, I>::TMP_VTABLE };
-}
-
-//////////////////////////////////////////////////////////////////////////////
-
-/// The `VTableTO` passed to `#[sabi_trait]`
-/// generated trait objects that have `RObject` as their backend.
-#[allow(non_camel_case_types)]
-pub type VTableTO_RO<T, OrigPtr, Downcasting, V> = VTableTO<T, OrigPtr, Downcasting, V, ()>;
-
-/// The `VTableTO` passed to `#[sabi_trait]`
-/// generated trait objects that have `DynTrait` as their backend.
-#[allow(non_camel_case_types)]
-pub type VTableTO_DT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V> = VTableTO<
-    _Self,
-    OrigPtr,
-    Downcasting,
-    V,
-    VTableDT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting>,
->;
-
-/// This is used to safely pass the vtable to `#[sabi_trait]` generated trait objects,
-/// using `<Trait>_CTO::from_const( &value, <Trait>_MV::VTABLE )`.
-///
-/// `<Trait>` is whatever the name of the trait that one is constructing the trait object for.
-pub struct VTableTO<_Self, OrigPtr, Downcasting, V, DT> {
-    vtable: PrefixRef<V>,
-    for_dyn_trait: DT,
-    _for: PhantomData<Constructor<Tuple3<_Self, OrigPtr, Downcasting>>>,
-}
-
-impl<_Self, OrigPtr, Downcasting, V, DT> Copy for VTableTO<_Self, OrigPtr, Downcasting, V, DT> where
-    DT: Copy
-{
-}
-
-impl<_Self, OrigPtr, Downcasting, V, DT> Clone for VTableTO<_Self, OrigPtr, Downcasting, V, DT>
-where
-    DT: Copy,
-{
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<_Self, OrigPtr, Downcasting, V> VTableTO<_Self, OrigPtr, Downcasting, V, ()> {
-    /// Wraps an erased vtable.
-    ///
-    /// # Safety
-    ///
-    /// These are the requirements for the caller:
-    ///
-    /// - `OrigPtr` must be a pointer to the type that the vtable functions
-    ///     take as the first parameter.
-    ///
-    /// - The vtable must not come from a reborrowed RObject
-    ///     (created using RObject::reborrow or RObject::reborrow_mut).
-    ///
-    /// - The vtable must be the `<SomeVTableName>` of a struct declared with
-    ///     `#[derive(StableAbi)]``#[sabi(kind(Prefix(prefix_ref="<SomeVTableName>")))]`.
-    ///
-    /// - The vtable must have `PrefixRef<RObjectVtable<..>>`
-    ///     as its first declared field
-    pub const unsafe fn for_robject(vtable: PrefixRef<V>) -> Self {
-        Self {
-            vtable,
-            for_dyn_trait: (),
-            _for: PhantomData,
-        }
-    }
-}
-
-impl<_Self, OrigPtr, Downcasting, V, DT> VTableTO<_Self, OrigPtr, Downcasting, V, DT> {
-    /// Gets the vtable that RObject is constructed with.
-    pub const fn robject_vtable(&self) -> PrefixRef<V> {
-        self.vtable
-    }
-}
-
-impl<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
-    VTableTO_DT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
-{
-    /// Gets the vtable for DynTrait.
-    pub const fn dyntrait_vtable(
-        &self,
-    ) -> VTableDT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting> {
-        self.for_dyn_trait
-    }
-}
-
-impl<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
-    VTableTO_DT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting, V>
-{
-    /// Wraps an erased vtable,alongside the vtable for DynTrait.
-    ///
-    /// # Safety
-    ///
-    /// This has the same safety requirements as the 'for_robject' constructor
-    pub const unsafe fn for_dyntrait(
-        vtable: PrefixRef<V>,
-        for_dyn_trait: VTableDT<'borr, _Self, ErasedPtr, OrigPtr, I, Downcasting>,
-    ) -> Self {
-        Self {
-            vtable,
-            for_dyn_trait,
-            _for: PhantomData,
-        }
-    }
 }
 
 //////////////////////////////////////////////////////////////////////////////
@@ -195,7 +87,7 @@ where
 {
     staticref! {
         const TMP_WM: WithMetadata<RObjectVtable<_Self,ErasedPtr,I>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, I::VTABLE_VAL);
+            WithMetadata::new(I::VTABLE_VAL);
     }
 
     const TMP_VTABLE: RObjectVtable_Ref<_Self, ErasedPtr, I> =
@@ -210,7 +102,7 @@ where
 pub struct RObjectVtable<_Self, ErasedPtr, I> {
     pub _sabi_tys: NonOwningPhantom<(_Self, ErasedPtr, I)>,
 
-    pub _sabi_type_id: Constructor<MaybeCmp<UTypeId>>,
+    pub _sabi_type_id: extern "C" fn() -> MaybeCmp<UTypeId>,
 
     pub _sabi_drop: unsafe extern "C" fn(this: RMut<'_, ErasedPtr>),
     pub _sabi_clone: Option<unsafe extern "C" fn(this: RRef<'_, ErasedPtr>) -> ErasedPtr>,
@@ -236,8 +128,8 @@ pub struct RObjectVtable<_Self, ErasedPtr, I> {
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(
-    bound = "I:InterfaceBound",
-    extra_checks = "<I as InterfaceBound>::EXTRA_CHECKS",
+    bound(I: InterfaceType),
+    extra_checks = <I as MakeRequiredTraits>::MAKE,
     kind(Prefix)
 )]
 pub(super) struct BaseVtable<_Self, ErasedPtr, I> {

@@ -8,7 +8,7 @@ use std::{
     marker::PhantomData,
     mem::{self, ManuallyDrop},
     ops::{Bound, Deref, DerefMut, Index, IndexMut, RangeBounds},
-    ptr,
+    ptr::{self, NonNull},
     slice::SliceIndex,
 };
 
@@ -17,8 +17,9 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use core_extensions::SelfOps;
 
 use crate::{
-    prefix_type::{PrefixTypeTrait, WithMetadata},
-    sabi_types::Constructor,
+    pointer_trait::CanTransmuteElement,
+    prefix_type::WithMetadata,
+    sabi_types::RMut,
     std_types::{
         utypeid::{new_utypeid, UTypeId},
         RSlice, RSliceMut,
@@ -72,10 +73,12 @@ mod private {
     #[derive(StableAbi)]
     // #[sabi(debug_print)]
     pub struct RVec<T> {
-        pub(super) buffer: *mut T,
+        // using this to make `Option<RVec<T>>` smaller (not ffi-safe though),
+        // and to make `RVec<T>` covariant over `T`.
+        pub(super) buffer: NonNull<T>,
         pub(super) length: usize,
         capacity: usize,
-        vtable: VecVTable_Ref<T>,
+        vtable: VecVTable_Ref,
         _marker: PhantomData<T>,
     }
 
@@ -103,7 +106,7 @@ mod private {
             // when it's possible to call `Vec::{as_mut_ptr, capacity, len}` in const contexts.
             RVec {
                 vtable: VTableGetter::<T>::LIB_VTABLE,
-                buffer: std::mem::align_of::<T>() as *mut T,
+                buffer: NonNull::dangling(),
                 length: 0,
                 capacity: 0_usize.wrapping_sub((std::mem::size_of::<T>() == 0) as usize),
                 _marker: PhantomData,
@@ -118,17 +121,17 @@ mod private {
         }
 
         #[inline(always)]
-        pub(super) fn vtable(&self) -> VecVTable_Ref<T> {
+        pub(super) const fn vtable(&self) -> VecVTable_Ref {
             self.vtable
         }
 
         #[inline(always)]
-        pub(super) fn buffer(&self) -> *const T {
-            self.buffer
+        pub(super) const fn buffer(&self) -> *const T {
+            self.buffer.as_ptr()
         }
 
         pub(super) fn buffer_mut(&mut self) -> *mut T {
-            self.buffer
+            self.buffer.as_ptr()
         }
 
         /// This returns the amount of elements this RVec can store without reallocating.
@@ -161,21 +164,24 @@ mod private {
             F: FnOnce(&mut Vec<T>) -> U,
         {
             let mut old = mem::replace(self, RVec::new()).piped(ManuallyDrop::new);
-            let mut list = Vec::<T>::from_raw_parts(old.buffer_mut(), old.len(), old.capacity());
+            let mut list =
+                unsafe { Vec::<T>::from_raw_parts(old.buffer_mut(), old.len(), old.capacity()) };
             let ret = f(&mut list);
-            ptr::write(self, list.into());
+            unsafe {
+                ptr::write(self, list.into());
+            }
             ret
         }
 
         /// Gets a raw pointer to the start of this RVec's buffer.
         #[inline(always)]
         pub const fn as_ptr(&self) -> *const T {
-            self.buffer
+            self.buffer.as_ptr()
         }
         /// Gets a mutable raw pointer to the start of this RVec's buffer.
         #[inline(always)]
         pub fn as_mut_ptr(&mut self) -> *mut T {
-            self.buffer
+            self.buffer.as_ptr()
         }
     }
     impl_from_rust_repr! {
@@ -184,7 +190,7 @@ mod private {
                 let mut this = ManuallyDrop::new(this);
                 RVec {
                     vtable: VTableGetter::<T>::LIB_VTABLE,
-                    buffer: this.as_mut_ptr(),
+                    buffer: unsafe{ NonNull::new_unchecked(this.as_mut_ptr()) },
                     length: this.len(),
                     capacity: this.capacity(),
                     _marker: PhantomData,
@@ -307,19 +313,24 @@ impl<T> RVec<T> {
         (&mut self[slice_start..slice_end]).into()
     }
 
-    /// Creates a `&[T]` with access to all the elements of the `RVec<T>`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RVec;
-    ///
-    /// let list = RVec::from(vec![0, 1, 2, 3]);
-    /// assert_eq!(list.as_slice(), &[0, 1, 2, 3]);
-    ///
-    /// ```
-    pub fn as_slice(&self) -> &[T] {
-        unsafe { ::std::slice::from_raw_parts(self.buffer(), self.len()) }
+    conditionally_const! {
+        feature = "rust_1_64"
+        /// Creates a `&[T]` with access to all the elements of the `RVec<T>`.
+        ///
+        ;
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RVec;
+        ///
+        /// let list = RVec::from(vec![0, 1, 2, 3]);
+        /// assert_eq!(list.as_slice(), &[0, 1, 2, 3]);
+        ///
+        /// ```
+        pub fn as_slice(&self) -> &[T] {
+            unsafe { ::std::slice::from_raw_parts(self.buffer(), self.len()) }
+        }
     }
 
     /// Creates a `&mut [T]` with access to all the elements of the `RVec<T>`.
@@ -445,7 +456,9 @@ impl<T> RVec<T> {
     /// ```
     pub fn shrink_to_fit(&mut self) {
         let vtable = self.vtable();
-        vtable.shrink_to_fit()(self);
+        unsafe {
+            vtable.shrink_to_fit()(RMut::new(self).transmute_element_());
+        }
     }
 
     /// Whether the length of the `RVec<T>` is 0.
@@ -497,9 +510,9 @@ impl<T> RVec<T> {
 
         unsafe {
             let this_vtable = this.vtable();
-            let other_vtable = VTableGetter::LIB_VTABLE;
+            let other_vtable = VTableGetter::<T>::LIB_VTABLE;
             if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())
-                || this_vtable.type_id() == other_vtable.type_id()
+                || this_vtable.type_id()() == other_vtable.type_id()()
             {
                 Vec::from_raw_parts(this.buffer_mut(), this.len(), this.capacity())
             } else {
@@ -794,10 +807,12 @@ impl<T> RVec<T> {
     /// Appends elements to `Self` from other buffer.
     #[inline]
     unsafe fn append_elements(&mut self, other: *const [T]) {
-        let count = (*other).len();
+        let count = unsafe { (*other).len() };
         self.reserve(count);
         let len = self.len();
-        ptr::copy_nonoverlapping(other as *const T, self.as_mut_ptr().add(len), count);
+        unsafe {
+            ptr::copy_nonoverlapping(other as *const T, self.as_mut_ptr().add(len), count);
+        }
         self.length += count;
     }
 
@@ -881,7 +896,7 @@ impl<T> RVec<T> {
         }
         DrainFilter {
             vec_len: &mut self.length,
-            allocation_start: self.buffer,
+            allocation_start: self.buffer.as_ptr(),
             idx: 0,
             del: 0,
             old_len,
@@ -895,7 +910,7 @@ impl<T> RVec<T> {
         self.length = to;
         unsafe {
             ptr::drop_in_place(std::slice::from_raw_parts_mut(
-                self.buffer.add(to),
+                self.buffer.as_ptr().add(to),
                 old_length - to,
             ))
         }
@@ -949,13 +964,18 @@ impl<T> RVec<T> {
     #[inline]
     fn grow_capacity_to_1(&mut self) {
         let vtable = self.vtable();
-        vtable.grow_capacity_to()(self, self.capacity() + 1, Exactness::Above);
+        unsafe {
+            let cap = self.capacity() + 1;
+            vtable.grow_capacity_to()(RMut::new(self).transmute_element_(), cap, Exactness::Above);
+        }
     }
 
     fn resize_capacity(&mut self, to: usize, exactness: Exactness) {
         let vtable = self.vtable();
         if self.capacity() < to {
-            vtable.grow_capacity_to()(self, to, exactness);
+            unsafe {
+                vtable.grow_capacity_to()(RMut::new(self).transmute_element_(), to, exactness);
+            }
         }
     }
 }
@@ -1131,7 +1151,6 @@ slice_like_impl_cmp_traits! {
     RSliceMut<'_, U>,
 }
 
-#[cfg(feature = "const_params")]
 slice_like_impl_cmp_traits! {
     impl[const N: usize] RVec<T>,
     where[];
@@ -1142,7 +1161,7 @@ slice_like_impl_cmp_traits! {
     impl[] RVec<T>,
     where[T: Clone, U: Clone];
     std::borrow::Cow<'_, [U]>,
-    crate::std_types::RCow<'_, [U]>,
+    crate::std_types::RCowSlice<'_, U>,
 }
 
 shared_impls! {
@@ -1198,7 +1217,7 @@ unsafe impl<T> Sync for RVec<T> where T: Sync {}
 impl<T> Drop for RVec<T> {
     fn drop(&mut self) {
         let vtable = self.vtable();
-        vtable.destructor()(self)
+        unsafe { vtable.destructor()(RMut::new(self).transmute_element_()) }
     }
 }
 
@@ -1290,7 +1309,7 @@ impl<T> RVec<T> {
             };
             let slice_len = slice_end - slice_start;
 
-            let allocation_start = self.buffer;
+            let allocation_start = self.buffer.as_ptr();
             let removed_start = allocation_start.add(slice_start);
             let iter = RawValIter::new(removed_start, slice_len);
             let old_length = self.length;
@@ -1317,7 +1336,7 @@ impl<T> IntoIterator for RVec<T> {
         unsafe {
             let _buf = ManuallyDrop::new(self);
             let len = _buf.length;
-            let ptr = _buf.buffer;
+            let ptr = _buf.buffer.as_ptr();
             let iter = RawValIter::new(ptr, len);
             IntoIter { iter, _buf }
         }
@@ -1440,131 +1459,75 @@ enum Exactness {
 struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
-    const DEFAULT_VTABLE: VecVTable<T> = VecVTable {
-        type_id: Constructor(new_utypeid::<RVec<()>>),
-        destructor: destructor_vec,
-        grow_capacity_to: grow_capacity_to_vec,
-        shrink_to_fit: shrink_to_fit_vec,
+    const DEFAULT_VTABLE: VecVTable = VecVTable {
+        type_id: new_utypeid::<RVec<()>>,
+        destructor: destructor_vec::<T>,
+        grow_capacity_to: grow_capacity_to_vec::<T>,
+        shrink_to_fit: shrink_to_fit_vec::<T>,
     };
 
     staticref! {
-        const WM_DEFAULT: WithMetadata<VecVTable<T>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE);
+        const WM_DEFAULT: WithMetadata<VecVTable> = WithMetadata::new(Self::DEFAULT_VTABLE);
     }
 
     // The VTABLE for this type in this executable/library
-    const LIB_VTABLE: VecVTable_Ref<T> = VecVTable_Ref(Self::WM_DEFAULT.as_prefix());
+    const LIB_VTABLE: VecVTable_Ref = VecVTable_Ref(Self::WM_DEFAULT.as_prefix());
 
     staticref! {
-        const WM_FOR_TESTING: WithMetadata<VecVTable<T>> =
+        const WM_FOR_TESTING: WithMetadata<VecVTable> =
             WithMetadata::new(
-                PrefixTypeTrait::METADATA,
                 VecVTable {
-                    type_id: Constructor( new_utypeid::<RVec<i32>> ),
+                    type_id: new_utypeid::<RVec<i32>>,
                     ..Self::DEFAULT_VTABLE
                 }
             )
     }
 
     // Used to test functions that change behavior based on the vtable being used
-    const LIB_VTABLE_FOR_TESTING: VecVTable_Ref<T> =
-        VecVTable_Ref(Self::WM_FOR_TESTING.as_prefix());
+    const LIB_VTABLE_FOR_TESTING: VecVTable_Ref = VecVTable_Ref(Self::WM_FOR_TESTING.as_prefix());
 }
 
 #[repr(C)]
 #[derive(StableAbi)]
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
-// #[sabi(debug_print)]
-struct VecVTable<T> {
-    type_id: Constructor<UTypeId>,
-    destructor: extern "C" fn(&mut RVec<T>),
-    grow_capacity_to: extern "C" fn(&mut RVec<T>, usize, Exactness),
+struct VecVTable {
+    type_id: extern "C" fn() -> UTypeId,
+    destructor: unsafe extern "C" fn(RMut<'_, ()>),
+    grow_capacity_to: unsafe extern "C" fn(RMut<'_, ()>, usize, Exactness),
     #[sabi(last_prefix_field)]
-    shrink_to_fit: extern "C" fn(&mut RVec<T>),
+    shrink_to_fit: unsafe extern "C" fn(RMut<'_, ()>),
 }
 
-extern "C" fn destructor_vec<T>(this: &mut RVec<T>) {
-    extern_fn_panic_handling! {
-        unsafe {
-            drop(Vec::from_raw_parts(
-                this.buffer_mut(),
-                this.len(),
-                this.capacity(),
-            ));
-        }
-    }
+unsafe extern "C" fn destructor_vec<T>(this: RMut<'_, ()>) {
+    extern_fn_panic_handling! {no_early_return; unsafe {
+        let this = this.transmute_into_mut::<RVec<T>>();
+        drop(Vec::from_raw_parts(
+            this.buffer_mut(),
+            this.len(),
+            this.capacity(),
+        ));
+    }}
 }
 
-extern "C" fn grow_capacity_to_vec<T>(this: &mut RVec<T>, to: usize, exactness: Exactness) {
-    extern_fn_panic_handling! {
-        unsafe{
-            this.with_vec(|list| {
-                let additional = to.saturating_sub(list.len());
-                match exactness {
-                    Exactness::Above => list.reserve(additional),
-                    Exactness::Exact => list.reserve_exact(additional),
-                }
-            })
-        }
-    }
+unsafe extern "C" fn grow_capacity_to_vec<T>(this: RMut<'_, ()>, to: usize, exactness: Exactness) {
+    extern_fn_panic_handling! {no_early_return; unsafe {
+        let this = this.transmute_into_mut::<RVec<T>>();
+        this.with_vec(|list| {
+            let additional = to.saturating_sub(list.len());
+            match exactness {
+                Exactness::Above => list.reserve(additional),
+                Exactness::Exact => list.reserve_exact(additional),
+            }
+        })
+    }}
 }
 
-extern "C" fn shrink_to_fit_vec<T>(this: &mut RVec<T>) {
-    extern_fn_panic_handling! {
-        unsafe{
-            this.with_vec(|list| {
-                list.shrink_to_fit();
-            })
-        }
-    }
-}
-
-#[cfg(all(test, not(feature = "only_new_tests")))]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test_index() {
-        let s = rvec![1, 2, 3, 4, 5];
-        assert_eq!(s.index(0), &1);
-        assert_eq!(s.index(4), &5);
-        assert_eq!(s.index(..2), rvec![1, 2]);
-        assert_eq!(s.index(1..2), rvec![2]);
-        assert_eq!(s.index(3..), rvec![4, 5]);
-    }
-
-    #[test]
-    fn test_index_mut() {
-        let mut s = rvec![1, 2, 3, 4, 5];
-
-        assert_eq!(s.index_mut(0), &mut 1);
-        assert_eq!(s.index_mut(4), &mut 5);
-        assert_eq!(s.index_mut(..2), &mut rvec![1, 2]);
-        assert_eq!(s.index_mut(1..2), &mut rvec![2]);
-        assert_eq!(s.index_mut(3..), &mut rvec![4, 5]);
-    }
-
-    #[test]
-    fn test_slice() {
-        let s = rvec![1, 2, 3, 4, 5];
-
-        assert_eq!(s.slice(..), rslice![1, 2, 3, 4, 5]);
-        assert_eq!(s.slice(..2), rslice![1, 2]);
-        assert_eq!(s.slice(1..2), rslice![2]);
-        assert_eq!(s.slice(3..), rslice![4, 5]);
-    }
-
-    #[test]
-    fn test_slice_mut() {
-        let mut s = rvec![1, 2, 3, 4, 5];
-
-        assert_eq!(
-            s.slice_mut(..),
-            RSliceMut::from_mut_slice(&mut [1, 2, 3, 4, 5])
-        );
-        assert_eq!(s.slice_mut(..2), RSliceMut::from_mut_slice(&mut [1, 2]));
-        assert_eq!(s.slice_mut(1..2), RSliceMut::from_mut_slice(&mut [2]));
-        assert_eq!(s.slice_mut(3..), RSliceMut::from_mut_slice(&mut [4, 5]));
-    }
+unsafe extern "C" fn shrink_to_fit_vec<T>(this: RMut<'_, ()>) {
+    extern_fn_panic_handling! {no_early_return; unsafe {
+        let this = this.transmute_into_mut::<RVec<T>>();
+        this.with_vec(|list| {
+            list.shrink_to_fit();
+        })
+    }}
 }

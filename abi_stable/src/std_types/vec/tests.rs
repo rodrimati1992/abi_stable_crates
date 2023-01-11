@@ -1,7 +1,5 @@
 use super::*;
 
-use abi_stable_shared::file_span;
-
 use std::{iter, sync::Arc};
 
 #[allow(unused_imports)]
@@ -12,9 +10,56 @@ use crate::{
     traits::IntoReprC,
 };
 
+#[cfg(feature = "rust_1_64")]
+#[test]
+fn const_as_slice_test() {
+    const RV: &RVec<u8> = &RVec::new();
+    const SLICE: &[u8] = RV.as_slice();
+
+    assert_eq!(SLICE, [0u8; 0]);
+}
+
+#[test]
+#[allow(clippy::drop_non_drop)]
+fn test_equality_between_vecs() {
+    struct F<T>(T);
+
+    fn eq<'a, 'b, T>(left: &RVec<&'a T>, right: &RVec<&'b T>) -> bool
+    where
+        T: std::cmp::PartialEq,
+    {
+        left == right
+    }
+
+    let aaa = F(3);
+    let bbb = F(5);
+    let ccc = F(8);
+    let ddd = F(13);
+
+    {
+        let v0 = rvec![&aaa.0, &bbb.0];
+        let v1 = rvec![&ccc.0, &ddd.0];
+
+        assert!(!eq(&v0, &v1));
+    }
+
+    // forcing the lifetime to extend to the end of the scope
+    drop(ccc);
+    drop(ddd);
+    drop(aaa);
+    drop(bbb);
+}
+
+fn _assert_covariant<'a: 'b, 'b, T>(x: RVec<&'a T>) -> RVec<&'b T> {
+    x
+}
+fn _assert_covariant_vec<'a: 'b, 'b, T>(x: Vec<&'a T>) -> Vec<&'b T> {
+    x
+}
+
 fn typical_list(upto: u8) -> (Vec<u8>, RVec<u8>) {
     let orig = (b'a'..=upto).collect::<Vec<_>>();
-    (orig.clone(), orig.clone().iter().cloned().collect())
+    (orig.clone(), orig.iter().cloned().collect())
 }
 
 #[test]
@@ -86,7 +131,7 @@ fn insert_remove() {
 fn remove_panics() -> Result<(), ShouldHavePanickedAt> {
     let mut list = RVec::new();
     for (i, elem) in (10..20).enumerate() {
-        must_panic(file_span!(), || list.remove(i))?;
+        must_panic(|| list.remove(i))?;
         list.push(elem);
         list.remove(i);
         list.push(elem);
@@ -208,9 +253,9 @@ fn retain() {
         assert_eq!(&*copy, &[2, 5, 8][..]);
     }
     {
-        let mut copy = copy.clone();
+        let mut copy = copy;
         let mut i = 0;
-        must_panic(file_span!(), || {
+        must_panic(|| {
             copy.retain(|_| {
                 i += 1;
                 if i == 4 {
@@ -285,6 +330,31 @@ fn extend() {
 }
 
 #[test]
+fn append() {
+    let mut into = RVec::<u16>::new();
+
+    into.append(&mut RVec::new());
+    assert_eq!(into, Vec::<u16>::new());
+
+    {
+        let mut from = rvec![3u16, 5, 8];
+        into.append(&mut from);
+        assert_eq!(into, [3u16, 5, 8][..]);
+        assert_eq!(from, Vec::<u16>::new());
+    }
+
+    into.append(&mut RVec::new());
+    assert_eq!(into, [3u16, 5, 8][..]);
+
+    {
+        let mut from = rvec![13u16];
+        into.append(&mut from);
+        assert_eq!(into, [3u16, 5, 8, 13][..]);
+        assert_eq!(from, Vec::<u16>::new());
+    }
+}
+
+#[test]
 fn into_iter() {
     assert_eq!(RVec::<()>::new().into_iter().next(), None);
 
@@ -296,13 +366,7 @@ fn into_iter() {
 
     assert_eq!(Arc::strong_count(&arc), 9);
 
-    assert_eq!(
-        (&list)
-            .into_iter()
-            .map(|v: &Arc<i32>| v.clone())
-            .collect::<Vec<_>>(),
-        orig
-    );
+    assert_eq!((&list).into_iter().cloned().collect::<Vec<_>>(), orig);
     assert_eq!(
         (&mut list)
             .into_iter()
@@ -368,7 +432,7 @@ fn into_vec() {
         assert_eq!(orig, list_1);
     }
     {
-        let list = list.clone().set_vtable_for_testing();
+        let list = list.set_vtable_for_testing();
         let list_ptr = list.as_ptr() as usize;
         let list_1 = list.into_vec();
         // No, MIR interpreter,
@@ -440,4 +504,48 @@ fn retain_panic() {
             index, count
         );
     }
+}
+
+#[test]
+fn test_index() {
+    let s = rvec![1, 2, 3, 4, 5];
+    assert_eq!(s.index(0), &1);
+    assert_eq!(s.index(4), &5);
+    assert_eq!(s.index(..2), rvec![1, 2]);
+    assert_eq!(s.index(1..2), rvec![2]);
+    assert_eq!(s.index(3..), rvec![4, 5]);
+}
+
+#[test]
+fn test_index_mut() {
+    let mut s = rvec![1, 2, 3, 4, 5];
+
+    assert_eq!(s.index_mut(0), &mut 1);
+    assert_eq!(s.index_mut(4), &mut 5);
+    assert_eq!(s.index_mut(..2), &mut rvec![1, 2]);
+    assert_eq!(s.index_mut(1..2), &mut rvec![2]);
+    assert_eq!(s.index_mut(3..), &mut rvec![4, 5]);
+}
+
+#[test]
+fn test_slice() {
+    let s = rvec![1, 2, 3, 4, 5];
+
+    assert_eq!(s.slice(..), rslice![1, 2, 3, 4, 5]);
+    assert_eq!(s.slice(..2), rslice![1, 2]);
+    assert_eq!(s.slice(1..2), rslice![2]);
+    assert_eq!(s.slice(3..), rslice![4, 5]);
+}
+
+#[test]
+fn test_slice_mut() {
+    let mut s = rvec![1, 2, 3, 4, 5];
+
+    assert_eq!(
+        s.slice_mut(..),
+        RSliceMut::from_mut_slice(&mut [1, 2, 3, 4, 5])
+    );
+    assert_eq!(s.slice_mut(..2), RSliceMut::from_mut_slice(&mut [1, 2]));
+    assert_eq!(s.slice_mut(1..2), RSliceMut::from_mut_slice(&mut [2]));
+    assert_eq!(s.slice_mut(3..), RSliceMut::from_mut_slice(&mut [4, 5]));
 }

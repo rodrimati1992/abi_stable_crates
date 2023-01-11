@@ -29,8 +29,11 @@ use std::cmp::Ordering;
 #[repr(u8)]
 #[derive(StableAbi)]
 pub enum RCmpOrdering {
+    ///
     Less,
+    ///
     Equal,
+    ///
     Greater,
 }
 
@@ -43,25 +46,47 @@ impl RCmpOrdering {
     /// use abi_stable::std_types::RCmpOrdering;
     /// use std::cmp::Ordering;
     ///
-    /// assert_eq!(RCmpOrdering::Less.into_ordering(), Ordering::Less);
-    /// assert_eq!(RCmpOrdering::Equal.into_ordering(), Ordering::Equal);
-    /// assert_eq!(RCmpOrdering::Greater.into_ordering(), Ordering::Greater);
+    /// assert_eq!(RCmpOrdering::Less.to_ordering(), Ordering::Less);
+    /// assert_eq!(RCmpOrdering::Equal.to_ordering(), Ordering::Equal);
+    /// assert_eq!(RCmpOrdering::Greater.to_ordering(), Ordering::Greater);
     ///
     /// ```
     #[inline]
-    pub fn into_ordering(self) -> Ordering {
-        self.into()
+    pub const fn to_ordering(self) -> Ordering {
+        match self {
+            RCmpOrdering::Less => Ordering::Less,
+            RCmpOrdering::Equal => Ordering::Equal,
+            RCmpOrdering::Greater => Ordering::Greater,
+        }
+    }
+
+    /// Converts a [`std::cmp::Ordering`] to [`RCmpOrdering`];
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use abi_stable::std_types::RCmpOrdering;
+    /// use std::cmp::Ordering;
+    ///
+    /// assert_eq!(RCmpOrdering::from_ordering(Ordering::Less), RCmpOrdering::Less);
+    /// assert_eq!(RCmpOrdering::from_ordering(Ordering::Equal), RCmpOrdering::Equal);
+    /// assert_eq!(RCmpOrdering::from_ordering(Ordering::Greater), RCmpOrdering::Greater);
+    ///
+    /// ```
+    #[inline]
+    pub const fn from_ordering(ordering: Ordering) -> RCmpOrdering {
+        match ordering {
+            Ordering::Less => RCmpOrdering::Less,
+            Ordering::Equal => RCmpOrdering::Equal,
+            Ordering::Greater => RCmpOrdering::Greater,
+        }
     }
 }
 
 impl_from_rust_repr! {
     impl From<Ordering> for RCmpOrdering {
         fn(this){
-            match this {
-                Ordering::Less => RCmpOrdering::Less,
-                Ordering::Equal => RCmpOrdering::Equal,
-                Ordering::Greater => RCmpOrdering::Greater,
-            }
+            RCmpOrdering::from_ordering(this)
         }
     }
 }
@@ -69,11 +94,7 @@ impl_from_rust_repr! {
 impl_into_rust_repr! {
     impl Into<Ordering> for RCmpOrdering {
         fn(this){
-            match this {
-                RCmpOrdering::Less => Ordering::Less,
-                RCmpOrdering::Equal => Ordering::Equal,
-                RCmpOrdering::Greater => Ordering::Greater,
-            }
+            this.to_ordering()
         }
     }
 }

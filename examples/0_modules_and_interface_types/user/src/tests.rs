@@ -42,7 +42,7 @@ fn test_remove_words(mods: TextOpsMod_Ref) {
 
         let param = RemoveWords {
             string: "Monads are like a burrito wrapper.".into(),
-            words: DynTrait::from_borrowing_ptr(words, CowStrIter),
+            words: DynTrait::from_borrowing_ptr(words),
         };
         assert_eq!(
             &*text_ops.remove_words()(&mut state, param),
@@ -53,7 +53,7 @@ fn test_remove_words(mods: TextOpsMod_Ref) {
         let words = &mut vec!["largest", "is"].into_iter().map(RCow::from);
         let param = RemoveWords {
             string: "The   largest planet  is    jupiter.".into(),
-            words: DynTrait::from_borrowing_ptr(words, CowStrIter),
+            words: DynTrait::from_borrowing_ptr(words),
         };
         assert_eq!(
             &*text_ops.remove_words()(&mut state, param),

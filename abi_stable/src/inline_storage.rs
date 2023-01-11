@@ -1,5 +1,7 @@
 //! Contains the `InlineStorage` trait,and related items.
 
+use std::{marker::PhantomData, mem::ManuallyDrop};
+
 /// Type used as the inline storage of a RSmallBox<>/NonExhaustive<>.
 ///
 /// # Safety
@@ -64,20 +66,51 @@ impl_for_arrays! {
     ]
 }
 
+mod private {
+    use super::*;
+    pub struct Private<T, const ALIGNMENT: usize>(pub(super) PhantomData<T>);
+}
+use private::Private;
+
+/// For getting the `AlignTo*` type which aligns `Self` to `ALIGNMENT`.
+pub trait AlignerFor<const ALIGNMENT: usize>: Sized {
+    // prevents implementations outside this crate.
+    #[doc(hidden)]
+    const __PRIVATE_12350662443733019984: Private<Self, ALIGNMENT>;
+
+    /// The `AlignTo*` type which aligns `Self` to `ALIGNMENT`.
+    type Aligner;
+}
+
+/// For getting the `AlignTo*` type which aligns `T` to `ALIGNMENT`.
+pub type GetAlignerFor<T, const ALIGNMENT: usize> = <T as AlignerFor<ALIGNMENT>>::Aligner;
+
 macro_rules! declare_alignments {
     (
-        $(( $docs:expr, $aligner:ident, $alignment:expr ),)*
+        $(( $aligner:ident, $alignment:expr),)*
     ) => (
         $(
-            #[doc=$docs]
+            #[doc = concat!(
+                "Aligns its contents to an address at a multiple of ",
+                $alignment,
+                " bytes."
+            )]
+            #[derive(StableAbi, Debug, PartialEq, Eq, Copy, Clone)]
             #[repr(C)]
             #[repr(align($alignment))]
             pub struct $aligner<Inline>(pub Inline);
 
             unsafe impl<Inline> InlineStorage for $aligner<Inline>
             where
-                Inline:InlineStorage,
+                Inline: InlineStorage,
             {}
+
+            impl<T> AlignerFor<$alignment> for T {
+                #[doc(hidden)]
+                const __PRIVATE_12350662443733019984: Private<T, $alignment> = Private(PhantomData);
+
+                type Aligner = $aligner<T>;
+            }
         )*
     )
 }
@@ -86,21 +119,37 @@ macro_rules! declare_alignments {
 pub mod alignment {
     use super::*;
 
+    /*
+        fn main(){
+            for pow in 0..=16 {
+                let val = 1u32 << pow;
+                println!("        (AlignTo{val}, {val}),")
+            }
+        }
+    */
     declare_alignments! {
-        ( "Aligns its contents to an address at a multiple of 1 bytes.",AlignTo1,1 ),
-        ( "Aligns its contents to an address at a multiple of 2 bytes.",AlignTo2,2 ),
-        ( "Aligns its contents to an address at a multiple of 4 bytes.",AlignTo4,4 ),
-        ( "Aligns its contents to an address at a multiple of 8 bytes.",AlignTo8,8 ),
-        ( "Aligns its contents to an address at a multiple of 16 bytes.",AlignTo16,16 ),
-        ( "Aligns its contents to an address at a multiple of 32 bytes.",AlignTo32,32 ),
-        ( "Aligns its contents to an address at a multiple of 64 bytes.",AlignTo64,64 ),
-        ( "Aligns its contents to an address at a multiple of 128 bytes.",AlignTo128,128 ),
+        (AlignTo1, 1),
+        (AlignTo2, 2),
+        (AlignTo4, 4),
+        (AlignTo8, 8),
+        (AlignTo16, 16),
+        (AlignTo32, 32),
+        (AlignTo64, 64),
+        (AlignTo128, 128),
+        (AlignTo256, 256),
+        (AlignTo512, 512),
+        (AlignTo1024, 1024),
+        (AlignTo2048, 2048),
+        (AlignTo4096, 4096),
+        (AlignTo8192, 8192),
+        (AlignTo16384, 16384),
+        (AlignTo32768, 32768),
     }
 
     /// Aligns its contents to an address to an address at
     /// a multiple of the size of a pointer.
     #[repr(C)]
-    #[derive(Copy, Clone)]
+    #[derive(Debug, PartialEq, Eq, Copy, Clone)]
     #[cfg_attr(target_pointer_width = "128", repr(C, align(16)))]
     #[cfg_attr(target_pointer_width = "64", repr(C, align(8)))]
     #[cfg_attr(target_pointer_width = "32", repr(C, align(4)))]
@@ -112,72 +161,50 @@ pub mod alignment {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-/// Used internally to avoid requiring Rust 1.36.0 .
 #[repr(transparent)]
-pub(crate) struct ScratchSpace<Inline> {
+pub(crate) struct ScratchSpace<T, Inline> {
     #[allow(dead_code)]
-    storage: std::mem::MaybeUninit<Inline>,
+    inner: ScratchSpaceInner<T, Inline>,
 }
 
-impl<Inline> ScratchSpace<Inline> {
+#[repr(C)]
+union ScratchSpaceInner<T, Inline> {
+    value: ManuallyDrop<T>,
+    storage: ManuallyDrop<Inline>,
+    uninit: (),
+}
+
+// These constructors don't require `Inline: InlineStorage` because
+// the `storage` field is only used for its side/alignment,
+// it is never actually constructed.
+impl<T, Inline> ScratchSpace<T, Inline> {
     #[inline]
     #[allow(dead_code)]
-    pub(crate) fn new<T>(value: T) -> Self
-    where
-        Inline: InlineStorage,
-    {
-        Self::assert_fits_within_storage::<T>();
-        unsafe { Self::new_unchecked(value) }
+    #[track_caller]
+    pub(crate) const fn uninit() -> Self {
+        Self::assert_fits_within_storage();
+        Self {
+            inner: ScratchSpaceInner { uninit: () },
+        }
     }
 
-    /// # Safety
-    ///
-    /// You must ensure that `T` has a compatible size/alignement with `Inline`,
-    /// and that `Inline` si valid for all bitpatterns.
     #[inline]
     #[allow(dead_code)]
-    pub(crate) unsafe fn new_unchecked<T>(value: T) -> Self {
-        let mut this = Self::uninit_unbounded();
-        (&mut this as *mut Self as *mut T).write(value);
-        this
-    }
-    #[inline]
-    pub(crate) fn uninit() -> Self
-    where
-        Inline: InlineStorage,
-    {
-        unsafe { Self::uninit_unbounded() }
+    #[track_caller]
+    pub(crate) const fn new(value: T) -> Self {
+        Self::assert_fits_within_storage();
+        Self {
+            inner: ScratchSpaceInner {
+                value: ManuallyDrop::new(value),
+            },
+        }
     }
 
     /// Asserts that `T` fits within `Inline`,with the correct alignment and size.
-    fn assert_fits_within_storage<T>() {
-        let align_val = std::mem::align_of::<T>();
-        let align_storage = std::mem::align_of::<Inline>();
-        assert!(
-            align_val <= align_storage,
-            "The alignment of the storage is lower than the value:\n\t{} < {}",
-            align_storage,
-            align_val,
-        );
-        let size_val = std::mem::size_of::<T>();
-        let size_storage = std::mem::size_of::<Inline>();
-        assert!(
-            size_val <= size_storage,
-            "The size of the storage is smaller than the value:\n\t{} < {}",
-            size_storage,
-            size_val,
-        );
-    }
-}
+    #[track_caller]
+    const fn assert_fits_within_storage() {
+        use crate::nonexhaustive_enum::AssertCsArgs;
 
-impl<Inline> ScratchSpace<Inline> {
-    /// # Safety
-    ///
-    /// You must ensure that `Inline` is valid for all bitpatterns,ie:it implements `InlineStorage`.
-    #[inline]
-    pub(crate) unsafe fn uninit_unbounded() -> Self {
-        Self {
-            storage: std::mem::MaybeUninit::uninit(),
-        }
+        crate::nonexhaustive_enum::assert_correct_storage::<T, Inline>(AssertCsArgs::UNKNOWN)
     }
 }

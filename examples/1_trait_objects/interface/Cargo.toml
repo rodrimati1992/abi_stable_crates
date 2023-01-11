@@ -2,11 +2,11 @@
 name = "example_1_interface"
 version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 abi_stable={version="*",path="../../../abi_stable"}
-serde={ version = "1.0.117", features = ["derive"] }
-arrayvec= "0.5.1"
-core_extensions={ version = "1.4.0", default_features = false, features = ["std"] }
-serde_json= "1.0.59"
+serde={ version = "1.0.136", features = ["derive"] }
+arrayvec= "0.7.2"
+core_extensions={ version = "1.5.2", default_features = false, features = ["std"] }
+serde_json= "1.0.79"

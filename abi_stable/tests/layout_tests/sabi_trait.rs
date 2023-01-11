@@ -9,8 +9,6 @@ use abi_stable::{
     StableAbi,
 };
 
-use core_extensions::matches;
-
 fn check_subsets<F>(list: &[&'static TypeLayout], mut f: F)
 where
     F: FnMut(&[AbiInstability]),
@@ -39,7 +37,7 @@ where
             if l_i <= r_i {
                 assert_eq!(res, Ok(()));
             } else {
-                if let Ok(_) = res {
+                if res.is_ok() {
                     let _ = dbg!(l_i);
                     let _ = dbg!(r_i);
                 }
@@ -72,7 +70,7 @@ where
             if l_i == r_i {
                 assert_eq!(res, Ok(()));
             } else {
-                if let Ok(_) = res {
+                if res.is_ok() {
                     let _ = dbg!(l_i);
                     let _ = dbg!(r_i);
                 }

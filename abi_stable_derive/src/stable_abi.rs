@@ -18,8 +18,6 @@ use syn::Ident;
 
 use proc_macro2::{Span, TokenStream as TokenStream2};
 
-use quote::TokenStreamExt;
-
 use core_extensions::{IteratorExt, SelfOps};
 
 #[doc(hidden)]
@@ -67,7 +65,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     data.generics.make_where_clause();
 
     // println!("\nderiving for {}",data.ident);
-    // let _measure_time0=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
 
     let arenas = Arenas::default();
     let arenas = &arenas;
@@ -188,7 +185,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
                         __sabi_re::StoredExtraChecks::from_const(
                             &#extra_checks,
                             __sabi_re::TD_Opaque,
-                            __sabi_re::ExtraChecks_MV::VTABLE,
                         )
                     );
             );
@@ -413,7 +409,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
             CompTLField::from_expanded_std_field(
                 name,
                 std::iter::empty(),
-                shared_vars.push_type(LayoutConstructor::Regular, *ty),
+                shared_vars.push_type(LayoutConstructor::Regular, ty),
                 shared_vars,
             )
         })
@@ -435,7 +431,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     let shared_vars_tokenizer = shared_vars.shared_vars_tokenizer(mono_type_layout);
 
     // drop(_measure_time0);
-    // let _measure_time1=PrintDurationOnDrop::new(abi_stable_shared::file_span!());
 
     let shared_where_preds = quote!(
         #(#where_clause_b,)*
@@ -447,7 +442,7 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
     );
 
     let stable_abi_where_preds = shared_where_preds.clone().mutated(|ts| {
-        ts.append_all(quote!(
+        ts.extend(quote!(
             #(#phantom_field_tys:__StableAbi,)*
         ))
     });
@@ -580,7 +575,6 @@ pub(crate) fn derive(mut data: DeriveInput) -> Result<TokenStream2, syn::Error> 
         };
     )
     .observe(|tokens| {
-        #[allow(clippy::if_then_panic)]
         // drop(_measure_time1);
         if config.debug_print {
             panic!("\n\n\n{}\n\n\n", tokens);

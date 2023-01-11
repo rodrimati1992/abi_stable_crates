@@ -24,6 +24,7 @@ pub struct CloneEqInterface;
 pub struct DEIteratorCloneInterface<T>(PhantomData<T>);
 
 impl<T> DEIteratorCloneInterface<T> {
+    ///
     pub const NEW: Self = Self(PhantomData);
 }
 
@@ -38,6 +39,14 @@ impl<'a, T: 'a> IteratorItem<'a> for DEIteratorCloneInterface<T> {
 #[derive(StableAbi)]
 #[sabi(impl_InterfaceType(Send, Sync, Default))]
 pub struct DefaultInterface;
+
+//////////////////////////////////////////////
+
+/// Implements `InterfaceType`, requiring `Unpin`
+#[repr(C)]
+#[derive(StableAbi)]
+#[sabi(impl_InterfaceType(Unpin))]
+pub struct UnpinInterface;
 
 //////////////////////////////////////////////
 
@@ -88,6 +97,7 @@ pub struct DebugDisplayInterface;
 pub struct IteratorInterface<T>(PhantomData<T>);
 
 impl<T> IteratorInterface<T> {
+    ///
     pub const NEW: Self = Self(PhantomData);
 }
 
@@ -104,6 +114,7 @@ impl<'a, T: 'a> IteratorItem<'a> for IteratorInterface<T> {
 pub struct DEIteratorInterface<T>(PhantomData<T>);
 
 impl<T> DEIteratorInterface<T> {
+    ///
     pub const NEW: Self = Self(PhantomData);
 }
 

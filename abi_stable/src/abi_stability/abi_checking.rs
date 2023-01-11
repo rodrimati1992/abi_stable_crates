@@ -77,13 +77,14 @@ pub enum CheckingState {
 //////
 
 /// Represents an error where a value was expected,but another value was found.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 #[repr(C)]
 pub struct ExpectedFound<T> {
     pub expected: T,
     pub found: T,
 }
 
+#[allow(clippy::missing_const_for_fn)]
 impl<T> ExpectedFound<T> {
     pub fn new<O, F>(this: O, other: O, mut field_getter: F) -> ExpectedFound<T>
     where
@@ -264,7 +265,7 @@ impl AbiChecker {
 
             let is_accessible = match (ctx, acc_fields) {
                 (FieldContext::Fields, Some((l, r))) => {
-                    l.is_accessible(field_i) && r.is_accessible(field_i)
+                    l.at(field_i).is_accessible() && r.at(field_i).is_accessible()
                 }
                 _ => true,
             };
@@ -295,6 +296,10 @@ impl AbiChecker {
 
                     if t_func.paramret_lifetime_indices != o_func.paramret_lifetime_indices {
                         push_err(errs, t_func, o_func, |x| x, AI::FnLifetimeMismatch);
+                    }
+
+                    if t_func.qualifiers() != o_func.qualifiers() {
+                        push_err(errs, t_func, o_func, |x| x, AI::FnQualifierMismatch);
                     }
 
                     self.check_fields(

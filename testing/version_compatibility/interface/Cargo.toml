@@ -2,7 +2,7 @@
 name = "version_compatibility_interface"
 version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,5 +11,5 @@ old=[]
 new=[]
 
 [dependencies]
-old_abi_stable={version="*",package="abi_stable"}
+old_abi_stable={version="0.11",package="abi_stable"}
 new_abi_stable={path="../../../abi_stable",package="abi_stable"}

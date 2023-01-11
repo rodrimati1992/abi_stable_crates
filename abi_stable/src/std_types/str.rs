@@ -93,7 +93,7 @@ impl<'a> RStr<'a> {
     #[inline]
     pub const unsafe fn from_raw_parts(ptr_: *const u8, len: usize) -> Self {
         Self {
-            inner: RSlice::from_raw_parts(ptr_, len),
+            inner: unsafe { RSlice::from_raw_parts(ptr_, len) },
         }
     }
 
@@ -156,20 +156,25 @@ impl<'a> RStr<'a> {
         self.inner
     }
 
-    /// Casts this `RStr<'a>` to a `&'a str`.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RStr;
-    ///
-    /// let str = "What is that.";
-    /// assert_eq!(RStr::from(str).as_str(), str);
-    ///
-    /// ```
-    #[inline]
-    pub fn as_str(&self) -> &'a str {
-        unsafe { str::from_utf8_unchecked(self.inner.as_slice()) }
+    conditionally_const! {
+        feature = "rust_1_64"
+        /// Casts this `RStr<'a>` to a `&'a str`.
+        ///
+        ;
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RStr;
+        ///
+        /// let str = "What is that.";
+        /// assert_eq!(RStr::from(str).as_str(), str);
+        ///
+        /// ```
+        #[inline]
+        pub fn as_str(&self) -> &'a str {
+            unsafe { str::from_utf8_unchecked(self.inner.as_slice()) }
+        }
     }
 
     /// Gets a raw pointer to the start of the string slice.
@@ -237,7 +242,7 @@ deref_coerced_impl_cmp_traits! {
         str,
         &str,
         std::borrow::Cow<'_, str>,
-        crate::std_types::RCow<'_, str>,
+        crate::std_types::RCowStr<'_>,
     ]
 }
 
@@ -343,9 +348,21 @@ mod test {
 
     #[test]
     fn from_to_str() {
-        let a = "what the hell";
-        let b = RStr::from_str(a);
+        const RS: RStr<'_> = RStr::from_str("foo bar");
 
-        assert_eq!(a, &*b);
+        let string = "what the hell";
+        let rstr = RStr::from_str(string);
+
+        assert_eq!(rstr, string);
+        assert_eq!(RS, "foo bar");
+    }
+
+    #[cfg(feature = "rust_1_64")]
+    #[test]
+    fn const_as_str() {
+        const RS: RStr<'_> = RStr::from_str("Hello, world!");
+        const S: &str = RS.as_str();
+
+        assert_eq!(S, "Hello, world!");
     }
 }

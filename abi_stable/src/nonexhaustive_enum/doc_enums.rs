@@ -1,6 +1,7 @@
 macro_rules! declare_constructors {
     ($foo:ident) => {
         pub fn new_a() -> NonExhaustiveFor<$foo> {
+            // these transmutes are for testing compatibility of enums across versions
             unsafe { std::mem::transmute(super::example_3::Foo::A.piped(NonExhaustive::new)) }
         }
         pub fn new_b(n: i8) -> NonExhaustiveFor<$foo> {
@@ -18,8 +19,8 @@ pub mod example_1 {
     use core_extensions::SelfOps;
 
     #[repr(u8)]
-    #[derive(StableAbi, Debug, Clone, PartialEq)]
-    #[sabi(kind(WithNonExhaustive(size = "[usize;4]", traits(Debug, Clone, PartialEq))))]
+    #[derive(StableAbi, Debug, Clone, PartialEq, Eq)]
+    #[sabi(kind(WithNonExhaustive(size = [usize;4], traits(Debug, Clone, PartialEq))))]
     pub enum Foo {
         A,
     }
@@ -32,8 +33,8 @@ pub mod example_2 {
     use core_extensions::SelfOps;
 
     #[repr(u8)]
-    #[derive(StableAbi, Debug, Clone, PartialEq)]
-    #[sabi(kind(WithNonExhaustive(size = "[usize;4]", traits(Debug, Clone, PartialEq))))]
+    #[derive(StableAbi, Debug, Clone, PartialEq, Eq)]
+    #[sabi(kind(WithNonExhaustive(size = [usize;4], traits(Debug, Clone, PartialEq))))]
     pub enum Foo {
         A,
         B(i8),
@@ -47,8 +48,8 @@ pub mod example_3 {
     use core_extensions::SelfOps;
 
     #[repr(u8)]
-    #[derive(StableAbi, Debug, Clone, PartialEq)]
-    #[sabi(kind(WithNonExhaustive(size = "[usize;4]", traits(Debug, Clone, PartialEq))))]
+    #[derive(StableAbi, Debug, Clone, PartialEq, Eq)]
+    #[sabi(kind(WithNonExhaustive(size = [usize;4], traits(Debug, Clone, PartialEq))))]
     pub enum Foo {
         A,
         B(i8),

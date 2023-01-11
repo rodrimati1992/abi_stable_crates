@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 #![allow(dead_code)]
 
 #[allow(unused_imports)]
@@ -9,8 +10,8 @@ use abi_stable::{
     abi_stability::abi_checking::{
         check_layout_compatibility_with_globals, AbiInstability, CheckingGlobals,
     },
-    prefix_type::{PrefixTypeTrait, WithMetadata, __PrefixTypeMetadata},
-    test_utils::{file_span, must_panic},
+    prefix_type::{WithMetadata, __PrefixTypeMetadata},
+    test_utils::must_panic,
     type_layout::TypeLayout,
     type_level::bools::*,
     *,
@@ -41,7 +42,7 @@ mod prefix1 {
     #[sabi(
         // debug_print,
         kind(Prefix),
-        missing_field(with="custom_default::<_>"),
+        missing_field(with = custom_default::<_>),
     )]
     pub struct Prefix {
         #[sabi(last_prefix_field)]
@@ -108,10 +109,10 @@ fn dereference_abi(abi: &'static TypeLayout) -> &'static TypeLayout {
     abi.phantom_fields().get(0).unwrap().layout()
 }
 
-static PREF_0: &'static TypeLayout = <prefix0::Prefix_Ref>::LAYOUT;
-static PREF_1: &'static TypeLayout = <prefix1::Prefix_Ref>::LAYOUT;
-static PREF_2: &'static TypeLayout = <prefix2::Prefix_Ref>::LAYOUT;
-static PREF_3: &'static TypeLayout = <prefix3::Prefix_Ref>::LAYOUT;
+static PREF_0: &TypeLayout = <prefix0::Prefix_Ref>::LAYOUT;
+static PREF_1: &TypeLayout = <prefix1::Prefix_Ref>::LAYOUT;
+static PREF_2: &TypeLayout = <prefix2::Prefix_Ref>::LAYOUT;
+static PREF_3: &TypeLayout = <prefix3::Prefix_Ref>::LAYOUT;
 
 fn new_list() -> Vec<&'static TypeLayout> {
     vec![PREF_0, PREF_1, PREF_2, PREF_3]
@@ -135,7 +136,7 @@ fn prefixes_test() {
     let mut gen_generation = |skip_first: usize| {
         let mut ret = Vec::<(&'static TypeLayout, __PrefixTypeMetadata)>::new();
         for _ in 0..list.len() {
-            let pushed = gen_elem_from(list.choose(&mut rng).unwrap().clone());
+            let pushed = gen_elem_from(list.choose(&mut rng).unwrap());
             ret.push(pushed);
         }
         let max_size = ret.iter().map(|(_, x)| x.fields.len()).max().unwrap();
@@ -182,7 +183,7 @@ fn prefixes_test() {
                 let t_map_prefix = t_map_prefix.unwrap();
                 let o_map_prefix = o_map_prefix.unwrap();
 
-                for pre in vec![o_prefix.clone(), t_map_prefix.clone(), o_map_prefix.clone()] {
+                for pre in [o_prefix.clone(), t_map_prefix.clone(), o_map_prefix.clone()] {
                     assert_eq!(t_prefix.prefix_field_count, pre.prefix_field_count,);
                     for (l_field, r_field) in t_prefix.fields.iter().zip(pre.fields.iter()) {
                         assert_eq!(l_field, r_field);
@@ -244,7 +245,7 @@ fn check_interface_impl_pair(
     let t_prefix = __PrefixTypeMetadata::new(deref_this);
     let o_prefix = __PrefixTypeMetadata::new(deref_other);
 
-    if let Err(e) = check_layout_compatibility_with_globals(this, other, &globals) {
+    if let Err(e) = check_layout_compatibility_with_globals(this, other, globals) {
         if t_prefix.fields.len() <= o_prefix.fields.len() {
             panic!("{:#?}", e);
         } else {
@@ -263,13 +264,13 @@ fn check_interface_impl_pair(
     let t_map_prefix = t_map_prefix.unwrap();
     let o_map_prefix = o_map_prefix.unwrap();
 
-    for pre in vec![o_prefix.clone(), t_map_prefix.clone(), o_map_prefix.clone()] {
+    for pre in [o_prefix.clone(), t_map_prefix.clone(), o_map_prefix.clone()] {
         assert_eq!(t_prefix.prefix_field_count, pre.prefix_field_count,);
         for (field_i, (l_field, r_field)) in
             t_prefix.fields.iter().zip(pre.fields.iter()).enumerate()
         {
-            if t_prefix.accessible_fields.is_accessible(field_i)
-                && o_prefix.accessible_fields.is_accessible(field_i)
+            if t_prefix.accessible_fields.at(field_i).is_accessible()
+                && o_prefix.accessible_fields.at(field_i).is_accessible()
             {
                 assert_eq!(
                     l_field, r_field,
@@ -328,7 +329,7 @@ fn prefix_is_same_alignment() {
     let globals = CheckingGlobals::new();
     let misaligned = <prefix2_misaligned::Prefix_Ref>::LAYOUT;
 
-    for pref in vec![PREF_0, PREF_1] {
+    for pref in [PREF_0, PREF_1] {
         let errs = check_layout_compatibility_with_globals(pref, misaligned, &globals)
             .unwrap_err()
             .flatten_errors();
@@ -359,11 +360,12 @@ fn prefix_is_same_size() {
 #[cfg_attr(not(miri), test)]
 fn prefix_on_nonexistent_field() {
     pub const MOD_VAL: &WithMetadata<prefix0::Prefix> =
-        &WithMetadata::new(PrefixTypeTrait::METADATA, prefix0::Prefix { field0: 1 });
+        &WithMetadata::new(prefix0::Prefix { field0: 1 });
 
     let prefix0 = MOD_VAL.static_as_prefix();
 
     {
+        // these transmutes are used to test prefix types across library versions
         let value1: prefix1::Prefix_Ref = unsafe { std::mem::transmute(prefix0) };
         assert_eq!(value1.field0(), 1);
         assert_eq!(value1.field1(), custom_default::<u16>());
@@ -377,9 +379,9 @@ fn prefix_on_nonexistent_field() {
     {
         let value3: prefix3::Prefix_Ref = unsafe { std::mem::transmute(prefix0) };
         assert_eq!(value3.field0(), 1);
-        must_panic(file_span!(), || value3.field1()).unwrap();
-        must_panic(file_span!(), || value3.field2()).unwrap();
-        must_panic(file_span!(), || value3.field3()).unwrap();
+        must_panic(|| value3.field1()).unwrap();
+        must_panic(|| value3.field2()).unwrap();
+        must_panic(|| value3.field3()).unwrap();
     }
 }
 
@@ -464,42 +466,42 @@ declare_enabled_fields! {
     }
 }
 
-static COND_FIELD_0_ALL: &'static TypeLayout = <cond_fields_0::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
+static COND_FIELD_0_ALL: &TypeLayout = <cond_fields_0::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_1_ALL: &'static TypeLayout = <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
+static COND_FIELD_1_ALL: &TypeLayout = <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_2_ALL: &'static TypeLayout = <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
+static COND_FIELD_2_ALL: &TypeLayout = <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_3_ALL: &'static TypeLayout = <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
+static COND_FIELD_3_ALL: &TypeLayout = <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL>>::LAYOUT;
 
-static COND_FIELD_0_EXCEPT_0: &'static TypeLayout =
+static COND_FIELD_0_EXCEPT_0: &TypeLayout =
     <cond_fields_0::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_1_EXCEPT_0: &'static TypeLayout =
+static COND_FIELD_1_EXCEPT_0: &TypeLayout =
     <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_2_EXCEPT_0: &'static TypeLayout =
+static COND_FIELD_2_EXCEPT_0: &TypeLayout =
     <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_0: &'static TypeLayout =
+static COND_FIELD_3_EXCEPT_0: &TypeLayout =
     <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_0>>::LAYOUT;
 
-static COND_FIELD_1_EXCEPT_1: &'static TypeLayout =
+static COND_FIELD_1_EXCEPT_1: &TypeLayout =
     <cond_fields_1::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
-static COND_FIELD_2_EXCEPT_1: &'static TypeLayout =
+static COND_FIELD_2_EXCEPT_1: &TypeLayout =
     <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_1: &'static TypeLayout =
+static COND_FIELD_3_EXCEPT_1: &TypeLayout =
     <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_1>>::LAYOUT;
 
-static COND_FIELD_2_EXCEPT_2: &'static TypeLayout =
+static COND_FIELD_2_EXCEPT_2: &TypeLayout =
     <cond_fields_2::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_2: &'static TypeLayout =
+static COND_FIELD_3_EXCEPT_2: &TypeLayout =
     <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_2>>::LAYOUT;
 
-static COND_FIELD_3_EXCEPT_3: &'static TypeLayout =
+static COND_FIELD_3_EXCEPT_3: &TypeLayout =
     <cond_fields_3::Prefix_Ref<ACCESSIBLE_ALL_EXCEPT_3>>::LAYOUT;
 
 mod cond_fields_0 {
@@ -509,12 +511,12 @@ mod cond_fields_0 {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C:EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C> {
         pub _marker: UnsafeIgnoredType<C>,
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
         #[sabi(last_prefix_field)]
         pub field0: u8,
     }
@@ -528,19 +530,19 @@ mod cond_fields_1 {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C, T = u8, U = u16> {
         pub _marker: UnsafeIgnoredType<C>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
+        #[sabi(accessor_bound = Copy)]
         #[sabi(last_prefix_field)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
     }
 }
@@ -552,23 +554,23 @@ mod cond_fields_2 {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C, T = u8, U = u16, V = u32> {
         pub _marker: UnsafeIgnoredType<C>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
         #[sabi(last_prefix_field)]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessor_bound = Copy)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
+        #[sabi(accessor_bound = Copy)]
         pub field2: V,
     }
 }
@@ -581,20 +583,20 @@ mod cond_fields_2_misaligned {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C> {
         pub _marker: UnsafeIgnoredType<C>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
         #[sabi(last_prefix_field)]
         pub field0: u8,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
         pub field1: u16,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
         pub field2: u32,
     }
 }
@@ -606,23 +608,23 @@ mod cond_fields_2_different_prefix {
     #[derive(abi_stable::StableAbi)]
     #[sabi(
         kind(Prefix),
-        prefix_bound = "C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C)
     )]
     pub struct Prefix<C, T = u8, U = u16, V = u32> {
         pub _marker: UnsafeIgnoredType<C>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
+        #[sabi(accessor_bound = Copy)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
         #[sabi(last_prefix_field)]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
+        #[sabi(accessor_bound = Copy)]
         pub field2: V,
     }
 }
@@ -635,27 +637,27 @@ mod cond_fields_3 {
     #[sabi(
         // debug_print,
         kind(Prefix),
-        prefix_bound="C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C),
     )]
     pub struct Prefix<C, T = u8, U = u16, V = u32, W = u64> {
         pub _marker: UnsafeIgnoredType<(C, T, U, V, W)>,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_0 ")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_0 )]
         #[sabi(last_prefix_field)]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessor_bound = Copy)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
+        #[sabi(accessor_bound = Copy)]
         pub field2: V,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_3 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_3 )]
+        #[sabi(accessor_bound = Copy)]
         pub field3: W,
     }
 }
@@ -668,26 +670,26 @@ mod cond_fields_3_uncond_prefix {
     #[sabi(
         // debug_print,
         kind(Prefix),
-        prefix_bound="C:EnabledFields",
+        prefix_bound(C: EnabledFields),
         unsafe_unconstrained(C),
     )]
     pub struct Prefix<C, T = u8, U = u16, V = u32, W = u64> {
         pub _marker: UnsafeIgnoredType<(C, T, U, V, W)>,
 
         #[sabi(last_prefix_field)]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessor_bound = Copy)]
         pub field0: T,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_1 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_1 )]
+        #[sabi(accessor_bound = Copy)]
         pub field1: U,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_2 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_2 )]
+        #[sabi(accessor_bound = Copy)]
         pub field2: V,
 
-        #[sabi(accessible_if = " <C as EnabledFields>::ENABLE_FIELD_3 ")]
-        #[sabi(accessor_bound = "Copy")]
+        #[sabi(accessible_if =  <C as EnabledFields>::ENABLE_FIELD_3 )]
+        #[sabi(accessor_bound = Copy)]
         pub field3: W,
     }
 }
@@ -840,18 +842,18 @@ fn hierarchical_prefix_cond_field_test() {
     for _ in 0..500 {
         let globals = CheckingGlobals::new();
 
-        let library_00 = fields_2.choose(&mut rng).unwrap().clone();
-        let library_01 = fields_1.choose(&mut rng).unwrap().clone();
-        let library_02 = fields_0.choose(&mut rng).unwrap().clone();
+        let library_00 = *fields_2.choose(&mut rng).unwrap();
+        let library_01 = *fields_1.choose(&mut rng).unwrap();
+        let library_02 = *fields_0.choose(&mut rng).unwrap();
 
-        let library_10 = fields_2.choose(&mut rng).unwrap().clone();
-        let library_11 = fields_2.choose(&mut rng).unwrap().clone();
-        let library_12 = fields_3.choose(&mut rng).unwrap().clone();
+        let library_10 = *fields_2.choose(&mut rng).unwrap();
+        let library_11 = *fields_2.choose(&mut rng).unwrap();
+        let library_12 = *fields_3.choose(&mut rng).unwrap();
 
-        let library_0 = fields_0.choose(&mut rng).unwrap().clone();
-        let library_1 = fields_1.choose(&mut rng).unwrap().clone();
+        let library_0 = *fields_0.choose(&mut rng).unwrap();
+        let library_1 = *fields_1.choose(&mut rng).unwrap();
 
-        let binary = fields_0.choose(&mut rng).unwrap().clone();
+        let binary = *fields_0.choose(&mut rng).unwrap();
 
         let mut checks = vec![
             (binary, library_0),
@@ -886,18 +888,18 @@ fn prefix_on_conditional_fields() {
 
     {
         // Casting Prefix0 to Prefix1 with different field accessibilities
-        pub const MOD_VAL: &WithMetadata<cond_fields_0::Prefix<(T, T, T, T)>> = &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            cond_fields_0::Prefix {
+        pub const MOD_VAL: &WithMetadata<cond_fields_0::Prefix<(T, T, T, T)>> =
+            &WithMetadata::new(cond_fields_0::Prefix {
                 _marker: UnsafeIgnoredType::DEFAULT,
                 field0: 1,
-            },
-        );
+            });
 
         let prefix0 = MOD_VAL.static_as_prefix();
 
         {
             // The field cannot be accessed even though it was initialized.
+            //
+            // these transmutes are used to test prefix types across library versions
             let value: Prefix1_Ref<(F, F, F, F)> = unsafe { std::mem::transmute(prefix0) };
 
             assert_eq!(value.field0(), None);
@@ -913,22 +915,20 @@ fn prefix_on_conditional_fields() {
     }
 
     pub const MOD_VAL_P3: &WithMetadata<cond_fields_3::Prefix<(T, T, T, T), i8, i32, i32, i32>> =
-        &WithMetadata::new(
-            PrefixTypeTrait::METADATA,
-            cond_fields_3::Prefix {
-                _marker: UnsafeIgnoredType::DEFAULT,
-                field0: 1,
-                field1: 3,
-                field2: 7,
-                field3: 12,
-            },
-        );
+        &WithMetadata::new(cond_fields_3::Prefix {
+            _marker: UnsafeIgnoredType::DEFAULT,
+            field0: 1,
+            field1: 3,
+            field2: 7,
+            field3: 12,
+        });
 
     let prefix3 = MOD_VAL_P3.static_as_prefix();
 
     {
         // Casting Prefix3 to Prefix2 with different field accessibilities
         {
+            // these transmutes are used to test prefix types across library versions
             let value: Prefix2_Ref<(F, F, F, F)> = unsafe { std::mem::transmute(prefix3) };
 
             assert_eq!(value.field0(), None);

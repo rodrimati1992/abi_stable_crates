@@ -8,6 +8,36 @@ use crate::std_types::RString;
 
 type DefaultBH = RandomState;
 
+fn _covariant_hashmap<'a: 'b, 'b, T>(foo: HashMap<&'a T, &'a T>) -> HashMap<&'b T, &'b T> {
+    foo
+}
+
+fn _covariant_rhashmap<'a: 'b, 'b, T>(foo: RHashMap<&'a T, &'a T>) -> RHashMap<&'b T, &'b T> {
+    foo
+}
+
+#[test]
+fn test_covariance() {
+    struct F<T>(T);
+
+    fn eq<'a, 'b, T>(left: &RHashMap<&'a T, &'a T>, right: &RHashMap<&'b T, &'b T>) -> bool
+    where
+        T: PartialEq + Hash,
+    {
+        left == right
+    }
+
+    let aaa = F(3);
+    let bbb = F(5);
+    let ccc = F(8);
+    let ddd = F(13);
+
+    let v0 = RHashMap::from_iter(vec![(&aaa.0, &bbb.0)]);
+    let v1 = RHashMap::from_iter(vec![(&ccc.0, &ddd.0)]);
+
+    assert!(!eq(&v0, &v1));
+}
+
 fn new_stdmap() -> HashMap<u32, u32> {
     vec![(90, 40), (10, 20), (88, 30), (77, 22)]
         .into_iter()
@@ -146,10 +176,10 @@ where
     K: Eq + Hash + Clone + Debug,
     V: PartialEq + Clone + Debug,
 {
-    assert_eq!(map.get(&key).cloned(), value.clone());
-    assert_eq!(map.get_p(&key).cloned(), value.clone());
-    assert_eq!(map.get_mut(&key).cloned(), value.clone());
-    assert_eq!(map.get_mut_p(&key).cloned(), value.clone());
+    assert_eq!(map.get(&key).cloned(), value);
+    assert_eq!(map.get_p(&key).cloned(), value);
+    assert_eq!(map.get_mut(&key).cloned(), value);
+    assert_eq!(map.get_mut_p(&key).cloned(), value);
 
     assert_eq!(
         map.contains_key(&key),
@@ -166,7 +196,7 @@ where
         value
     );
 
-    if let Some(mut value) = value.clone() {
+    if let Some(mut value) = value {
         assert_eq!(&map[&key], &value);
         assert_eq!(map.index_p(&key), &value);
 
@@ -194,16 +224,16 @@ macro_rules! get_test {
         check_get(&mut map, "youeeeee".into(), None);
 
         if let Some(x) = map.get_mut("what") {
-            *x = *x * 2;
+            *x *= 2;
         }
         if let Some(x) = map.get_mut("the") {
-            *x = *x * 2;
+            *x *= 2;
         }
         if let Some(x) = map.get_mut("oof") {
-            *x = *x * 2;
+            *x *= 2;
         }
         if let Some(x) = map.get_mut("you") {
-            *x = *x * 2;
+            *x *= 2;
         }
 
         assert_eq!(map.get("what"), Some(&20));
@@ -216,6 +246,49 @@ macro_rules! get_test {
 fn get() {
     get_test! {DefaultBH}
     get_test! {FnVBH}
+}
+
+#[test]
+fn map_key() {
+    let test_key: u8 = 100;
+    let borrow_key: &u8 = &test_key;
+    let builder = hashbrown::hash_map::DefaultHashBuilder::default();
+
+    // Hashing the original value
+    let mut hasher = builder.build_hasher();
+    test_key.hash(&mut hasher);
+    let original_hash = hasher.finish();
+
+    // Hashing the `MapKey::Value` variant
+    let map_value: MapKey<u8> = MapKey::Value(test_key);
+    let mut hasher = builder.build_hasher();
+    map_value.hash(&mut hasher);
+    let value_hash = hasher.finish();
+
+    // Should be the same as the original value
+    assert_eq!(original_hash, value_hash);
+
+    // Hashing `MapQuery`
+    let query = MapQuery::<'_, u8>::new(&borrow_key);
+    let mut hasher = builder.build_hasher();
+    query.hash(&mut hasher);
+    let query_hash1 = hasher.finish();
+
+    // Should be the same as the original value
+    assert_eq!(original_hash, query_hash1);
+
+    // Hashing the `MapKey::Query` variant
+    let map_query = unsafe { &query.as_mapkey() };
+    let mut hasher = builder.build_hasher();
+    map_query.hash(&mut hasher);
+    let query_hash2 = hasher.finish();
+
+    // Should be the same as the inner `MapQuery` value
+    assert_eq!(query_hash1, query_hash2);
+
+    // And both `Query` should be the same as `Value` to cover all the possible
+    // cases
+    assert_eq!(value_hash, query_hash2);
 }
 
 #[test]
@@ -309,7 +382,7 @@ fn from_iter() {
 
     assert_eq!(map.len(), 4);
 
-    let mapper = |Tuple2(k, v): Tuple2<&u32, &u32>| (k.clone(), v.clone());
+    let mapper = |Tuple2(k, v): Tuple2<&u32, &u32>| (*k, *v);
     assert_eq!(
         map.iter().map(mapper).collect::<Vec<_>>(),
         (&map).into_iter().map(mapper).collect::<Vec<_>>(),
@@ -317,7 +390,7 @@ fn from_iter() {
 
     for Tuple2(key, val) in map.iter() {
         assert_eq!(
-            stdmap.remove(&key).as_ref(),
+            stdmap.remove(key).as_ref(),
             Some(val),
             "key:{:?} value:{:?}",
             key,
@@ -335,7 +408,7 @@ fn into_iter() {
 
     assert_eq!(map.len(), 4);
 
-    let mapper = |Tuple2(k, v): Tuple2<&u32, &mut u32>| (k.clone(), (&*v).clone());
+    let mapper = |Tuple2(k, v): Tuple2<&u32, &mut u32>| (*k, *v);
     assert_eq!(
         map.iter_mut().map(mapper).collect::<Vec<_>>(),
         (&mut map).into_iter().map(mapper).collect::<Vec<_>>(),
@@ -360,13 +433,13 @@ fn iter_mut() {
 
     for Tuple2(key, val) in map.iter_mut() {
         assert_eq!(
-            stdmap.remove(&*key).as_ref(),
+            stdmap.remove(key).as_ref(),
             Some(&*val),
             "key:{:?} value:{:?}",
             key,
             val
         );
-        *val = *val + key;
+        *val += key;
     }
     assert_eq!(stdmap.len(), 0);
 
@@ -452,10 +525,10 @@ where
     V: Clone + Debug + PartialEq,
 {
     let mut entry = map.entry(k.clone());
-    assert_matches!(REntry::Occupied { .. } = entry);
+    assert_matches!(&entry, REntry::Occupied { .. });
     assert_eq!(entry.key(), &k);
     assert_eq!(entry.get().cloned(), Some(v.clone()));
-    assert_eq!(entry.get_mut().cloned(), Some(v.clone()));
+    assert_eq!(entry.get_mut().cloned(), Some(v));
 }
 
 fn assert_is_vacant<K, V>(map: &mut RHashMap<K, V>, k: K)
@@ -464,7 +537,7 @@ where
     V: Clone + Debug + PartialEq,
 {
     let mut entry = map.entry(k.clone());
-    assert_matches!(REntry::Vacant { .. } = entry);
+    assert_matches!(&entry, REntry::Vacant { .. });
     assert_eq!(entry.key(), &k);
     assert_eq!(entry.get().cloned(), None);
     assert_eq!(entry.get_mut().cloned(), None);
@@ -527,7 +600,10 @@ fn entry_and_modify() {
 
     assert_is_vacant(&mut map, "12".into());
 
-    assert_matches!(REntry::Vacant { .. } = map.entry("12".into()).and_modify(|_| unreachable!()));
+    assert_matches!(
+        map.entry("12".into()).and_modify(|_| unreachable!()),
+        REntry::Vacant { .. }
+    );
 
     assert_eq!(
         *map.entry("12".into())

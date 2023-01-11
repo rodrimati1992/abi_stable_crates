@@ -39,15 +39,11 @@ macro_rules! monomorphic_marker_type {
                 ),
             });
         impl $name {
-            const __SABI_CONST_PARAMS_A: &'static [&'static __sabi_re::ConstGenericErasureHack<
-                dyn ::std::marker::Send,
-            >] = &[];
-            const __SABI_CONST_PARAMS_B: &'static [__ConstGeneric] = &[];
             const __SABI_SHARED_VARS: &'static __sabi_re::SharedVars =
                 &abi_stable::type_layout::SharedVars::new(
                     _MONO_LAYOUT_.shared_vars_static(),
                     abi_stable::_sabi_type_layouts!($field,),
-                    __sabi_re::RSlice::from_slice(Self::__SABI_CONST_PARAMS_B),
+                    __sabi_re::RSlice::from_slice(&[]),
                 );
         }
         unsafe impl __sabi_re::StableAbi for $name {

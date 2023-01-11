@@ -105,7 +105,7 @@ use crate::{
 ///
 #[repr(transparent)]
 #[derive(StableAbi)]
-#[sabi(bound = "T:'a")]
+#[sabi(bound(T:'a))]
 pub struct RRef<'a, T> {
     ref_: NonNull<T>,
     _marker: PhantomData<&'a T>,
@@ -191,7 +191,7 @@ impl<'a, T> RRef<'a, T> {
         T: 'a,
     {
         Self {
-            ref_: NonNull::new_unchecked(ref_ as *mut T),
+            ref_: unsafe { NonNull::new_unchecked(ref_ as *mut T) },
             _marker: PhantomData,
         }
     }
@@ -209,8 +209,8 @@ impl<'a, T> RRef<'a, T> {
     ///
     /// ```
     #[inline(always)]
-    pub fn get(self) -> &'a T {
-        unsafe { &*(self.ref_.as_ptr() as *const T) }
+    pub const fn get(self) -> &'a T {
+        unsafe { crate::utils::deref!(self.ref_.as_ptr()) }
     }
 
     /// Copies the value that this points to.
@@ -226,7 +226,7 @@ impl<'a, T> RRef<'a, T> {
     ///
     /// ```
     #[inline(always)]
-    pub fn get_copy(self) -> T
+    pub const fn get_copy(self) -> T
     where
         T: Copy,
     {
@@ -282,7 +282,7 @@ impl<'a, T> RRef<'a, T> {
     where
         U: 'a,
     {
-        RRef::from_raw(self.ref_.as_ptr() as *const U)
+        unsafe { RRef::from_raw(self.ref_.as_ptr() as *const U) }
     }
 
     /// Transmutes this to a raw pointer pointing to a different type.
@@ -313,11 +313,11 @@ impl<'a, T> RRef<'a, T> {
     ///
     /// ```
     #[inline(always)]
-    pub unsafe fn transmute_into_ref<U>(self) -> &'a U
+    pub const unsafe fn transmute_into_ref<U>(self) -> &'a U
     where
         U: 'a,
     {
-        &*(self.ref_.as_ptr() as *const T as *const U)
+        unsafe { crate::utils::deref!(self.ref_.as_ptr() as *const T as *const U) }
     }
 }
 
@@ -335,7 +335,7 @@ where
 
     #[inline(always)]
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        self.transmute()
+        unsafe { self.transmute() }
     }
 }
 

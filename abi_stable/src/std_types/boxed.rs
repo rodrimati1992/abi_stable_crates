@@ -11,7 +11,7 @@ use std::{
     mem::ManuallyDrop,
     ops::DerefMut,
     pin::Pin,
-    ptr,
+    ptr::{self, NonNull},
     task::{Context, Poll},
 };
 
@@ -24,8 +24,8 @@ use crate::{
         AsMutPtr, AsPtr, CallReferentDrop, CanTransmuteElement, Deallocate, GetPointerKind,
         OwnedPointer, PK_SmartPointer,
     },
-    prefix_type::{PrefixTypeTrait, WithMetadata},
-    sabi_types::{Constructor, MovePtr},
+    prefix_type::WithMetadata,
+    sabi_types::MovePtr,
     std_types::utypeid::{new_utypeid, UTypeId},
     traits::IntoReprRust,
 };
@@ -74,7 +74,7 @@ mod private {
     #[repr(C)]
     #[derive(StableAbi)]
     pub struct RBox<T> {
-        data: *mut T,
+        data: NonNull<T>,
         vtable: BoxVtable_Ref<T>,
         _marker: PhantomData<T>,
     }
@@ -115,7 +115,7 @@ mod private {
         /// ```
         pub fn from_box(p: Box<T>) -> RBox<T> {
             RBox {
-                data: Box::into_raw(p),
+                data: unsafe { NonNull::new_unchecked(Box::into_raw(p)) },
                 vtable: VTableGetter::<T>::LIB_VTABLE,
                 _marker: PhantomData,
             }
@@ -145,16 +145,16 @@ mod private {
         }
 
         #[inline(always)]
-        pub(super) fn data(&self) -> *mut T {
-            self.data
+        pub(super) const fn data(&self) -> *mut T {
+            self.data.as_ptr()
         }
         #[inline(always)]
         pub(super) fn data_mut(&mut self) -> *mut T {
-            self.data
+            self.data.as_ptr()
         }
 
         #[inline(always)]
-        pub(super) fn vtable(&self) -> BoxVtable_Ref<T> {
+        pub(super) const fn vtable(&self) -> BoxVtable_Ref<T> {
             self.vtable
         }
 
@@ -168,13 +168,13 @@ mod private {
     unsafe impl<T> AsPtr for RBox<T> {
         #[inline(always)]
         fn as_ptr(&self) -> *const T {
-            self.data
+            self.data.as_ptr()
         }
     }
     unsafe impl<T> AsMutPtr for RBox<T> {
         #[inline(always)]
         fn as_mut_ptr(&mut self) -> *mut T {
-            self.data
+            self.data.as_ptr()
         }
     }
 }
@@ -191,7 +191,7 @@ unsafe impl<T, O> CanTransmuteElement<O> for RBox<T> {
     type TransmutedPtr = RBox<O>;
 
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        core_extensions::utils::transmute_ignore_size(self)
+        unsafe { core_extensions::utils::transmute_ignore_size(self) }
     }
 }
 
@@ -220,7 +220,7 @@ impl<T> RBox<T> {
             let this_vtable = this.vtable();
             let other_vtable = VTableGetter::LIB_VTABLE;
             if ::std::ptr::eq(this_vtable.0.to_raw_ptr(), other_vtable.0.to_raw_ptr())
-                || this_vtable.type_id() == other_vtable.type_id()
+                || this_vtable.type_id()() == other_vtable.type_id()()
             {
                 Box::from_raw(this.data())
             } else {
@@ -275,13 +275,15 @@ impl<T> DerefMut for RBox<T> {
 unsafe impl<T> OwnedPointer for RBox<T> {
     #[inline]
     unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, T> {
-        MovePtr::from_raw(this.data_mut())
+        unsafe { MovePtr::from_raw(this.data_mut()) }
     }
 
     #[inline]
     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
         let data: *mut T = this.data();
-        (this.vtable().destructor())(data as *mut (), CallReferentDrop::No, Deallocate::Yes);
+        unsafe {
+            (this.vtable().destructor())(data as *mut (), CallReferentDrop::No, Deallocate::Yes);
+        }
     }
 }
 
@@ -611,7 +613,7 @@ impl<T> Drop for RBox<T> {
 #[sabi(kind(Prefix))]
 #[sabi(missing_field(panic))]
 pub(crate) struct BoxVtable<T> {
-    type_id: Constructor<UTypeId>,
+    type_id: extern "C" fn() -> UTypeId,
     #[sabi(last_prefix_field)]
     destructor: unsafe extern "C" fn(*mut (), CallReferentDrop, Deallocate),
     _marker: NonOwningPhantom<T>,
@@ -621,14 +623,13 @@ struct VTableGetter<'a, T>(&'a T);
 
 impl<'a, T: 'a> VTableGetter<'a, T> {
     const DEFAULT_VTABLE: BoxVtable<T> = BoxVtable {
-        type_id: Constructor(new_utypeid::<RBox<()>>),
+        type_id: new_utypeid::<RBox<()>>,
         destructor: destroy_box::<T>,
         _marker: NonOwningPhantom::NEW,
     };
 
     staticref! {
-        const WM_DEFAULT: WithMetadata<BoxVtable<T>> =
-            WithMetadata::new(PrefixTypeTrait::METADATA, Self::DEFAULT_VTABLE);
+        const WM_DEFAULT: WithMetadata<BoxVtable<T>> = WithMetadata::new(Self::DEFAULT_VTABLE);
     }
 
     // The VTABLE for this type in this executable/library
@@ -638,9 +639,8 @@ impl<'a, T: 'a> VTableGetter<'a, T> {
     staticref! {
         const WM_FOR_TESTING: WithMetadata<BoxVtable<T>> =
             WithMetadata::new(
-                PrefixTypeTrait::METADATA,
                 BoxVtable {
-                    type_id: Constructor( new_utypeid::<RBox<i32>> ),
+                    type_id: new_utypeid::<RBox<i32>>,
                     ..Self::DEFAULT_VTABLE
                 },
             )
@@ -660,10 +660,10 @@ unsafe extern "C" fn destroy_box<T>(
     extern_fn_panic_handling! {no_early_return;
         let ptr = ptr as *mut T;
         if let CallReferentDrop::Yes = call_drop {
-            ptr::drop_in_place(ptr);
+            unsafe { ptr::drop_in_place(ptr); }
         }
         if let Deallocate::Yes = dealloc {
-            Box::from_raw(ptr as *mut ManuallyDrop<T>);
+            unsafe { drop(Box::from_raw(ptr as *mut ManuallyDrop<T>)); }
         }
     }
 }

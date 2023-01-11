@@ -8,6 +8,8 @@ use syn::{punctuated::Punctuated, Ident, TypeParamBound, Visibility, WherePredic
 
 use quote::{quote_spanned, ToTokens, TokenStreamExt};
 
+use proc_macro2::Span;
+
 use as_derive_utils::{
     datastructure::{DataStructure, Field, FieldIndex, FieldMap},
     return_spanned_err,
@@ -29,6 +31,7 @@ pub(crate) struct PrefixKind<'a> {
     pub(crate) first_suffix_field: FirstSuffixField,
     pub(crate) prefix_ref: &'a Ident,
     pub(crate) prefix_fields_struct: &'a Ident,
+    pub(crate) replacing_prefix_ref_docs: &'a [syn::Expr],
     pub(crate) prefix_bounds: Vec<WherePredicate>,
     pub(crate) fields: FieldMap<AccessorOrMaybe<'a>>,
     pub(crate) accessor_bounds: FieldMap<Vec<TypeParamBound>>,
@@ -45,6 +48,7 @@ pub(crate) struct PrefixKindCtor<'a> {
     pub(crate) first_suffix_field: FirstSuffixField,
     pub(crate) prefix_ref: Option<&'a Ident>,
     pub(crate) prefix_fields: Option<&'a Ident>,
+    pub(crate) replacing_prefix_ref_docs: &'a [syn::Expr],
     pub(crate) prefix_bounds: Vec<WherePredicate>,
     pub(crate) fields: FieldMap<AccessorOrMaybe<'a>>,
     pub(crate) accessor_bounds: FieldMap<Vec<TypeParamBound>>,
@@ -85,6 +89,7 @@ impl<'a> PrefixKindCtor<'a> {
                 let ident = format!("{}_Prefix", ctor.struct_name);
                 ctor.arenas.alloc(parse_str_as_ident(&ident))
             }),
+            replacing_prefix_ref_docs: ctor.replacing_prefix_ref_docs,
             prefix_bounds: ctor.prefix_bounds,
             fields: ctor.fields,
             accessor_bounds: ctor.accessor_bounds,
@@ -289,41 +294,50 @@ pub(crate) fn prefix_type_tokenizer<'a>(
         let stringified_generics_tokenizer = rstr_tokenizer(&stringified_generics);
 
         let is_ds_pub = matches!(ds.vis, Visibility::Public { .. }) && doc_hidden_attr.is_none();
+        let has_replaced_docs = !prefix.replacing_prefix_ref_docs.is_empty();
 
-        let prefix_ref_docs = if is_ds_pub {
-            format!(
-                "\
-This is the pointer to the prefix of 
-[{deriving_name}{generics}](./struct.{deriving_name}.html).
+        let prefix_ref_docs = ToTokenFnMut::new(|ts| {
+            if !is_ds_pub {
+                return;
+            }
 
-**This is automatically generated documentation,by the StableAbi derive macro**.
+            if has_replaced_docs {
+                let iter = prefix.replacing_prefix_ref_docs.iter();
+                ts.append_all(quote!(#(#[doc = #iter])*));
+            } else {
+                let single_docs = format!(
+                    "\
+                        This is the pointer to the prefix of \n\
+                        [`{deriving_name}{generics}`](struct@{deriving_name}).\n\
+                        \n\
+                        **This is automatically generated documentation,\
+                        by the StableAbi derive macro**.\n\
+                        \n\
+                        ### Creating a compiletime-constant\n\
+                        \n\
+                        You can look at the docs in [`::abi_stable::docs::prefix_types`] \
+                        to see how you\n\
+                        can construct and use this and similar types.<br>\n\
+                        More specifically in the \n\
+                        [\"constructing a module\" example\n\
+                        ](::abi_stable::docs::prefix_types#module_construction) or the\n\
+                        [\"Constructing a vtable\" example\n\
+                        ](::abi_stable::docs::prefix_types#vtable_construction)\n\
+                    ",
+                    deriving_name = stringified_deriving_name,
+                    generics = stringified_generics,
+                );
 
-### Creating a compiletime-constant
-
-You can look at the docs in `abi_stable::docs::prefix_types` to see how you
-can construct and use this and similar types.<br>
-More specifically in the 
-[\"constructing a module\" example
-](https://docs.rs/abi_stable/*/abi_stable/docs/prefix_types/index.html#module_construction)
-or the
-[\"Constructing a vtable\" example
-](https://docs.rs/abi_stable/*/abi_stable/docs/prefix_types/index.html#vtable_construction)
-
-                ",
-                //prefix_name=prefix.prefix_ref,
-                deriving_name = stringified_deriving_name,
-                generics = stringified_generics,
-            )
-        } else {
-            String::new()
-        };
+                ts.append_all(quote!(#[doc = #single_docs]));
+            }
+        });
 
         let prefix_fields_docs = if is_ds_pub {
             format!(
                 "\
 This is the prefix fields of 
-[{deriving_name}{generics}](./struct.{deriving_name}.html),
-accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.prefix()`.
+[`{deriving_name}{generics}`](struct@{deriving_name}),
+accessible through [`{prefix_name}`](struct@{prefix_name}), with `.0.prefix()`.
 
 **This is automatically generated documentation,by the StableAbi derive macro**.
                 ",
@@ -366,7 +380,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
 
             quote!(
                 #doc_hidden_attr
-                #[doc=#prefix_ref_docs]
+                #prefix_ref_docs
                 #[repr(transparent)]
                 #vis struct #prefix_ref #generics (
                     #vis ::abi_stable::pmr::PrefixRef<
@@ -384,7 +398,10 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 #vis struct #prefix_fields_struct #generics
                 #where_clause
                 {
-                    #( #prefix_field_vis #prefix_field: #prefix_field_ty,)*
+                    #(
+                        ///
+                        #prefix_field_vis #prefix_field: #prefix_field_ty,
+                    )*
                     // Using this to ensure:
                     // - That all the generic arguments are used
                     // - That the struct has the same alignemnt as the deriving struct.
@@ -493,7 +510,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
             accessor_buffer.clear();
             write!(accessor_buffer, "{}", field.pat_ident()).drop_();
             let vis = field.vis;
-            let mut getter_name = syn::parse_str::<Ident>(&*accessor_buffer).expect("BUG");
+            let mut getter_name = syn::parse_str::<Ident>(&accessor_buffer).expect("BUG");
             getter_name.set_span(field.pat_ident().span());
             let field_name = field.pat_ident();
             let field_span = field_name.span();
@@ -510,6 +527,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
             match prefix.fields[field] {
                 AccessorOrMaybe::Accessor => {
                     unconditional_accessors.push(quote_spanned! {field_span=>
+                        #[allow(clippy::missing_const_for_fn)]
                         #vis fn #getter_name(&self)->#ty
                         #field_where_clause #( #accessor_bounds+ )*
                         {
@@ -551,25 +569,27 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                         },
                     };
 
+                    let val_var = syn::Ident::new("val", Span::mixed_site());
+
                     let with_val = if is_optional {
-                        quote_spanned!(field_span=> Some(val) )
+                        quote_spanned!(field_span=> Some(#val_var) )
                     } else {
-                        quote_spanned!(field_span=> val )
+                        val_var.to_token_stream()
                     };
 
                     conditional_accessors.push(quote_spanned! {field_span=>
+                        #[allow(clippy::missing_const_for_fn)]
                         #vis fn #getter_name(&self)->#return_ty
                         #field_where_clause #( #accessor_bounds+ )*
                         {
-                            let acc_bits=self.0.metadata().field_accessibility().bits();
-                            let val=if (1u64<<#field_i & Self::__SABI_PTT_FAM & acc_bits)==0 {
+                            let acc_bits=self.0.field_accessibility().bits();
+                            let #val_var=if (1u64<<#field_i & Self::__SABI_PTT_FAM & acc_bits)==0 {
                                 #else_
                             }else{
                                 unsafe{
-                                    let ptr = (self.0.to_raw_ptr() as *const u8)
+                                    *((self.0.to_raw_ptr() as *const u8)
                                         .offset(Self::#field_offset as isize)
-                                        as *const #ty;
-                                    *ptr
+                                        as *const #ty)
                                 }
                             };
                             #with_val
@@ -644,15 +664,12 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
 
         let first_offset = if let Some(constant) = offset_consts.first() {
             quote!(
-                const #constant: usize =
-                    __sabi_re::next_field_offset::<
-                        __sabi_re::WithMetadata_<
-                            #prefix_fields_struct #ty_generics,
-                            #prefix_fields_struct #ty_generics,
-                        >,
-                        __sabi_re::PrefixMetadata<(),()>,
+                const #constant: usize = {
+                    __sabi_re::WithMetadata_::<
                         #prefix_fields_struct #ty_generics,
-                    >(0);
+                        #prefix_fields_struct #ty_generics,
+                    >::__VALUE_OFFSET
+                };
             )
         } else {
             quote!()
@@ -699,7 +716,7 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 /// Accessor to get the layout of the type,used for error messages.
                 #[inline(always)]
                 pub fn _prefix_type_layout(self)-> &'static __sabi_re::PTStructLayout {
-                    self.0.metadata().type_layout()
+                    self.0.type_layout()
                 }
 
                 #(
@@ -708,14 +725,16 @@ accessible through [`{prefix_name}`](./struct.{prefix_name}.html), with `.0.pref
                 )*
             }
 
-            unsafe impl #impl_generics __sabi_re::ImmutableRef for #prefix_ref #ty_generics
+            unsafe impl #impl_generics __sabi_re::GetPointerKind for #prefix_ref #ty_generics
             where
                 #(#where_preds_rl,)*
             {
-                type Target = __sabi_re::WithMetadata_<
+                type PtrTarget = __sabi_re::WithMetadata_<
                     #prefix_fields_struct #ty_generics,
                     #prefix_fields_struct #ty_generics,
                 >;
+
+                type Kind = __sabi_re::PK_Reference;
             }
 
             unsafe impl #impl_generics __sabi_re::PrefixRefTrait for #prefix_ref #ty_generics

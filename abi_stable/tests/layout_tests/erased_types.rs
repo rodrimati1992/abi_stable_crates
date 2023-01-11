@@ -1,8 +1,5 @@
 #![allow(dead_code)]
 
-#[allow(unused_imports)]
-use core_extensions::matches;
-
 use abi_stable::{
     abi_stability::abi_checking::check_layout_compatibility, erased_types::IteratorItem,
     std_types::*, DynTrait, StableAbi,

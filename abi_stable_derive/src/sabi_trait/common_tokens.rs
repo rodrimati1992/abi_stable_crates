@@ -6,8 +6,6 @@ use proc_macro2::{Span, TokenStream};
 
 use std::cmp::{Eq, Ord, Ordering, PartialEq, PartialOrd};
 
-use core_extensions::matches;
-
 macro_rules! declare_common_tokens {
     (
         abi[ $( $field_abi:ident = $abi_str:expr , )* ]
@@ -104,16 +102,14 @@ declare_common_tokens! {
         empty_ts="",
         ts_empty="",
 
-        ts_uself="_Self,",
-
         ts_self_colon2 ="Self::",
         ts_uself_colon2="_Self::",
 
         ts_make_vtable_args="Downcasting,_OrigPtr::PtrTarget,_OrigPtr::TransmutedPtr,_OrigPtr,",
+        ts_make_vtable_args_const="Downcasting,_Self,__sabi_re::RRef<'_sub, ()>, &'_sub _Self,",
         ts_erasedptr_and2="_ErasedPtr,_ErasedPtr2,",
         ts_self_erasedptr="_Self,_ErasedPtr,",
         ts_unit_erasedptr="(),_ErasedPtr,",
-        ts_unit_rref_unit="(),__sabi_re::RRef<'_sub,()>,",
 
         ts_getvtable_params="'lt,'_sub,IA,_Self,_ErasedPtr,_OrigPtr,",
         ts_getvtable_dummy_struct_fields="&'lt(),&'_sub(),IA,_Self,_ErasedPtr,_OrigPtr,",

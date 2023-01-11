@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::sabi_types::Constructor;
+
 /// The layout of a field.
 #[repr(C)]
 #[derive(Debug, Copy, Clone, StableAbi)]
@@ -14,7 +16,7 @@ pub struct TLField {
     /// This is a function pointer to avoid infinite recursion,
     /// if you have a `&'static TypeLayout`s with the same address as one of its parent type,
     /// you've encountered a cycle.
-    layout: TypeLayoutCtor,
+    layout: Constructor<&'static TypeLayout>,
 
     /// The function pointer types within the field.
     function_range: TLFunctionSlice,
@@ -32,13 +34,13 @@ impl TLField {
     /// Constructs a field which does not contain function pointers,or lifetime indices.
     pub const fn new(
         name: RStr<'static>,
-        layout: TypeLayoutCtor,
+        layout: extern "C" fn() -> &'static TypeLayout,
         vars: &'static SharedVars,
     ) -> Self {
         Self {
             name,
             lifetime_indices: LifetimeArrayOrSlice::EMPTY,
-            layout,
+            layout: Constructor(layout),
             function_range: TLFunctionSlice::empty(vars),
             is_function: false,
             field_accessor: FieldAccessor::Direct,
@@ -54,8 +56,9 @@ impl TLField {
     pub fn name(&self) -> &'static str {
         self.name.as_str()
     }
+
     /// Gets the lifetimes that the field references.
-    pub fn lifetime_indices(&self) -> LifetimeArrayOrSlice<'static> {
+    pub const fn lifetime_indices(&self) -> LifetimeArrayOrSlice<'static> {
         self.lifetime_indices
     }
     /// Gets the layout of the field type
@@ -63,16 +66,16 @@ impl TLField {
         self.layout.get()
     }
     /// Gets all the function pointer types in the field.
-    pub fn function_range(&self) -> TLFunctionSlice {
+    pub const fn function_range(&self) -> TLFunctionSlice {
         self.function_range
     }
     /// Gets whether the field is itself a function pointer.
-    pub fn is_function(&self) -> bool {
+    pub const fn is_function(&self) -> bool {
         self.is_function
     }
     /// Gets the `FieldAccessor` for the type,
     /// which describes whether a field is accessible,and how it is accessed.
-    pub fn field_accessor(&self) -> FieldAccessor {
+    pub const fn field_accessor(&self) -> FieldAccessor {
         self.field_accessor
     }
 
@@ -264,8 +267,11 @@ impl CompTLField {
             .unwrap_or(FieldAccessor::Opaque)
     }
 
-    /// Gets the name of the field from `SharedVars`'s slice of `TypeLayoutCtor`.
-    pub fn type_layout(&self, type_layouts: &'static [TypeLayoutCtor]) -> TypeLayoutCtor {
+    /// Gets the name of the field from `SharedVars`'s slice of type layouts.
+    pub const fn type_layout(
+        &self,
+        type_layouts: &'static [extern "C" fn() -> &'static TypeLayout],
+    ) -> extern "C" fn() -> &'static TypeLayout {
         type_layouts[self.type_layout_index()]
     }
 
@@ -279,25 +285,10 @@ impl CompTLField {
         let strings = vars.strings();
         let function_range = TLFunctionSlice::for_field(field_index, functions, vars);
 
-        // println!(
-        //     "field:{:b}\n\
-        //     name_start_len:{:?}\n\
-        //     lifetime_range:{:?} bits:{:b}\n\
-        //     type_layout_index:{}\n\
-        //     is_function:{}\n\
-        //     ",
-        //     self.bits0,
-        //     self.name_start_len(),
-        //     LifetimeRange::from_u21(self.lifetime_indices_bits()),
-        //     self.lifetime_indices_bits(),
-        //     self.type_layout_index(),
-        //     self.is_function(),
-        // );
-
         TLField {
             name: self.name(strings).into(),
             lifetime_indices: self.lifetime_indices(vars.lifetime_indices()),
-            layout: self.type_layout(vars.type_layouts()),
+            layout: Constructor(self.type_layout(vars.type_layouts())),
             function_range,
             is_function: self.is_function(),
             field_accessor: self.field_accessor(strings),
@@ -308,13 +299,13 @@ impl CompTLField {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{abi_stability::stable_abi_trait::GetTypeLayoutCtor, std_types::RString};
+    use crate::{abi_stability::stable_abi_trait::get_type_layout, std_types::RString};
 
     #[test]
     fn roundtrip() {
-        const UNIT_CTOR: TypeLayoutCtor = GetTypeLayoutCtor::<()>::STABLE_ABI;
-        const U32_CTOR: TypeLayoutCtor = GetTypeLayoutCtor::<u32>::STABLE_ABI;
-        const RSTRING_CTOR: TypeLayoutCtor = GetTypeLayoutCtor::<RString>::STABLE_ABI;
+        const UNIT_CTOR: extern "C" fn() -> &'static TypeLayout = get_type_layout::<()>;
+        const U32_CTOR: extern "C" fn() -> &'static TypeLayout = get_type_layout::<u32>;
+        const RSTRING_CTOR: extern "C" fn() -> &'static TypeLayout = get_type_layout::<RString>;
 
         const MONO_VARS: &MonoSharedVars = &MonoSharedVars::new(rstr!("foo;bar; baz; "), rslice![]);
 

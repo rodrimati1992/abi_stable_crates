@@ -33,7 +33,7 @@ impl RawLibrary {
     /// Loads the dynamic library at the `full_path` path.
     pub fn load_at(full_path: &Path) -> Result<Self, LibraryError> {
         // safety: not my problem if libraries have problematic static initializers
-        match unsafe { LibLoadingLibrary::new(&full_path) } {
+        match unsafe { LibLoadingLibrary::new(full_path) } {
             Ok(library) => Ok(Self {
                 path: full_path.to_owned(),
                 library,
@@ -55,7 +55,7 @@ impl RawLibrary {
     ///
     ///
     pub unsafe fn get<T>(&self, symbol_name: &[u8]) -> Result<LLSymbol<'_, T>, LibraryError> {
-        match self.library.get::<T>(symbol_name) {
+        match unsafe { self.library.get::<T>(symbol_name) } {
             Ok(symbol) => Ok(symbol),
             Err(io) => {
                 let symbol = symbol_name.to_owned();

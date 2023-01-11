@@ -56,8 +56,8 @@ pub(super) unsafe extern "C" fn next<I>(this: RMut<'_, ErasedObject>) -> ROption
 where
     I: Iterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<I>() };
         this.next().into_c()
     }
 }
@@ -69,8 +69,8 @@ pub(super) unsafe extern "C" fn extending_rvec<I>(
 ) where
     I: Iterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<I>() };
 
         vec.extend(
             this.take(taking.unwrap_or(!0))
@@ -84,8 +84,8 @@ pub(super) unsafe extern "C" fn size_hint<I>(
 where
     I: Iterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_ref::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_ref::<I>() };
         let (l,r)=this.size_hint();
 
         Tuple2(l,r.into_c())
@@ -96,8 +96,8 @@ pub(super) unsafe extern "C" fn count<I>(this: RMut<'_, ErasedObject>) -> usize
 where
     I: Iterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<I>() };
         this.count()
     }
 }
@@ -106,8 +106,8 @@ pub(super) unsafe extern "C" fn last<I>(this: RMut<'_, ErasedObject>) -> ROption
 where
     I: Iterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<I>() };
         this.last().into_c()
     }
 }
@@ -116,8 +116,8 @@ pub(super) unsafe extern "C" fn nth<I>(this: RMut<'_, ErasedObject>, at: usize) 
 where
     I: Iterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<I>() };
         this.nth(at).into_c()
     }
 }
@@ -126,8 +126,8 @@ pub(super) unsafe extern "C" fn skip_eager<I>(this: RMut<'_, ErasedObject>, skip
 where
     I: Iterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<I>() };
 
         if skipping!=0 {
             let _=this.nth(skipping-1);
@@ -179,8 +179,8 @@ pub(super) unsafe extern "C" fn next_back<I>(this: RMut<'_, ErasedObject>) -> RO
 where
     I: DoubleEndedIterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<I>() };
         this.next_back().into_c()
     }
 }
@@ -192,8 +192,8 @@ pub(super) unsafe extern "C" fn extending_rvec_back<I>(
 ) where
     I: DoubleEndedIterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! {no_early_return;
+        let this = unsafe { this.transmute_into_mut::<I>() };
 
         vec.extend(
             this.rev().take(taking.unwrap_or(!0))
@@ -208,8 +208,8 @@ pub(super) unsafe extern "C" fn nth_back<I>(
 where
     I: DoubleEndedIterator,
 {
-    extern_fn_panic_handling! {
-        let this = this.transmute_into_mut::<I>();
+    extern_fn_panic_handling! { // returns early
+        let this = unsafe { this.transmute_into_mut::<I>() };
         for x in this.rev() {
             if at == 0 {
                 return RSome(x)

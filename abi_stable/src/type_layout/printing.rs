@@ -34,13 +34,13 @@ fn traverse_type_layouts_inner<'a, F>(
     if state.visited.replace(layout.get_utypeid()).is_none() {
         callback(layout);
 
-        for layout in layout.shared_vars.type_layouts() {
-            traverse_type_layouts_inner(layout.get(), state, callback);
+        for nested_layout in layout.shared_vars.type_layouts() {
+            traverse_type_layouts_inner(nested_layout(), state, callback);
         }
 
         if let Some(extra_checks) = layout.extra_checks() {
-            for layout in &*extra_checks.nested_type_layouts() {
-                traverse_type_layouts_inner(layout, state, callback);
+            for nested_layout in &*extra_checks.nested_type_layouts() {
+                traverse_type_layouts_inner(nested_layout, state, callback);
             }
         }
     }
@@ -243,9 +243,8 @@ impl Debug for FmtFullType {
                 Some(TLP::Array { .. }) => ("", "[", "", ";", "]"),
                 Some(TLP::U8) | Some(TLP::I8) | Some(TLP::U16) | Some(TLP::I16)
                 | Some(TLP::U32) | Some(TLP::I32) | Some(TLP::U64) | Some(TLP::I64)
-                | Some(TLP::Usize) | Some(TLP::Isize) | Some(TLP::Bool) | None => {
-                    (self.name, "<", "", ", ", ">")
-                }
+                | Some(TLP::Usize) | Some(TLP::Isize) | Some(TLP::Bool) | Some(TLP::F32)
+                | Some(TLP::F64) | None => (self.name, "<", "", ", ", ">"),
             };
 
             fmt::Display::fmt(typename, f)?;

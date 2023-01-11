@@ -1,8 +1,9 @@
 [package]
 name = "abi_stable"
-version = "0.10.4"
+version = "0.11.1"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
-edition="2018"
+edition="2021"
+rust-version = "1.61.0"
 license = "MIT/Apache-2.0"
 description = "For doing Rust-to-Rust ffi,writing libraries loaded at program startup."
 documentation = "https://docs.rs/abi_stable/"
@@ -24,20 +25,11 @@ travis-ci = { repository =  "rodrimati1992/abi_stable_crates/" }
 [features]
 default = ["channels","serde_json"]
 
-rust_1_42=[]
-
-rust_1_46=["rust_1_42"]
-
-rust_1_51=["rust_1_46", "const_params"]
-
-rust_latest_stable = ["rust_1_51"]
-
-const_params=["rust_1_46"]
-
-# Enables the `#![feature(min_const_generics)]` attribute in 
-nightly_const_params=["const_params"]
+rust_1_64 = []
+rust_latest_stable = ["rust_1_64"]
 
 # internal features
+__ui=["testing"]
 testing=[]
 test_miri_track_raw = ["testing"]
 only_new_tests=["testing"]
@@ -56,18 +48,22 @@ channels=["crossbeam-channel"]
 
 
 [dependencies]
-abi_stable_derive= {version="0.10.3",path="../abi_stable_derive"}
-abi_stable_shared= {version="0.10.3",path="../abi_stable_shared"}
-serde          = { version = "1.0.127", features = ["derive"] }
+abi_stable_derive= {version="0.11.0",path="../abi_stable_derive"}
+abi_stable_shared= {version="0.11.0",path="../abi_stable_shared"}
+serde          = { version = "1.0.136", features = ["derive"] }
 repr_offset = { version = "0.2.1", default_features = false }
-serde_derive   = "1.0.127"
-libloading     = "0.7.0"
-parking_lot    = "0.11.1"
-lock_api       = "0.4.4"
+serde_derive   = "1.0.136"
+libloading     = "0.7.3"
+parking_lot    = "0.12.0"
+lock_api       = "0.4.6"
 generational-arena = "0.2.8"
-crossbeam-channel = { version = "0.5.1", optional = true }
-serde_json = { version = "1.0.66", features = ["raw_value"], optional = true }
-paste = "1.0"
+crossbeam-channel = { version = "0.5.2", optional = true }
+serde_json = { version = "1.0.79", features = ["raw_value"], optional = true }
+paste = "1.0.6"
+
+[dependencies.const_panic]
+version = "0.2.1"
+default_features = false
 
 [dependencies.core_extensions]
 default_features=false
@@ -76,22 +72,22 @@ features=[
     "iterators",
     "macro_utils",
     "self_ops",
-    "type_asserts", "type_identity", "type_level_bool",
+    "type_asserts", "type_level_bool",
     "void",
 ]
-version= "1.4.2"
+version= "1.5.2"
 
 [dev-dependencies]
 bincode = "1.3.3"
-crossbeam-utils = "0.8.5"
-serde_json = { version = "1.0.66", features = ["raw_value"] }
-rand = "0.8.4"
-hashbrown = "0.11.2"
+crossbeam-utils = "0.8.7"
+serde_json = { version = "1.0.79", features = ["raw_value"] }
+rand = "0.8.5"
+hashbrown = "0.13.0"
 fnv = "1.0.7"
-
+trybuild = "1.0"
 
 [build-dependencies]
 rustc_version = "0.4.0"
 
 [package.metadata.docs.rs]
-features = ["docsrs", "const_params"]
+features = ["docsrs", "rust_latest_stable"]

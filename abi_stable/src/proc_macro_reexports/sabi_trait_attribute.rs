@@ -24,6 +24,8 @@ it uses the default implementation,
 
 - `Sync`
 
+- `Unpin`
+
 To be able to have more supertraits you must use the `#[sabi(use_dyntrait)]` helper attribute,
 which changes the underlying implementation from [`RObject`] to [`DynTrait`],
 allowing these supertraits: 
@@ -97,14 +99,11 @@ These are the items reexported from the module:
 
 - [`Trait_TO`](#trait_to): The trait object for the trait.
 
-- [`Trait_MV`](#trait_mv): 
-    A helper type used to construct the vtable for the trait object in constants.
-
 - [`Trait_CTO`](#trait_cto): 
 A type alias for the trait object which is constructible in constants.
 
 
-###  Trait_TO 
+### `Trait_TO` 
 
 The ffi-safe trait object.
 
@@ -154,17 +153,11 @@ has this trait object: `Foo_TO<'a, 'lt, Pointer, T, U, Hello, World>`.
 One can access the underlying implementation of the trait object through the `obj` field,
 allowing one to call these methods(a nonexhaustive list): 
 
-- downcast_into_impltype(only DynTrait)
+- `downcast_into`
 
-- downcast_as_impltype(only DynTrait)
+- `downcast_as`
 
-- downcast_as_mut_impltype(only DynTrait)
-
-- downcast_into
-
-- downcast_as
-
-- downcast_as_mut
+- `downcast_as_mut`
 
 To reconstruct `Trait_TO` from its underlying implementation,
 you can use the `Trait_TO::from_sabi` associated function.
@@ -174,7 +167,7 @@ you can use the `Trait_TO::from_sabi` associated function.
 A type alias for the type of the trait objct that is constructible in constants,
 with the `from_const` constructor function.
 
-Constructed with `Trait_CTO::from_const(&value, Trait_MV::VTABLE)`.
+Constructed with `Trait_CTO::from_const(&value)`.
 
 Trait_CTO has these generic parameters(in order): 
 
@@ -195,10 +188,6 @@ then it doesn't have this lifetime parameter.
 
 Example: `Trait_CTO<'lt, 'r, u8, u64, 10, AssocFoo>`
 
-###  Trait_MV
-
-A helper type used to construct the vtable of the trait object.
-
 ###  Trait 
 
 The trait is defined similarly to how it is before being transformed by the 
@@ -210,11 +199,6 @@ These are the differences:
 
 - Lifetime supertraits are stripped, because they disallow the trait object to be 
 constructed with a reference of a smaller lifetime.
-
-### Trait_Bounds
-
-A trait used as an alias for `Trait + lifetime supertraits`,
-because lifetime supertraits are stripped from Trait.
 
 # VTable attributes
 
@@ -327,7 +311,8 @@ pub trait Dictionary: Debug + Clone {
     #[sabi(last_prefix_field)]
     fn insert(&mut self, key: RString, value: Self::Value) -> ROption<Self::Value>;
 
-    /// You can add defaulted methods in minor versions(it's not a breaking change).
+    /// It's semver compatible to add defaulted methods below previously-defined ones in
+    /// minor version updates.
     fn contains(&self, key: RStr<'_>) -> bool {
         self.get(key).is_some()
     }
@@ -461,7 +446,7 @@ const CARDS: &'static [char] =
     &['A', '2', '3', '4', '5', '6', '7', '8', '9', 'J', 'Q', 'K'];
 
 static IS_CARD: StaticSet_CTO<'static, 'static, char> =
-    StaticSet_CTO::from_const(&CARDS, TD_Opaque, StaticSet_MV::VTABLE);
+    StaticSet_CTO::from_const(&CARDS, TD_Opaque);
 
 # fn main(){
 

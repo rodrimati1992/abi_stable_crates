@@ -1,51 +1,13 @@
 //! Traits for types wrapped in `DynTrait<_>`
 
-use crate::{
-    marker_type::NonOwningPhantom,
-    sabi_types::{Constructor, VersionStrings},
-    std_types::{RBoxError, RStr},
-};
-
-use super::TypeInfo;
+use crate::std_types::RBoxError;
 
 #[allow(unused_imports)]
 use crate::type_level::{
     bools::{False, True},
-    impl_enum::{Implemented, Unimplemented},
+    impl_enum::{Implementability, Implemented, Unimplemented},
     trait_marker,
 };
-
-/// An `implementation type`,
-/// with [an associated `InterfaceType`](#associatedtype.Interface)
-/// which describes the traits that
-/// must be implemented when constructing a [`DynTrait`] from `Self`,
-/// using the [`DynTrait::from_value`] and [`DynTrait::from_ptr`] constructors,
-/// so as to pass an opaque type across ffi.
-///
-/// To initialize `INFO` you can use the [`impl_get_type_info`] macro.
-///
-/// # Uniqueness
-///
-/// Users of this trait can't enforce that they are the only ones with the same interface,
-/// therefore they should handle the `Err(..)`s returned
-/// from the `DynTrait::*downcast*` functions whenever
-/// they convert back and forth between `Self` and [`Self::Interface`](#associatedtype.Interface).
-///
-///
-/// [`DynTrait`]: ./struct.DynTrait.html
-/// [`DynTrait::from_value`]: ./struct.DynTrait.html#method.from_value
-/// [`DynTrait::from_ptr`]: ./struct.DynTrait.html#method.from_ptr
-/// [`impl_get_type_info`]: ./macro.impl_get_type_info.html
-pub trait ImplType: Sized {
-    /// Describes the traits that must be implemented when constructing a
-    /// `DynTrait` from `Self`.
-    type Interface: InterfaceType;
-
-    /// Information about the type for debugging purposes.
-    ///
-    /// You can use the `impl_get_type_info` macro to initialize this.
-    const INFO: &'static TypeInfo;
-}
 
 macro_rules! declare_InterfaceType {
     (
@@ -63,7 +25,7 @@ macro_rules! declare_InterfaceType {
         pub trait InterfaceType: Sized {
             $(
                 $(#[$assoc_attrs])*
-                type $trait_;
+                type $trait_: Implementability;
             )*
 
             #[doc(hidden)]
@@ -76,22 +38,21 @@ macro_rules! declare_InterfaceType {
 
 declare_InterfaceType! {
     /// Defines the usable/required traits when creating a
-    /// [`DynTrait<Pointer<()>, ThisInterfaceType>`](./struct.DynTrait.html).
+    /// [`DynTrait<Pointer<()>, ThisInterfaceType>`](crate::DynTrait).
     ///
     /// This trait can only be implemented using the
-    /// [`#[derive(StableAbi)]`](./derive.StableAbi.html)
+    /// [`#[derive(StableAbi)]`](derive@crate::StableAbi)
     /// derive with the
-    /// [`#[sabi(impl_InterfaceType(...))]`](./derive.StableAbi.html#sabiimpl_interfacetype)
+    /// [`#[sabi(impl_InterfaceType(...))]`](derive@crate::StableAbi#sabiimpl_interfacetype)
     /// helper attribute,
-    /// giving a default value to each associated type,
-    /// so that adding associated types is not a breaking change.
+    /// defaulting associated types to `Unimplemented<_>`.
     ///
-    /// The value of every associated type can be.
+    /// The value of every associated type can be:
     ///
-    /// - [`Implemented<_>`](./type_level/impl_enum/struct.Implemented.html):
+    /// - [`Implemented<_>`](crate::type_level::impl_enum::Implemented):
     /// the trait would be required by, and be usable in `DynTrait`.
     ///
-    /// - [`Unimplemented<_>`](./type_level/impl_enum/struct.Unimplemented.html):
+    /// - [`Unimplemented<_>`](crate::type_level::impl_enum::Unimplemented):
     /// the trait would not be required by, and not be usable in `DynTrait`.
     ///
     /// # Example
@@ -123,6 +84,9 @@ declare_InterfaceType! {
     ///
     ///     // Changing this to require/unrequire in minor versions, is an abi breaking change.
     ///     // type Sync = Unimplemented<trait_marker::Sync>;
+    ///
+    ///     // Changing this to require/unrequire in minor versions, is an abi breaking change.
+    ///     // type Unpin = Unimplemented<trait_marker::Unpin>;
     ///
     ///     // type Iterator = Unimplemented<trait_marker::Iterator>;
     ///
@@ -175,42 +139,64 @@ declare_InterfaceType! {
         /// Changing this to require/unrequire in minor versions, is an abi breaking change.
         type Sync;
 
+        /// Changing this to require/unrequire in minor versions, is an abi breaking change.
+        type Unpin;
+
+        ///
         type Clone;
 
+        ///
         type Default;
 
+        ///
         type Display;
 
+        ///
         type Debug;
 
+        ///
         type Serialize;
 
+        ///
         type Eq;
 
+        ///
         type PartialEq;
 
+        ///
         type Ord;
 
+        ///
         type PartialOrd;
 
+        ///
         type Hash;
 
+        ///
         type Deserialize;
 
+        ///
         type Iterator;
 
+        ///
         type DoubleEndedIterator;
 
+        /// For the `std::fmt::Write` trait
         type FmtWrite;
 
+        /// For the `std::io::Write` trait
         type IoWrite;
 
+        /// For the `std::io::Seek` trait
         type IoSeek;
 
+        /// For the `std::io::Read` trait
         type IoRead;
 
+        /// For the `std::io::BufRead` trait
         type IoBufRead;
 
+        /// For the `std::error::Error` trait
         type Error;
     ]
 
@@ -221,23 +207,78 @@ declare_InterfaceType! {
 
 /// Describes how a type is serialized by [`DynTrait`].
 ///
+/// # Example
+///
+/// ```rust
+/// use abi_stable::{
+///     erased_types::{SerializeType, SerializeProxyType, DynTrait},
+///     external_types::RawValueBox,
+///     std_types::{RBox, RBoxError, RErr, ROk, RResult, RStr},
+///     StableAbi,
+/// };
+///
+/// let boxed = make_foo_box(1234);
+/// let serialized = serde_json::to_string(&boxed).unwrap();
+/// assert_eq!(serialized, r#"{"field":1234}"#);
+///
+///
+/// type FooBox = DynTrait<'static, RBox<()>, FooInterface>;
+///
+/// /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Eq`
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(impl_InterfaceType(Send, Sync, Debug, Eq, Serialize))]
+/// pub struct FooInterface;
+///
+/// impl SerializeProxyType<'_> for FooInterface {
+///     type Proxy = RawValueBox;
+/// }
+///
+/// /////////////
+/// // everything below could be defined in an implementation crate
+///
+/// #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+/// struct Foo {
+///     field: u32,
+/// }
+///
+/// impl<'a> SerializeType<'a> for Foo {
+///     type Interface = FooInterface;
+///     
+///     fn serialize_impl(&'a self) -> Result<RawValueBox, RBoxError> {
+///         match serde_json::value::to_raw_value::<Foo>(self) {
+///             Ok(x) => Ok(x.into()),
+///             Err(e) => Err(RBoxError::new(e)),
+///         }
+///     }
+/// }
+///
+/// extern "C" fn make_foo_box(field: u32) -> FooBox {
+///     abi_stable::extern_fn_panic_handling!{
+///         FooBox::from_value(Foo{field})
+///     }
+/// }
+/// ```
+///
+///
 /// [`DynTrait`]: ../struct.DynTrait.html
-pub trait SerializeImplType<'s> {
+pub trait SerializeType<'s> {
     /// An [`InterfaceType`] implementor which determines the
     /// intermediate type through which this is serialized.
     ///
     /// [`InterfaceType`]: ./trait.InterfaceType.html
     type Interface: SerializeProxyType<'s>;
 
+    /// Performs the serialization into the proxy.
     fn serialize_impl(
         &'s self,
     ) -> Result<<Self::Interface as SerializeProxyType<'s>>::Proxy, RBoxError>;
 }
 
-/// Determines the intermediate type a [`SerializeImplType`] implementor is converted into,
+/// Determines the intermediate type a [`SerializeType`] implementor is converted into,
 /// and is then serialized.
 ///
-/// [`SerializeImplType`]: ./trait.SerializeImplType.html
+/// [`SerializeType`]: ./trait.SerializeType.html
 pub trait SerializeProxyType<'borr>: InterfaceType {
     /// The intermediate type.
     type Proxy: 'borr;
@@ -283,7 +324,59 @@ where
 /// so that the implementation can be delegated
 /// to the `implementation crate`.
 ///
-pub trait DeserializeDyn<'borr, D> {
+/// # Example
+///
+/// ```rust
+/// use abi_stable::{
+///     erased_types::{DeserializeDyn, DynTrait},
+///     external_types::RawValueRef,
+///     std_types::{RBox, RBoxError, RErr, ROk, RResult, RStr},
+///     StableAbi,
+/// };
+///
+/// let boxed = serde_json::from_str::<FooBox>(r#"{"field": 10}"#).unwrap();
+///
+/// assert_eq!(*boxed.downcast_as::<Foo>().unwrap(), Foo{field: 10});
+///
+///
+///
+/// type FooBox = DynTrait<'static, RBox<()>, FooInterface>;
+///
+/// /// Implements `InterfaceType`, requiring `Send + Sync + Debug + Eq`
+/// #[repr(C)]
+/// #[derive(StableAbi)]
+/// #[sabi(impl_InterfaceType(Send, Sync, Debug, Eq, Deserialize))]
+/// pub struct FooInterface;
+///
+/// impl<'a> DeserializeDyn<'a, FooBox> for FooInterface {
+///     type Proxy = RawValueRef<'a>;
+///     
+///     fn deserialize_dyn(s: Self::Proxy) -> Result<FooBox, RBoxError> {
+///         deserialize_foo(s.get_rstr()).into_result()
+///     }
+/// }
+///
+/// /////////////
+/// // everything below could be defined in an implementation crate
+///
+/// #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+/// struct Foo {
+///     field: u32,
+/// }
+///
+/// extern "C" fn deserialize_foo(s: RStr<'_>) -> RResult<FooBox, RBoxError> {
+///     abi_stable::extern_fn_panic_handling!{
+///         match serde_json::from_str::<Foo>(s.into()) {
+///             Ok(x) => ROk(DynTrait::from_value(x)),
+///             Err(e) => RErr(RBoxError::new(e)),
+///         }
+///     }
+/// }
+/// ```
+///
+pub trait DeserializeDyn<'borr, D>:
+    InterfaceType<Deserialize = Implemented<trait_marker::Deserialize>>
+{
     /// The type that is deserialized and then converted into `D`,
     /// with `DeserializeDyn::deserialize_dyn`.
     type Proxy;
@@ -291,43 +384,6 @@ pub trait DeserializeDyn<'borr, D> {
     /// Converts the proxy type into `D`.
     fn deserialize_dyn(s: Self::Proxy) -> Result<D, RBoxError>;
 }
-
-#[doc(hidden)]
-pub trait GetDeserializeDynProxy<'borr, D>: InterfaceType {
-    type ProxyType;
-}
-
-impl<'borr, I, D, PT> GetDeserializeDynProxy<'borr, D> for I
-where
-    I: InterfaceType,
-    I: GetDeserializeDynProxyHelper<'borr, D, <I as InterfaceType>::Deserialize, ProxyType = PT>,
-{
-    type ProxyType = PT;
-}
-
-#[doc(hidden)]
-pub trait GetDeserializeDynProxyHelper<'borr, D, IS>: InterfaceType {
-    type ProxyType;
-}
-
-impl<'borr, I, D> GetDeserializeDynProxyHelper<'borr, D, Implemented<trait_marker::Deserialize>>
-    for I
-where
-    I: InterfaceType,
-    I: DeserializeDyn<'borr, D>,
-{
-    type ProxyType = <I as DeserializeDyn<'borr, D>>::Proxy;
-}
-
-impl<'borr, I, D> GetDeserializeDynProxyHelper<'borr, D, Unimplemented<trait_marker::Deserialize>>
-    for I
-where
-    I: InterfaceType,
-{
-    type ProxyType = ();
-}
-
-/////////////////////////////////////////////////////////////////////
 
 /// The way to specify the expected `Iterator::Item` type for an `InterfaceType`.
 ///
@@ -368,42 +424,6 @@ where
 
 impl<'borr, I> IteratorItemOrDefaultHelper<'borr, Unimplemented<trait_marker::Iterator>> for I {
     type Item = ();
-}
-
-//////////////////////////////////////////////////////////////////
-
-pub use self::interface_for::InterfaceFor;
-
-#[doc(hidden)]
-pub mod interface_for {
-    use super::*;
-
-    use crate::type_level::downcasting::GetUTID;
-
-    /// Helper struct to get an `ImplType` implementation for any type.
-    pub struct InterfaceFor<T, Interface, Downcasting>(
-        NonOwningPhantom<(T, Interface, Downcasting)>,
-    );
-
-    impl<T, Interface, Downcasting> ImplType for InterfaceFor<T, Interface, Downcasting>
-    where
-        Interface: InterfaceType,
-        Downcasting: GetUTID<T>,
-    {
-        type Interface = Interface;
-
-        /// The `&'static TypeInfo` constant, used when unerasing `DynTrait`s into a type.
-        const INFO: &'static TypeInfo = &TypeInfo {
-            size: std::mem::size_of::<T>(),
-            alignment: std::mem::align_of::<T>(),
-            _uid: <Downcasting as GetUTID<T>>::UID,
-            type_name: Constructor(crate::utils::get_type_name::<T>),
-            module: RStr::from_str("<unavailable>"),
-            package: RStr::from_str("<unavailable>"),
-            package_version: VersionStrings::new("99.99.99"),
-            _private_field: (),
-        };
-    }
 }
 
 /////////////////////////////////////////////////////////////////////

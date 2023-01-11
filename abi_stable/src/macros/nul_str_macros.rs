@@ -1,26 +1,3 @@
-/// Constructs a [`NulStr`] from a string literal.
-///
-/// # Correctness
-///
-/// This truncates the passed in string if it contains nul bytes,
-/// which means that silent truncation can happen with arbitrary inputs,
-/// rather than compile-time errors.
-///
-/// [`NulStr`]: ./sabi_types/struct.NulStr.html
-///
-#[deprecated(
-    since = "0.10.3",
-    note = "Use either `nulstr` or `nulstr_trunc` instead"
-)]
-#[macro_export]
-macro_rules! nul_str {
-    ( $($str:expr),* $(,)* ) => ({
-        const __STR_NHPMWYD3NJA: $crate::sabi_types::NulStr<'_> =
-            $crate::sabi_types::NulStr::from_str(concat!($($str,)* "\0"));
-        __STR_NHPMWYD3NJA
-    })
-}
-
 /// Constructs a [`NulStr`] from a string literal,
 /// truncating the string on internal nul bytes.
 ///

@@ -1,3 +1,5 @@
+#![allow(clippy::missing_const_for_fn)]
+
 #[derive(Debug, Clone)]
 pub(crate) struct ChainOnce<I, T> {
     iter: I,

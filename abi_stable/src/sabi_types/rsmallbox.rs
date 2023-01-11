@@ -63,14 +63,13 @@ mod private {
     ///     // This is 7 usize large because:
     ///     //    - The enum discriminant occupies 1 usize(because the enum is usize aligned).
     ///     //    - RSmallBox<T,[usize;4]>: is 6 usize large
-    ///     size="[usize;7]",
+    ///     size = [usize;7],
     ///     // Determines the traits that are required when wrapping this enum in NonExhaustive,
     ///     // and are then available with it.
     ///     traits(Debug,Clone,PartialEq),
     /// )))]
+    /// #[non_exhaustive]
     /// pub enum SomeEnum<T> {
-    ///     #[doc(hidden)]
-    ///     __NonExhaustive,
     ///     Foo,
     ///     Bar,
     ///     // This variant was added in a newer (compatible) version of the library.
@@ -80,10 +79,10 @@ mod private {
     /// impl<T> SomeEnum<T> {
     ///     pub fn is_inline(&self) -> bool {
     ///         match self {
-    ///             SomeEnum::__NonExhaustive => true,
     ///             SomeEnum::Foo => true,
     ///             SomeEnum::Bar => true,
     ///             SomeEnum::Baz(rsbox) => RSmallBox::is_inline(rsbox),
+    ///             _ => true,
     ///         }
     ///     }
     ///
@@ -156,7 +155,7 @@ mod private {
     pub struct RSmallBox<T, Inline> {
         // This is an opaque field since we only care about its size and alignment
         #[sabi(unsafe_opaque_field)]
-        inline: ScratchSpace<Inline>,
+        inline: ScratchSpace<(), Inline>,
         ptr: *mut T,
         destroy: unsafe extern "C" fn(*mut T, CallReferentDrop, Deallocate),
         _marker: PhantomData<T>,
@@ -201,7 +200,7 @@ mod private {
         #[inline]
         pub fn as_mut_ptr(this: &mut Self) -> *mut T {
             if this.ptr.is_null() {
-                &mut this.inline as *mut ScratchSpace<Inline> as *mut T
+                &mut this.inline as *mut ScratchSpace<(), Inline> as *mut T
             } else {
                 this.ptr
             }
@@ -227,7 +226,7 @@ mod private {
         #[inline]
         pub fn as_ptr(this: &Self) -> *const T {
             if this.ptr.is_null() {
-                &this.inline as *const ScratchSpace<Inline> as *const T
+                &this.inline as *const ScratchSpace<(), Inline> as *const T
             } else {
                 this.ptr
             }
@@ -259,13 +258,13 @@ mod private {
             let value_align = mem::align_of::<T>();
 
             unsafe {
-                let mut inline: ScratchSpace<Inline> = ScratchSpace::uninit();
+                let mut inline: ScratchSpace<(), Inline> = ScratchSpace::uninit();
                 let (storage_ptr, ptr) = if inline_size < value_size || inline_align < value_align {
                     let x = alloc::alloc(Layout::new::<T>());
                     (x, x as *mut T)
                 } else {
                     (
-                        (&mut inline as *mut ScratchSpace<Inline> as *mut u8),
+                        (&mut inline as *mut ScratchSpace<(), Inline> as *mut u8),
                         ptr::null_mut(),
                     )
                 };
@@ -360,13 +359,13 @@ mod private {
         pub(super) unsafe fn drop_in_place(this: &mut Self, drop_referent: CallReferentDrop) {
             let (ptr, dealloc) = if this.ptr.is_null() {
                 (
-                    &mut this.inline as *mut ScratchSpace<Inline> as *mut T,
+                    &mut this.inline as *mut ScratchSpace<(), Inline> as *mut T,
                     Deallocate::No,
                 )
             } else {
                 (this.ptr, Deallocate::Yes)
             };
-            (this.destroy)(ptr, drop_referent, dealloc);
+            unsafe { (this.destroy)(ptr, drop_referent, dealloc) };
         }
     }
 
@@ -464,7 +463,7 @@ unsafe impl<T, O, Inline> CanTransmuteElement<O> for RSmallBox<T, Inline> {
     type TransmutedPtr = RSmallBox<O, Inline>;
 
     unsafe fn transmute_element_(self) -> Self::TransmutedPtr {
-        core_extensions::utils::transmute_ignore_size(self)
+        unsafe { core_extensions::utils::transmute_ignore_size(self) }
     }
 }
 
@@ -503,12 +502,14 @@ where
 unsafe impl<T, Inline> OwnedPointer for RSmallBox<T, Inline> {
     #[inline]
     unsafe fn get_move_ptr(this: &mut ManuallyDrop<Self>) -> MovePtr<'_, T> {
-        MovePtr::new(&mut **this)
+        unsafe { MovePtr::new(&mut **this) }
     }
 
     #[inline]
     unsafe fn drop_allocation(this: &mut ManuallyDrop<Self>) {
-        Self::drop_in_place(&mut **this, CallReferentDrop::No);
+        unsafe {
+            Self::drop_in_place(&mut **this, CallReferentDrop::No);
+        }
     }
 }
 
@@ -523,10 +524,10 @@ impl<T, Inline> Drop for RSmallBox<T, Inline> {
 unsafe extern "C" fn destroy<T>(ptr: *mut T, drop_referent: CallReferentDrop, dealloc: Deallocate) {
     extern_fn_panic_handling! {no_early_return;
         if let CallReferentDrop::Yes=drop_referent{
-            ptr::drop_in_place(ptr);
+            unsafe { ptr::drop_in_place(ptr); }
         }
-        if let Deallocate::Yes=dealloc{
-            Box::from_raw(ptr as *mut ManuallyDrop<T>);
+        if let Deallocate::Yes = dealloc{
+            unsafe { drop(Box::from_raw(ptr as *mut ManuallyDrop<T>)); }
         }
     }
 }

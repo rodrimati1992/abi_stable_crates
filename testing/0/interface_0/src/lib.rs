@@ -26,7 +26,7 @@ impl RootModule for TestingMod_Ref {
 
 #[repr(C)]
 #[derive(StableAbi)]
-#[sabi(kind(Prefix(prefix_ref = "TestingMod_Ref")))]
+#[sabi(kind(Prefix(prefix_ref = TestingMod_Ref)))]
 #[sabi(missing_field(panic))]
 pub struct TestingMod {
     #[sabi(last_prefix_field)]
@@ -62,7 +62,7 @@ macro_rules! declare_PrefixTypeMod {
     (
         $(#[$attr:meta])*
         struct $struct_ident:ident;
-        prefix_ref=$prefix:literal ;
+        prefix_ref=$prefix:ident;
 
         $(extra_fields=[ $($extra_fields:tt)* ])?
     ) => (
@@ -81,7 +81,7 @@ macro_rules! declare_PrefixTypeMod {
 
 declare_PrefixTypeMod! {
     struct PrefixTypeMod0;
-    prefix_ref="PrefixTypeMod0_Ref";
+    prefix_ref= PrefixTypeMod0_Ref;
 }
 
 declare_PrefixTypeMod! {
@@ -93,7 +93,7 @@ declare_PrefixTypeMod! {
     /// This only works because I know that both structs have the same alignment,
     /// if either struct alignment changed that conversion would be unsound.
     struct PrefixTypeMod1;
-    prefix_ref="PrefixTypeMod1_Ref";
+    prefix_ref= PrefixTypeMod1_Ref;
 
     extra_fields=[
         pub field_b:u32,

@@ -2,11 +2,11 @@
 name = "testing_user_1"
 version = "0.1.0"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 abi_stable={version="*",path="../../../abi_stable"}
-core_extensions={ version = "1.4.0", default_features = false }
+core_extensions={ version = "1.5.2", default_features = false }
 
 [dependencies.testing_interface_1]
 version="0.1"

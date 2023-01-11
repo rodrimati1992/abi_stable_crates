@@ -1,20 +1,16 @@
 //! Types,traits,and functions used by prefix-types.
 
-use std::{
-    fmt::{self, Debug},
-    marker::PhantomData,
-};
+use std::marker::PhantomData;
 
 use crate::{
-    inline_storage::alignment::AlignToUsize,
-    marker_type::{NonOwningPhantom, NotCopyNotClone},
-    pointer_trait::ImmutableRef,
-    sabi_types::StaticRef,
-    utils::Transmuter,
+    inline_storage::alignment::AlignToUsize, marker_type::NotCopyNotClone,
+    pointer_trait::ImmutableRef, sabi_types::StaticRef, utils::Transmuter,
 };
 
 #[allow(unused_imports)]
 use core_extensions::SelfOps;
+
+use repr_offset::offset_calc::next_field_offset;
 
 mod accessible_fields;
 mod layout;
@@ -25,10 +21,7 @@ mod pt_metadata;
 mod tests;
 
 pub use self::{
-    accessible_fields::{
-        BoolArray, BoolArrayIter, FieldAccessibility, FieldConditionality, IsAccessible,
-        IsConditional,
-    },
+    accessible_fields::{FieldAccessibility, FieldConditionality, IsAccessible, IsConditional},
     layout::PTStructLayout,
     prefix_ref::PrefixRef,
 };
@@ -36,21 +29,13 @@ pub use self::{
 #[doc(hidden)]
 pub use self::pt_metadata::__PrefixTypeMetadata;
 
-/// For types deriving `StableAbi` with `#[sabi(kind(Prefix(..)))]`.
+/// For types deriving `StableAbi` with
+/// [`#[sabi(kind(Prefix(..)))]`](derive@crate::StableAbi#sabi_kind_prefix_attr).
 ///
 /// # Safety
 ///
 /// This trait must be implemented by the `StableAbi` derive macro.
 pub unsafe trait PrefixTypeTrait: Sized {
-    /// The metadata of the prefix-type (a FieldAccessibility and a PTStructLayout),
-    /// for passing to `WithMetadata::new`,
-    /// with `WithMetadata::new(PrefixTypeTrait::METADATA,value)`
-    const METADATA: PrefixMetadata<Self, Self::PrefixFields> = PrefixMetadata {
-        field_accessibility: Self::PT_FIELD_ACCESSIBILITY,
-        type_layout: Self::PT_LAYOUT,
-        _marker: PhantomData,
-    };
-
     /// Describes the layout of the struct,exclusively for use in error messages.
     const PT_LAYOUT: &'static PTStructLayout;
 
@@ -65,7 +50,7 @@ pub unsafe trait PrefixTypeTrait: Sized {
     /// since this leak is ignored by [miri](https://github.com/rust-lang/miri) .
     ///
     fn leak_into_prefix(self) -> Self::PrefixRef {
-        let x = WithMetadata::new(Self::METADATA, self);
+        let x = WithMetadata::new(self);
         let x = StaticRef::leak_value(x);
         let x = PrefixRef::from_staticref(x);
         <Self::PrefixRef as PrefixRefTrait>::from_prefix_ref(x)
@@ -82,7 +67,7 @@ pub unsafe trait PrefixTypeTrait: Sized {
     ///
     /// Those pointer types are usually named with a `_Ref` suffix.
     type PrefixRef: PrefixRefTrait<
-        Target = WithMetadata_<Self::PrefixFields, Self::PrefixFields>,
+        PtrTarget = WithMetadata_<Self::PrefixFields, Self::PrefixFields>,
         PrefixFields = Self::PrefixFields,
     >;
 }
@@ -99,7 +84,9 @@ pub unsafe trait PrefixTypeTrait: Sized {
 ///
 /// `Self` must either be `PrefixRef<Self::PrefixFields>`,
 /// or a `#[repr(transparent)]` wrapper around one.
-pub unsafe trait PrefixRefTrait: Sized + ImmutableRef {
+pub unsafe trait PrefixRefTrait:
+    Sized + ImmutableRef<PtrTarget = WithMetadata_<Self::PrefixFields, Self::PrefixFields>>
+{
     /// A struct that contains all the fields of some other struct
     /// up to the field annotated with
     /// `#[sabi(last_prefix_field)]` inclusive.
@@ -109,13 +96,7 @@ pub unsafe trait PrefixRefTrait: Sized + ImmutableRef {
     // is a hacky way to encode this type equality bound:
     // `Self::Target == WithMetadata_<Self::PrefixFields, Self::PrefixFields>`
     // (except that the compiler doesn't unify both types)
-    type PrefixFields: GetWithMetadata<ForSelf = Self::Target>;
-
-    /// A type used to prove that the `This` type parameter in
-    /// `PointsToPrefixFields<This, PF>` implements
-    /// `PrefixRefTrait<PrefixFields = PF>`.
-    const PREFIX_FIELDS: PointsToPrefixFields<Self, Self::PrefixFields> =
-        PointsToPrefixFields::new();
+    type PrefixFields;
 
     /// Converts a `PrefixRef` to `Self`
     #[inline]
@@ -132,40 +113,12 @@ pub unsafe trait PrefixRefTrait: Sized + ImmutableRef {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/// A helper trait for asserting that `WithMetadata_<Self, Self> == Self::ForSelf`
-pub trait GetWithMetadata: Sized {
-    /// This is always `WithMetadata_<Self, Self>`
-    type ForSelf;
-}
-
-impl<T> GetWithMetadata for T {
-    type ForSelf = WithMetadata_<Self, Self>;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-/// A marker used to prove that `This` implements`PrefixRefTrait<PrefixFields = PF>`.
-pub struct PointsToPrefixFields<This, PF> {
-    _phantomdata: NonOwningPhantom<(This, PF)>,
-}
-
-impl<This, PrefixFields> PointsToPrefixFields<This, PrefixFields> {
-    // This should only be callable in the default definition of PrefixRefTrait::PREFIX_FIELDS
-    const fn new() -> Self {
-        Self {
-            _phantomdata: NonOwningPhantom::DEFAULT,
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
 /// Alias for [`WithMetadata_`]
 /// that defaults to passing `<T as PrefixTypeTrait>::PrefixFields`
 /// as the second type parameter.
 ///
 /// [`WithMetadata_`] can't have that defaulted type parameter,
-/// because trait bounds are incompatible with having `const fn` methods.
+/// because `T: `[`PrefixTypeTrait`] is an overly restrictive bound in some cases.
 ///
 ///
 /// [`WithMetadata_`]: ./struct.WithMetadata_.html
@@ -191,7 +144,6 @@ pub type WithMetadata<T, P = <T as PrefixTypeTrait>::PrefixFields> = WithMetadat
 /// };
 ///
 /// const WITH_META: &WithMetadata<Module> = &WithMetadata::new(
-///     PrefixTypeTrait::METADATA,
 ///     Module {
 ///         first: RSome(66),
 ///         second: RStr::from_str("lore"),
@@ -208,25 +160,52 @@ pub type WithMetadata<T, P = <T as PrefixTypeTrait>::PrefixFields> = WithMetadat
 ///
 #[repr(C)]
 pub struct WithMetadata_<T, P> {
-    pub metadata: PrefixMetadata<T, P>,
+    // __VALUE_OFFSET must be updated if fields are added before `value`
+    field_accessibility: FieldAccessibility,
+    type_layout: &'static PTStructLayout,
+
     /// The wrapped value.
     pub value: AlignToUsize<T>,
     unbounds: NotCopyNotClone,
+    _prefix: PhantomData<P>,
+}
+
+#[doc(hidden)]
+impl<T, P> WithMetadata_<T, P> {
+    // The offset of the `value` field
+    pub const __VALUE_OFFSET: usize = {
+        let tl_offset = next_field_offset::<Self, FieldAccessibility, &'static PTStructLayout>(0);
+
+        next_field_offset::<Self, &'static PTStructLayout, AlignToUsize<T>>(tl_offset)
+    };
 }
 
 impl<T, P> WithMetadata_<T, P> {
-    /// Constructs this with `WithMetadata::new(PrefixTypeTrait::METADATA, value)`
-    ///
-    /// This takes in the `metadata: PrefixMetadata<T>` parameter as a
-    /// workaround for `const fn` not allowing trait bounds,
-    /// which in this case is `PrefixTypeTrait`.
+    /// Constructs this with `WithMetadata::new(value)`
     #[inline]
-    pub const fn new(metadata: PrefixMetadata<T, P>, value: T) -> Self {
+    pub const fn new(value: T) -> Self
+    where
+        T: PrefixTypeTrait<PrefixFields = P>,
+    {
         Self {
-            metadata,
+            field_accessibility: T::PT_FIELD_ACCESSIBILITY,
+            type_layout: T::PT_LAYOUT,
             value: AlignToUsize(value),
             unbounds: NotCopyNotClone,
+            _prefix: PhantomData,
         }
+    }
+
+    /// A bit array that describes the accessibility of each field in `T`.
+    #[inline]
+    pub const fn field_accessibility(&self) -> FieldAccessibility {
+        self.field_accessibility
+    }
+
+    /// The basic layout of the prefix type, for error messages.
+    #[inline]
+    pub const fn type_layout(&self) -> &'static PTStructLayout {
+        self.type_layout
     }
 
     /// Constructs a `PrefixRef` from `this`.
@@ -236,7 +215,7 @@ impl<T, P> WithMetadata_<T, P> {
     /// You must enture that this `WithMetadata` lives for the entire program's lifetime.
     #[inline]
     pub const unsafe fn raw_as_prefix(this: *const Self) -> PrefixRef<P> {
-        PrefixRef::from_raw(this)
+        unsafe { PrefixRef::from_raw(this) }
     }
 
     /// Constructs a `PrefixRef` from `self`.
@@ -252,7 +231,7 @@ impl<T, P> WithMetadata_<T, P> {
     /// [`StaticRef::as_prefix`]: ../sabi_types/struct.StaticRef.html#method.as_prefix
     #[inline]
     pub const unsafe fn as_prefix(&self) -> PrefixRef<P> {
-        PrefixRef::from_raw(self)
+        unsafe { PrefixRef::from_raw(self) }
     }
 
     /// Constructs a `PrefixRef` from `self`.
@@ -267,7 +246,6 @@ impl<T, P> WithMetadata_<T, P> {
     /// };
     ///
     /// const WITH_META: &WithMetadata<Module> = &WithMetadata::new(
-    ///     PrefixTypeTrait::METADATA,
     ///     Module {
     ///         first: RSome(13),
     ///         second: RStr::from_str("foo"),
@@ -309,7 +287,6 @@ impl<T, P> StaticRef<WithMetadata_<T, P>> {
     ///     // The `staticref` invocation here declares a
     ///     // `StaticRef<WithMetadata<PhantModule<T>>>` constant.
     ///     staticref!(const WITH_META: WithMetadata<PhantModule<T>> = WithMetadata::new(
-    ///         PrefixTypeTrait::METADATA,
     ///         PhantModule {
     ///             first: RNone,
     ///             second: RStr::from_str("hello"),
@@ -327,58 +304,6 @@ impl<T, P> StaticRef<WithMetadata_<T, P>> {
     /// ```
     pub const fn as_prefix(self) -> PrefixRef<P> {
         PrefixRef::from_staticref(self)
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-/// The prefix-type metadata for `T`.
-///
-/// [`PrefixTypeTrait::METADATA`]: trait.PrefixTypeTrait.html#associatedconstant.METADATA
-#[repr(C)]
-pub struct PrefixMetadata<T, P> {
-    field_accessibility: FieldAccessibility,
-    type_layout: &'static PTStructLayout,
-    _marker: PhantomData<(T, P)>,
-}
-
-impl<T> PrefixMetadata<T, T::PrefixFields>
-where
-    T: PrefixTypeTrait,
-{
-    /// Constructs a `PrefixMetadata`.
-    ///
-    /// This is an alias for `<T as PrefixTypeTrait>::METADATA`
-    pub const NEW: Self = <T as PrefixTypeTrait>::METADATA;
-}
-
-impl<T, P> Copy for PrefixMetadata<T, P> {}
-impl<T, P> Clone for PrefixMetadata<T, P> {
-    fn clone(&self) -> Self {
-        *self
-    }
-}
-
-impl<T, P> PrefixMetadata<T, P> {
-    /// A bit array that describes the accessibility of each field.
-    #[inline]
-    pub const fn field_accessibility(&self) -> FieldAccessibility {
-        self.field_accessibility
-    }
-
-    /// The basic layout of the prefix type, for error messages.
-    #[inline]
-    pub const fn type_layout(&self) -> &'static PTStructLayout {
-        self.type_layout
-    }
-}
-
-impl<T, P> Debug for PrefixMetadata<T, P> {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PrefixMetadata")
-            .field("field_accessibility", &self.field_accessibility)
-            .field("type_layout", &self.type_layout)
-            .finish()
     }
 }
 

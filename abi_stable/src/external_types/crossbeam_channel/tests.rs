@@ -162,7 +162,7 @@ fn timeout_send_recv() {
 
         scope.spawn(move |_| {
             for i in 0..cap {
-                while let Err(_) = tx.send_timeout(i, MS) {}
+                while tx.send_timeout(i, MS).is_err() {}
             }
         });
 

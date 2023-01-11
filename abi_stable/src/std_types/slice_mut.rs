@@ -91,7 +91,7 @@ mod privacy {
     ///
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(bound = "T: 'a")]
+    #[sabi(bound(T: 'a))]
     pub struct RSliceMut<'a, T> {
         data: *mut T,
         length: usize,
@@ -101,7 +101,7 @@ mod privacy {
     /// Used as a workaround to make `from_raw_parts_mut` a const fn.
     #[repr(C)]
     #[derive(StableAbi)]
-    #[sabi(bound = "T: 'a")]
+    #[sabi(bound(T: 'a))]
     struct MutWorkaround<'a, T>(&'a mut T);
 
     impl_from_rust_repr! {
@@ -353,49 +353,63 @@ impl<'a, T> RSliceMut<'a, T> {
         self.to_vec().into()
     }
 
-    unsafe fn as_slice_unbounded_lifetime(&self) -> &'a [T] {
-        ::std::slice::from_raw_parts(self.data(), self.len())
+    conditionally_const! {
+        feature = "rust_1_64"
+        ;
+        unsafe fn as_slice_unbounded_lifetime(&self) -> &'a [T] {
+            unsafe { ::std::slice::from_raw_parts(self.data(), self.len()) }
+        }
     }
 
     unsafe fn as_mut_slice_unbounded_lifetime(&mut self) -> &'a mut [T] {
-        ::std::slice::from_raw_parts_mut(self.data(), self.len())
+        unsafe { ::std::slice::from_raw_parts_mut(self.data(), self.len()) }
     }
 
-    /// Creates an `&'_ [T]` with access to all the elements of this slice.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RSliceMut;
-    ///
-    /// assert_eq!(
-    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).as_slice(),
-    ///     &[0, 1, 2, 3]
-    /// );
-    ///
-    /// ```
-    pub fn as_slice(&self) -> &[T] {
-        unsafe { self.as_slice_unbounded_lifetime() }
+    conditionally_const! {
+        feature = "rust_1_64"
+        /// Creates an `&'_ [T]` with access to all the elements of this slice.
+        ///
+        ;
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RSliceMut;
+        ///
+        /// assert_eq!(
+        ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).as_slice(),
+        ///     &[0, 1, 2, 3]
+        /// );
+        ///
+        /// ```
+        pub fn as_slice(&self) -> &[T] {
+            unsafe { self.as_slice_unbounded_lifetime() }
+        }
     }
 
-    /// Creates an `&'a [T]` with access to all the elements of this slice.
-    ///
-    /// This is different to `as_slice` in that the returned lifetime of
-    /// this function  is larger.
-    ///
-    /// # Example
-    ///
-    /// ```
-    /// use abi_stable::std_types::RSliceMut;
-    ///
-    /// assert_eq!(
-    ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).into_slice(),
-    ///     &[0, 1, 2, 3]
-    /// );
-    ///
-    /// ```
-    pub fn into_slice(self) -> &'a [T] {
-        unsafe { self.as_slice_unbounded_lifetime() }
+    conditionally_const! {
+        feature = "rust_1_64"
+        /// Creates an `&'a [T]` with access to all the elements of this slice.
+        ///
+        /// This is different to `as_slice` in that the returned lifetime of
+        /// this function  is larger.
+        ///
+        ;
+        ///
+        /// # Example
+        ///
+        /// ```
+        /// use abi_stable::std_types::RSliceMut;
+        ///
+        /// assert_eq!(
+        ///     RSliceMut::from_mut_slice(&mut [0, 1, 2, 3]).into_slice(),
+        ///     &[0, 1, 2, 3]
+        /// );
+        ///
+        /// ```
+        pub fn into_slice(self) -> &'a [T] {
+            unsafe { self.as_slice_unbounded_lifetime() }
+        }
     }
 
     /// Creates an `RSlice<'_, T>` with access to all the elements of this slice.
@@ -501,7 +515,6 @@ slice_like_impl_cmp_traits! {
     RSlice<'_, U>,
 }
 
-#[cfg(feature = "const_params")]
 slice_like_impl_cmp_traits! {
     impl[const N: usize] RSliceMut<'_, T>,
     where[];
@@ -512,7 +525,7 @@ slice_like_impl_cmp_traits! {
     impl[] RSliceMut<'_, T>,
     where[T: Clone, U: Clone];
     std::borrow::Cow<'_, [U]>,
-    crate::std_types::RCow<'_, [U]>,
+    crate::std_types::RCowSlice<'_, U>,
 }
 
 impl<'a, T> Deref for RSliceMut<'a, T> {
@@ -654,6 +667,19 @@ mod test {
         assert_eq!(&*a, &mut *b);
         assert_eq!(a_addr, b.data());
         assert_eq!(a.len(), b.len());
+    }
+
+    #[cfg(feature = "rust_1_64")]
+    #[test]
+    fn const_as_slice_test() {
+        const RSM: RSliceMut<'_, u8> =
+            unsafe { RSliceMut::from_raw_parts_mut(std::ptr::NonNull::dangling().as_ptr(), 0) };
+
+        const SLICE_A: &[u8] = RSM.as_slice();
+        const SLICE_B: &[u8] = RSM.into_slice();
+
+        assert_eq!(SLICE_A, [0u8; 0]);
+        assert_eq!(SLICE_B, [0u8; 0]);
     }
 
     #[test]

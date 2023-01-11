@@ -28,7 +28,7 @@ use crate::{
 /// Represents a type whose layout is stable.
 ///
 /// This trait can be derived using
-/// [`#[derive(StableAbi)]`](./derive.StableAbi.html).
+/// [`#[derive(StableAbi)]`](derive@crate::StableAbi).
 ///
 /// # Safety
 ///
@@ -39,7 +39,7 @@ use crate::{
 /// # Caveats
 ///
 /// This trait cannot be directly implemented for functions that take lifetime parameters,
-/// because of that, [`#[derive(StableAbi)]`](./derive.StableAbi.html)
+/// because of that, [`#[derive(StableAbi)]`](derive@crate::StableAbi)
 /// detects the presence of `extern fn` types in type definitions.
 pub unsafe trait StableAbi: GetStaticEquivalent_ {
     /// Whether this type has a single invalid bit-pattern.
@@ -64,9 +64,9 @@ pub unsafe trait StableAbi: GetStaticEquivalent_ {
     ///
     /// - `std::num::NonZero*`
     ///
-    /// [`True`]: ./reexports/struct.True.html
-    /// [`False`]: ./reexports/struct.False.html
-    /// [`ROption`]: ./std_types/enum.ROption.html
+    /// [`True`]: crate::reexports::True
+    /// [`False`]: crate::reexports::False
+    /// [`ROption`]: crate::std_types::ROption
     type IsNonZeroType: Boolean;
 
     /// The layout of the type provided by implementors.
@@ -113,7 +113,7 @@ pub struct AbiConsts {
     pub type_id: Constructor<UTypeId>,
 
     /// Whether the type uses non-zero value optimization,
-    /// if true then an Option<Self> implements StableAbi.
+    /// if true then an `Option<Self>` implements StableAbi.
     pub is_nonzero: bool,
 }
 
@@ -126,35 +126,6 @@ impl AbiConsts {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-
-/// Getter for the TypeLayout of some type,wraps an `extern "C" fn() -> &'static TypeLayout`.
-pub type TypeLayoutCtor = Constructor<&'static TypeLayout>;
-
-// pub unsafe trait GetTypeLayoutCtor<B> {
-
-#[doc(hidden)]
-pub struct GetTypeLayoutCtor<T>(T);
-
-impl<T> GetTypeLayoutCtor<T>
-where
-    T: StableAbi,
-{
-    pub const STABLE_ABI: TypeLayoutCtor = Constructor(get_type_layout::<T>);
-
-    pub const SABI_OPAQUE_FIELD: TypeLayoutCtor =
-        Constructor(get_type_layout::<UnsafeOpaqueField<T>>);
-}
-
-impl<T> GetTypeLayoutCtor<T>
-where
-    T: PrefixStableAbi,
-{
-    pub const PREFIX_STABLE_ABI: TypeLayoutCtor = Constructor(get_prefix_field_type_layout::<T>);
-}
-
-impl<T> GetTypeLayoutCtor<T> {
-    pub const OPAQUE_FIELD: TypeLayoutCtor = Constructor(get_type_layout::<UnsafeOpaqueField<T>>);
-}
 
 /// Retrieves the TypeLayout of `T: StableAbi`,
 pub extern "C" fn get_type_layout<T>() -> &'static TypeLayout
@@ -170,6 +141,18 @@ where
     T: PrefixStableAbi,
 {
     <T as PrefixStableAbi>::LAYOUT
+}
+
+#[doc(hidden)]
+pub extern "C" fn __sabi_opaque_field_type_layout<T>() -> &'static TypeLayout
+where
+    T: StableAbi,
+{
+    <UnsafeOpaqueField<T> as StableAbi>::LAYOUT
+}
+#[doc(hidden)]
+pub extern "C" fn __opaque_field_type_layout<T>() -> &'static TypeLayout {
+    <UnsafeOpaqueField<T> as StableAbi>::LAYOUT
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -814,12 +797,8 @@ where
 
 /////////////
 
-#[cfg(feature = "const_params")]
 macro_rules! impl_stable_abi_array {
     () => {
-        /// When the "const_params" feature is disabled,
-        /// this trait is implemented for arrays of up to 32 elements.
-        #[cfg_attr(feature = "docsrs", doc(cfg(feature = "const_params")))]
         unsafe impl<T, const N: usize> GetStaticEquivalent_ for [T; N]
         where
             T: GetStaticEquivalent_,
@@ -827,9 +806,6 @@ macro_rules! impl_stable_abi_array {
             type StaticEquivalent = [T::StaticEquivalent; N];
         }
 
-        /// When the "const_params" feature is disabled,
-        /// this trait is implemented for arrays of up to 32 elements.
-        #[cfg_attr(feature = "docsrs", doc(cfg(feature = "const_params")))]
         unsafe impl<T, const N: usize> StableAbi for [T; N]
         where
             T: StableAbi,
@@ -845,7 +821,7 @@ macro_rules! impl_stable_abi_array {
                         *mono_shared_vars,
                         rstr!("array"),
                         ItemInfo::primitive(),
-                        MonoTLData::Primitive(TLPrimitive::Array { len: N }),
+                        MonoTLData::Primitive(TLPrimitive::Array),
                         tl_genparams!(;0;0),
                         ReprAttr::Primitive,
                         ModReflMode::Module,
@@ -879,73 +855,7 @@ macro_rules! impl_stable_abi_array {
     };
 }
 
-#[cfg(feature = "const_params")]
 impl_stable_abi_array! {}
-
-/////////////
-
-#[cfg(not(feature = "const_params"))]
-macro_rules! impl_stable_abi_array {
-    ($($size:expr),*)=>{
-        $(
-            unsafe impl<T> GetStaticEquivalent_ for [T;$size]
-            where T:GetStaticEquivalent_
-            {
-                type StaticEquivalent=[T::StaticEquivalent;$size];
-            }
-
-            unsafe impl<T> StableAbi for [T;$size]
-            where T:StableAbi
-            {
-                type IsNonZeroType=False;
-
-                const LAYOUT: &'static TypeLayout = {
-                    const MONO_TYPE_LAYOUT:&MonoTypeLayout=&MonoTypeLayout::new(
-                        *mono_shared_vars,
-                        rstr!("array"),
-                        ItemInfo::primitive(),
-                        MonoTLData::Primitive(TLPrimitive::Array{len:$size}),
-                        tl_genparams!(;0;0),
-                        ReprAttr::Primitive,
-                        ModReflMode::Module,
-                        {
-                            const S: &[CompTLField] = &[
-                                CompTLField::std_field(field0,LifetimeRange::EMPTY,0),
-                            ];
-                            RSlice::from_slice(S)
-                        },
-                    );
-
-                    make_shared_vars!{
-                        impl[T] [T; $size]
-                        where[T: StableAbi];
-
-                        let (mono_shared_vars,shared_vars)={
-                            strings={ field0:"element", },
-                            type_layouts=[T],
-                            constant=[usize => $size as usize],
-                        };
-                    }
-
-                    &TypeLayout::from_std::<Self>(
-                        shared_vars,
-                        MONO_TYPE_LAYOUT,
-                        Self::ABI_CONSTS,
-                        GenericTLData::Primitive,
-                    )
-                };
-            }
-        )*
-    }
-}
-
-#[cfg(not(feature = "const_params"))]
-impl_stable_abi_array! {
-    00,01,02,03,04,05,06,07,08,09,
-    10,11,12,13,14,15,16,17,18,19,
-    20,21,22,23,24,25,26,27,28,29,
-    30,31,32
-}
 
 /////////////
 
@@ -955,7 +865,7 @@ where
 {
     type StaticEquivalent = Option<T::StaticEquivalent>;
 }
-/// Implementing abi stability for Option<T> is fine if
+/// Implementing abi stability for `Option<T>` is fine if
 /// T is a NonZero primitive type.
 unsafe impl<T> StableAbi for Option<T>
 where
@@ -1060,55 +970,8 @@ impl_for_primitive_ints! {
     (usize,"usize",TLPrimitive::Usize),
     (isize,"isize",TLPrimitive::Isize),
     (bool ,"bool" ,TLPrimitive::Bool),
-}
-
-// This is a workaround due to it being ABI breaking to add variants to TLPrimitive.
-macro_rules! impl_for_floating_point {
-    (
-        $( ($type:ty, $type_name:literal) ,)*
-    ) => (
-        $(
-            unsafe impl GetStaticEquivalent_ for $type {
-                type StaticEquivalent=Self;
-            }
-            unsafe impl StableAbi for $type {
-                type IsNonZeroType=False;
-
-                const LAYOUT: &'static TypeLayout = {
-                    const MONO_TYPE_LAYOUT: &MonoTypeLayout = &MonoTypeLayout::new(
-                        *mono_shared_vars,
-                        rstr!($type_name),
-                        ItemInfo::primitive(),
-                        MonoTLData::Opaque,
-                        tl_genparams!(;;),
-                        ReprAttr::Primitive,
-                        ModReflMode::Module,
-                        RSlice::EMPTY,
-                    );
-
-                    make_shared_vars!{
-                        impl[] $type;
-
-                        let (mono_shared_vars, shared_vars)={
-                            type_layouts=[],
-                        };
-                    }
-
-                    &TypeLayout::from_std::<Self>(
-                        shared_vars,
-                        MONO_TYPE_LAYOUT,
-                        Self::ABI_CONSTS,
-                        GenericTLData::Opaque,
-                    )
-                };
-            }
-        )*
-    )
-}
-
-impl_for_floating_point! {
-    (f32, "f32"),
-    (f64, "f64"),
+    (f32 ,"f32" ,TLPrimitive::F32),
+    (f64 ,"f64" ,TLPrimitive::F64),
 }
 
 macro_rules! impl_for_concrete {
@@ -1521,12 +1384,15 @@ unsafe impl StableAbi for unsafe extern "C" fn() {
     const LAYOUT: &'static TypeLayout = empty_extern_fn_layout!(unsafe extern "C" fn());
 }
 
-/// The TypeLayoutCtor of an `unsafe extern "C" fn()`
-pub const UNSAFE_EXTERN_FN_LAYOUT: TypeLayoutCtor =
-    GetTypeLayoutCtor::<unsafe extern "C" fn()>::STABLE_ABI;
+/// A function that returns the TypeLayout of an `unsafe extern "C" fn()`
+#[doc(hidden)]
+pub const UNSAFE_EXTERN_FN_LAYOUT: extern "C" fn() -> &'static TypeLayout =
+    get_type_layout::<unsafe extern "C" fn()>;
 
-/// The TypeLayoutCtor of an `extern "C" fn()`
-pub const EXTERN_FN_LAYOUT: TypeLayoutCtor = GetTypeLayoutCtor::<extern "C" fn()>::STABLE_ABI;
+/// A function that returns the TypeLayout of an `extern "C" fn()`
+#[doc(hidden)]
+pub const EXTERN_FN_LAYOUT: extern "C" fn() -> &'static TypeLayout =
+    get_type_layout::<extern "C" fn()>;
 
 /////////////
 
