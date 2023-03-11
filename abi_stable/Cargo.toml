@@ -51,7 +51,7 @@ channels=["crossbeam-channel"]
 abi_stable_derive= {version="0.11.0",path="../abi_stable_derive"}
 abi_stable_shared= {version="0.11.0",path="../abi_stable_shared"}
 serde          = { version = "1.0.136", features = ["derive"] }
-repr_offset = { version = "0.2.1", default_features = false }
+repr_offset = { version = "0.2.2", default_features = false }
 serde_derive   = "1.0.136"
 libloading     = "0.7.3"
 parking_lot    = "0.12.0"
