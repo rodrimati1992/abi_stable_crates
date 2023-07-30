@@ -1,0 +1,13 @@
+[package]
+name = "readme_interface"
+version = "0.1.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+abi_stable={path="../../../abi_stable"}
+
+[features]
+
+# Enables `impl`s of  `#[sabi_trait]` traits from this crate
+impls = []

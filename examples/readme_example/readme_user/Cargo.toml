@@ -1,0 +1,11 @@
+[package]
+name = "readme_user"
+version = "0.1.0"
+authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+abi_stable={path="../../../abi_stable"}
+
+[dependencies.readme_interface]
+path = "../readme_interface"
