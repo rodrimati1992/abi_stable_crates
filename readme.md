@@ -78,7 +78,7 @@ These are the example crates:
 <span id = "readme_example"></span>
 # Example
 
-This is a full example, which is located in `readme/readme_example`, demonstrating:
+This is a full example, which is located in `examples/readme_example`, demonstrating:
 
 - `user crates`(defined in the Architecture section below).
 
