@@ -58,6 +58,9 @@ jobs:
         cd "${{github.workspace}}/examples/2_nonexhaustive/implementation/"
         cargo +beta build
 
+        cd "${{github.workspace}}/examples/readme_example/readme_implementation/"
+        cargo +beta build
+
         cd "${{github.workspace}}/testing/0/impl_0/"
         cargo +beta build
 
@@ -83,6 +86,9 @@ jobs:
         cargo check
 
         cd "${{github.workspace}}/examples/2_nonexhaustive/implementation/"
+        cargo check
+
+        cd "${{github.workspace}}/examples/readme_example/readme_implementation/"
         cargo check
 
         cd "${{github.workspace}}/testing/0/impl_0/"
@@ -115,6 +121,8 @@ jobs:
         cd "${{github.workspace}}/examples/2_nonexhaustive/implementation/"
         cargo test
         cd "${{github.workspace}}/examples/2_nonexhaustive/user/"
+        cargo run
+        cd "${{github.workspace}}/examples/readme_example/readme_user/"
         cargo run
         cd "${{github.workspace}}/testing/0/user_0/"
         cargo run
