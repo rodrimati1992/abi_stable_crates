@@ -811,6 +811,17 @@ where
     }
 }
 
+impl<'lt, I, V> RObject<'lt, crate::std_types::RArc<()>, I, V> {
+    /// Does a shallow clone of the object, just incrementing the reference counter
+    pub fn shallow_clone(&self) -> Self {
+        Self {
+            vtable: self.vtable,
+            ptr: self.ptr.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
 impl<P, I, V> Drop for RObject<'_, P, I, V>
 where
     P: GetPointerKind,
