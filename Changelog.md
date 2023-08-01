@@ -4,6 +4,10 @@ Minor changes may be ommited, as well as improvements to documentation.
 
 # 0.11
 
+### 0.11.3
+
+Added `shallwo_clone` methods to `DynTrait` and `RObject`.
+
 ### 0.11.0
 
 Bumped Minimum Supported Rust Version to 1.61.0, to use trait bounds in const fns.

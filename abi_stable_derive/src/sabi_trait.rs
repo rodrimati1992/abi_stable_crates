@@ -183,7 +183,7 @@ pub fn derive_sabi_trait(item: ItemTrait) -> Result<TokenStream2, syn::Error> {
 ///     A marker type describing the traits that are required when constructing
 ///     the underlying implementation of the trait object,
 ///     and are then implemented by it,
-///     by implementing [`InterfaceType`](::abi_stable::InterfaceType).
+///     by implementing `InterfaceType`.
 ///
 /// - `Trait_TO`:
 ///     The ffi-safe trait object for the trait.
