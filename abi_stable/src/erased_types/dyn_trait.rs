@@ -1575,6 +1575,19 @@ mod priv_ {
         }
     }
 
+    impl<'lt, I, EV: Clone> DynTrait<'lt, crate::std_types::RArc<()>, I, EV> {
+        /// Does a shallow clone of the object, just incrementing the reference counter
+        pub fn shallow_clone(&self) -> Self {
+            Self {
+                object: self.object.clone(),
+                vtable: self.vtable,
+                extra_value: self.extra_value.clone(),
+                _marker: self._marker,
+                _marker2: self._marker2,
+            }
+        }
+    }
+
     impl<'borr, P, I, EV> Drop for DynTrait<'borr, P, I, EV>
     where
         P: GetPointerKind,
