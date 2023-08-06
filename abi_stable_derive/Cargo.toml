@@ -1,6 +1,6 @@
 [package]
 name = "abi_stable_derive"
-version = "0.11.0"
+version = "0.11.3"
 authors = ["rodrimati1992 <rodrimatt1985@gmail.com>"]
 rust-version = "1.61.0"
 edition = "2021"

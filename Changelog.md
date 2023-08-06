@@ -6,7 +6,7 @@ Minor changes may be ommited, as well as improvements to documentation.
 
 ### 0.11.3
 
-Added `shallwo_clone` methods to `DynTrait` and `RObject`.
+Added `shallow_clone` methods to `DynTrait` and `RObject`.
 
 ### 0.11.0
 
