@@ -1021,10 +1021,13 @@ mod priv_ {
         /// };
         ///
         /// let to: DynTrait<'static, RBox<()>, ()> =
-        ///     DynTrait::from_value(RVec::<u8>::from_slice(b"foobarbaz"));
+        ///     DynTrait::from_value(RString::from("foobarbaz"));
         ///
-        /// let string = to.sabi_with_value(|x| unsafe {
-        ///     MovePtr::into_inner(MovePtr::transmute::<String>(x))
+        /// let string = to.sabi_with_value(|x| {
+        ///     // SAFETY: the erased object is an RString constructed in the current binary.
+        ///     unsafe {
+        ///         MovePtr::into_inner(MovePtr::transmute::<RString>(x))
+        ///     }
         /// });
         ///
         /// assert_eq!(string, "foobarbaz");

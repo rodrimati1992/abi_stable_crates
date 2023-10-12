@@ -415,7 +415,7 @@ pub trait Dictionary: Debug + Clone {
 ```
 
 
-# Constructing a trait object in a constant
+### Constructing a trait object in a constant
 
 This shows how one can construct a `#[sabi_trait]` generated trait object in a constant/static.
 
@@ -464,13 +464,53 @@ assert!(!IS_CARD.contains(&'B'));
 
 ```
 
+### Cloning an `RArc`-using trait object.
+
+Because of a quirk of how `#[sabi_trait]` trait objects work,
+trait objects that use [`RArc`] can only be `.clone()`d if they 
+have a `Clone` supertrait.
+To work around this, you can use the 
+[`RObject::shallow_clone`] /[`DynTrait::shallow_clone`] methods.
+
+```rust
+use abi_stable::{
+    sabi_trait,
+    sabi_trait::TD_Opaque,
+    std_types::RArc,
+};
+
+# fn main() {
+let object = Foo_TO::from_ptr(RArc::new(SomeDay{day: 10}), TD_Opaque);
+
+// calling `RObject::shallow_clone` to clone the `RArc`-based trait object,
+// now both have a `RArc` handle to the same data.
+let clone = Foo_TO::from_sabi(object.obj.shallow_clone());
+
+assert_eq!(format!("{:?}", object), format!("{:?}", clone));
+# }
+
+
+#[sabi_trait]
+pub trait Foo: Sync + Send + Debug {}
+
+#[derive(Debug)]
+struct SomeDay {
+    day: u32,
+}
+
+impl Foo for SomeDay {}
+```
+
 
 
 [`abi_stable::sabi_trait`]: ./sabi_trait/index.html
-[`RObject`]: ./sabi_trait/struct.RObject.html
-[`DynTrait`]: ./struct.DynTrait.html
+[`RObject`]: crate::sabi_trait::RObject
+[`RObject::shallow_clone`]: crate::sabi_trait::RObject::shallow_clone
+[`DynTrait::shallow_clone`]: crate::DynTrait::shallow_clone
+[`DynTrait`]: crate::DynTrait
 [`RBox<()>`]: ./std_types/struct.RBox.html
 [`RArc<()>`]: ./std_types/struct.RArc.html
+[`RArc`]: ./std_types/struct.RArc.html
 [`RRef<'_, ()>`]: ./sabi_types/struct.RRef.html
 [`RMut<'_, ()>`]: ./sabi_types/struct.RMut.html
 

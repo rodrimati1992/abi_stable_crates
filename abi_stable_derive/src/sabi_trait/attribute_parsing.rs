@@ -85,7 +85,7 @@ impl<'a> MethodWithAttrs<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-/// A datastructure used while parsing the helper attributes of #[sabi_trait].
+/// A datastructure used while parsing the helper attributes of `#[sabi_trait]`.
 #[derive(Default)]
 pub(super) struct SabiTraitAttrs<'a> {
     /// Whether the output of the proc-macro is printed with println.
@@ -109,7 +109,7 @@ pub(super) struct SabiTraitAttrs<'a> {
     pub(super) errors: LinearResult<()>,
 }
 
-/// Used as context while parsing helper attributes of #[sabi_trait].
+/// Used as context while parsing helper attributes of `#[sabi_trait]`.
 #[derive(Debug, Copy, Clone)]
 enum ParseContext {
     TraitAttr,

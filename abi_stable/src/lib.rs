@@ -380,6 +380,7 @@ extern "Rust" {
     fn miri_static_root(ptr: *const u8);
 }
 
-#[cfg(doctest)]
-#[doc = include_str!("../../readme.md")]
-pub struct ReadmeTest;
+// Removed readme testing, now the readme code is tested with actual crates.
+// #[cfg(doctest)]
+// #[doc = include_str!("../../readme.md")]
+// pub struct ReadmeTest;
